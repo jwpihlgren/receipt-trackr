@@ -1,0 +1,16 @@
+{
+  "name": "receipt-trackr-spike",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "M0: mäter PP-OCRv6-nivåer mot verkliga kvitton på målhårdvaran",
+  "scripts": {
+    "probe": "node probe-api.mjs",
+    "spike": "node run.mjs"
+  },
+  "dependencies": {
+    "onnxruntime-node": "^1.29.0",
+    "ppu-paddle-ocr": "*",
+    "sharp": "^0.34.0"
+  }
+}

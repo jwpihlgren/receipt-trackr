@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+
+# Kvittobilder är privata och hör aldrig hemma i versionshanteringen.
+spike/samples/*
+!spike/samples/.gitkeep
+spike/out*/
+data/
