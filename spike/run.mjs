@@ -23,8 +23,9 @@ const args = Object.fromEntries(
   }),
 );
 
-// Blekt termopapper och färska kvitton mäts var för sig — en sammanslagen siffra
-// ger falskt underkänt. Därför är både urval och utkatalog flaggor.
+// Material av olika slag — vikta kvitton, blekt termopapper, färska kvitton — mäts var
+// för sig. En sammanslagen siffra ger falskt underkänt. Därför är både urval och
+// utkatalog flaggor.
 const SAMPLES = args.samples ?? "./samples";
 const OUT = args.out ?? "./out";
 
@@ -77,7 +78,8 @@ async function preprocess(buf, variant, width, rotation = 0) {
   if (rotation) img = img.rotate(rotation);
   if (width) img = img.resize({ width, fit: "inside", withoutEnlargement: true });
   if (variant === "raw") return img.jpeg({ quality: 95 }).toBuffer();
-  // clahe: lokal kontrast är där blekt termopapper har mest att hämta
+  // clahe: lokal kontrast, som blekt termopapper har mest att hämta av. Mot vikta men
+  // opåverkade kvitton är den snarare en kontroll än en förväntad vinst.
   return img.greyscale().clahe({ width: 64, height: 64, maxSlope: 3 }).jpeg({ quality: 95 }).toBuffer();
 }
 
@@ -137,8 +139,8 @@ async function loadSamples() {
   const imgs = files.filter((f) => /\.(jpe?g|png|webp|heic)$/i.test(f)).sort();
   if (!imgs.length) {
     throw new Error(
-      `Inga bilder i ${SAMPLES}/. Lägg 20 riktiga kvittobilder där — helst en blandning ` +
-        `av blekt termopapper ur högen och färska kvitton, så att de går att jämföra var för sig.`,
+      `Inga bilder i ${SAMPLES}/. Lägg minst 20 riktiga kvittobilder där. Håll material av ` +
+        `olika slag i egna kataloger — vikta, blekta, färska — så att de mäts var för sig.`,
     );
   }
   return Promise.all(imgs.map(async (f) => ({ name: f, buf: await readFile(join(SAMPLES, f)) })));

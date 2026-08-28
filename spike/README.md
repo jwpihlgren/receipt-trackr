@@ -73,9 +73,10 @@ binärer som ska matcha den runtime som kör dem.
 **På värden**, körningarna — `spike` startar en egen container per anrop:
 
 ```sh
-# de två högarna mäts var för sig, aldrig ihop
-spike --samples=./samples/gamla  --out=./out-gamla  --rotations=auto
-spike --samples=./samples/farska --out=./out-farska --rotations=auto
+# högen som finns i dag: förhållandevis nya kvitton, en del vikta
+spike --samples=./samples/gamla --out=./out-gamla --rotations=auto
+# tillkommer ett material till — blekt termopapper, färska kvitton — mäts det som en
+# egen omgång med egen --out, aldrig ihopslaget med ovanstående
 
 spike --tiers=small --sustained=60      # uthållighetstest, en timme
 spike --threads=4                       # trådtak för ONNX-runtimen
@@ -123,9 +124,18 @@ bakas de in i imagen i stället — inget ska hämtas över nätet vid drift (kr
 
 ## Urvalet spelar roll
 
-Lägg in **blekt termopapper ur högen och färska kvitton var för sig**, och kör dem som
-två omgångar. En sammanslagen siffra ger falskt underkänt, precis som kravställningens
-mätavsnitt säger. Bilderna är privata och är utestängda från git.
+Högen som finns i dag (`samples/gamla`, 35 bilder) är **förhållandevis nya kvitton, en del
+vikta — inte blekt termopapper**. Katalognamnet säger alltså inget om papperets skick.
+Vecken är det som gör materialet svårt här: de bryter raderna geometriskt, inte
+kontrastmässigt, vilket är ett annat problem än blekning och inte nödvändigtvis ett som
+`clahe` hjälper mot.
+
+Blekt termopapper saknas därmed helt i mätningen. Tillkommer det senare mäts det som en
+egen omgång med egen `--out`: en sammanslagen siffra över två så olika material ger falskt
+underkänt, precis som kravställningens mätavsnitt säger. Detsamma gäller om ett urval
+färska kvitton läggs till.
+
+Bilderna är privata och är utestängda från git.
 
 ## Kända fel i tidigare körningar
 
@@ -157,7 +167,7 @@ förklaringar återstår, och de kräver olika åtgärder:
   kvittot ligger på sidan i bildrutan.
 
 **Diagnosen kördes 2026-08-28 och svaret är entydigt: taggen saknas.** 91 % av bilderna i
-den gamla högen har ingen EXIF-vridning alls, 94 % är liggande efter förbehandlingen och
+högen har ingen EXIF-vridning alls, 94 % är liggande efter förbehandlingen och
 86 % lästes ett tecken i taget. Vriden 90° läser samma hög med 834 tecken per bild och
 konfidens 0,95 mot 29 tecken och 0,27 upprätt — belopp hittas på 94 % av bilderna mot 6 %,
 och åäö på 89 % mot 3 %. Motsatt håll, 270°, ger 639 tecken men konfidens 0,58 och belopp
@@ -196,7 +206,7 @@ Uppräting är inte en spikedetalj utan ett krav på servern, och hör därför 
 1. **Bilden rätas upp explicit, först i kedjan** — `sharp(buf, { autoOrient: true })`, före
    skalning, gråskala och kontrastarbete. Att stegen inte går att kasta om av misstag är
    halva poängen med att lägga det på indatasteget.
-2. **EXIF räcker inte som garanti** — 91 % av bilderna i den gamla högen saknar taggen helt.
+2. **EXIF räcker inte som garanti** — 91 % av bilderna i högen saknar taggen helt.
    Orienteringen måste avgöras på pixlarna, och regeln som mätts fram ser ut så här:
    andelen textrutor som är högre än breda avgör *om* sidan ligger ned (tröskel 0,5, mätt
    till 0,86 på liggande bilder och 0 på stående), och en provläsning åt båda hållen avgör
@@ -217,7 +227,7 @@ filen som den ligger. Samma bild ser alltså rätt ut i granskningsvyn och läse
 
 Mätt mot en syntetisk kvittobild — alltså ren, renderad text, inte riktigt papper.
 Slutsatserna om *kvalitet* är preliminära, men båda fynden nedan uppträder redan på ren
-indata och kan bara bli värre på blekt termopapper.
+indata och kan bara bli värre på fotograferat papper.
 
 **`tiny` tappar svenska diakriter.** VÄGG lästes som "VÅGG", FÄSTMASSA som "FÅSTMASSA",
 GRÅ som "GRA". `small` fick alla rätt. Det stämmer med modellkatalogens notering om att
