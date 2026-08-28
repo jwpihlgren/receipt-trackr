@@ -3,7 +3,8 @@
  *
  * Answers four questions, and nothing else:
  *   1. Does the pipeline read this material at all — and if not, does it fail in
- *      detection (no boxes) or in recognition (boxes, but no text)?
+ *      detection (no boxes), in recognition (boxes, but no text), or in orientation
+ *      (boxes and text, but one character per line because the page lies sideways)?
  *   2. Which model tier and input resolution is worth its runtime on this material?
  *   3. Does per-line confidence come out, and does it vary usefully?
  *   4. What is sustained throughput once the fanless board has warmed up?
@@ -38,13 +39,33 @@ const variants = (args.variants ?? "raw,clahe").split(",");
 // Nedskalning före OCR är en riktig produktionsparameter, inte en detalj: den
 // ändrar både lästid och hur detektorn styckar sidan. Därför en egen axel.
 const widths = (args.widths ?? "1600,full").split(",").map((w) => (w === "full" ? 0 : Number(w)));
+// Orienteringen är en mätaxel, inte en självklarhet. `exif` är produktionsvägen:
+// sharp läser Orientation-taggen och rätar upp bilden. Saknas taggen — telefonen
+// sparade sensorns liggande bild utan att märka den, eller så tvättade
+// överföringen bort metadatan — hjälper ingen automatik, och då är 90/180/270
+// sättet att mäta vad orienteringen kostade i stället för att gissa.
+const rotations = (args.rotations ?? "exif").split(",").map((r) => (r === "exif" ? 0 : Number(r)));
+if (rotations.some((r) => ![0, 90, 180, 270].includes(r))) {
+  throw new Error("--rotations tar exif, 90, 180 eller 270, kommaseparerat.");
+}
 const threads = Number(args.threads ?? 2);
 const sustainedMinutes = Number(args.sustained ?? 0);
 const saveCrops = Boolean(args.crops);
+// Biblioteket vrider som standard varje beskuren ruta som är klart högre än bred
+// 90° moturs. På en bild som ligger ned rätas raderna därmed upp medan varje
+// tecken blir liggande, och igenkänningen svarar med ett tecken per rad i stället
+// för med ingenting. Flaggan finns för att kunna se det felet oskymt.
+const rotateVerticalCrops = String(args.vertcrops ?? "true") !== "false";
 
-/** EXIF-rotation alltid; resten är varianten under test. */
-async function preprocess(buf, variant, width) {
-  let img = sharp(buf).rotate();
+/**
+ * EXIF-orienteringen sätts på indatasteget (`autoOrient`), inte som ett led i
+ * kedjan: sharp rätar upp bilden när den avkodas, alltså före rotation, skalning
+ * och gråskala, oavsett i vilken ordning anropen nedan står. Resten är varianten
+ * under test.
+ */
+async function preprocess(buf, variant, width, rotation = 0) {
+  let img = sharp(buf, { autoOrient: true });
+  if (rotation) img = img.rotate(rotation);
   if (width) img = img.resize({ width, fit: "inside", withoutEnlargement: true });
   if (variant === "raw") return img.jpeg({ quality: 95 }).toBuffer();
   // clahe: lokal kontrast är där blekt termopapper har mest att hämta
@@ -120,18 +141,23 @@ async function makeService(tier) {
     // Biblioteket kastar som standard allt under 0.5 i konfidens. Det är rimligt
     // för en app, men förstör precis den mätning spiken finns för: en fördelning
     // som är avhuggen nedtill kan aldrig bära en tröskel.
-    recognition: { minimumConfidence: 0 },
+    recognition: { minimumConfidence: 0, rotateVerticalCrops },
     session: { intraOpNumThreads: threads, interOpNumThreads: 1 },
   });
   await service.initialize();
   return service;
 }
 
-async function runPass(service, samples, variant, width, { collectText, tier, label } = {}) {
+async function runPass(service, samples, variant, width, rotation, { collectText, tier, label } = {}) {
   const perImage = [];
   const pooledConfidence = [];
   for (const { name, buf } of samples) {
-    const input = await preprocess(buf, variant, width);
+    // Källans mått och Orientation-tagg läses före förbehandlingen. Det är enda
+    // sättet att skilja "bilden saknar tagg och ligger ned på disken" från
+    // "taggen fanns och lästes" — utan den skillnaden går ett orienteringsfel
+    // inte att felsöka, bara att gissa om.
+    const src = await sharp(buf).metadata();
+    const input = await preprocess(buf, variant, width, rotation);
     const meta = await sharp(input).metadata();
     const ab = toArrayBuffer(input);
 
@@ -150,22 +176,39 @@ async function runPass(service, samples, variant, width, { collectText, tier, la
     const items = all.filter((r) => r.text.trim().length > 0);
     const confs = items.map((r) => r.confidence).filter((c) => Number.isFinite(c));
     pooledConfidence.push(...confs);
+    const chars = items.reduce((s, r) => s + r.text.trim().length, 0);
     perImage.push({
       image: name,
+      source: `${src.width}x${src.height}`,
+      // sharp utelämnar fältet när taggen saknas; 1 betyder "upprätt, vrid inte".
+      exifOrientation: src.orientation ?? null,
       pixels: `${meta.width}x${meta.height}`,
+      upright: meta.height >= meta.width,
+      // En textruta som är högre än bred är en rad som står på högkant. Måttet är
+      // modellfritt och pekar på bilden, inte på nivån.
+      tallBoxShare: det.boxes.length
+        ? +(det.boxes.filter((b) => b.height > b.width).length / det.boxes.length).toFixed(2)
+        : 0,
       detMs: +detMs.toFixed(1),
       ms: +ms.toFixed(1),
       boxes: det.boxes.length,
       lines: items.length,
       emptyBoxes: all.length - items.length,
-      chars: items.reduce((s, r) => s + r.text.trim().length, 0),
+      chars,
+      // Ungefär ett tecken per läst rad är signaturen för tecken som ligger ned:
+      // raden hittas, ramas in och läses — och ger ändå bara ett tecken ifrån sig.
+      charsPerLine: items.length ? +(chars / items.length).toFixed(1) : 0,
       confidence: stats(confs),
       fields: probeFields(items),
     });
     if (collectText) {
       await writeFile(
         join(OUT, "text", `${label}__${basename(name, extname(name))}.txt`),
-        [`# ${name} ${meta.width}x${meta.height} — ${det.boxes.length} rutor, ${items.length} lästa rader`, ""]
+        [
+          `# ${name} ${src.width}x${src.height} exif=${src.orientation ?? "saknas"} → ` +
+            `${meta.width}x${meta.height} — ${det.boxes.length} rutor, ${items.length} lästa rader`,
+          "",
+        ]
           .concat(all.map((r) => `${r.text || "(tom)"} [${r.confidence.toFixed(3)}]`))
           .join("\n"),
       );
@@ -184,6 +227,14 @@ function summarise(perImage, pooledConfidence) {
     linesPerImage: stats(perImage.map((r) => r.lines)),
     charsPerImage: stats(perImage.map((r) => r.chars)),
     pooledLineConfidence: stats(pooledConfidence),
+    charsPerLine: stats(perImage.map((r) => r.charsPerLine)),
+    tallBoxShare: stats(perImage.map((r) => r.tallBoxShare)),
+    shareLandscape: share((r) => !r.upright),
+    // Ingen tagg, eller taggen 1 ("upprätt"), betyder båda att EXIF inte vrider
+    // något. Ligger bilden ändå ned är det pixlarna som är vridna, inte metadatan.
+    shareNoExifRotation: share((r) => !r.exifOrientation || r.exifOrientation === 1),
+    // Rader hittas och läses, men ger ~ett tecken var. Se kommentaren vid charsPerLine.
+    shareSideways: share((r) => r.lines >= 5 && r.charsPerLine < 2.5),
     shareNoBoxes: share((r) => r.boxes === 0),
     shareNoText: share((r) => r.chars === 0),
     shareBarelyRead: share((r) => r.chars > 0 && r.chars < 40),
@@ -196,14 +247,14 @@ function summarise(perImage, pooledConfidence) {
 }
 
 /** Sustained load: the number that matters on a fanless board. */
-async function runSustained(service, samples, variant, width, minutes) {
+async function runSustained(service, samples, variant, width, rotation, minutes) {
   const deadline = Date.now() + minutes * 60_000;
   const buckets = [];
   const started = Date.now();
   let i = 0;
   while (Date.now() < deadline) {
     const { buf } = samples[i++ % samples.length];
-    const input = await preprocess(buf, variant, width);
+    const input = await preprocess(buf, variant, width, rotation);
     const t0 = performance.now();
     await service.recognize(toArrayBuffer(input), { flatten: true, noCache: true });
     const ms = performance.now() - t0;
@@ -225,6 +276,9 @@ async function runSustained(service, samples, variant, width, minutes) {
 }
 
 const wname = (w) => (w ? String(w) : "full");
+const rname = (r) => (r ? `${r}°` : "exif");
+/** Nivå/variant/bredd/vridning i en cell — samma ordning som etiketterna i text/. */
+const axes = (r) => `${r.tier} | ${r.variant} | ${wname(r.width)} | ${rname(r.rotation)}`;
 
 function report(results, sustained) {
   const l = [];
@@ -233,12 +287,14 @@ function report(results, sustained) {
 
   // Läser den överhuvudtaget? Allt annat är meningslöst innan den frågan är besvarad.
   l.push("## Läser den kvittot alls?\n");
-  l.push("| Nivå | Variant | Bredd | Bilder utan rutor | Bilder utan text | Knappt läst (<40 tecken) | Tecken/bild (median) |");
-  l.push("| --- | --- | --- | --- | --- | --- | --- |");
+  l.push(
+    "| Nivå | Variant | Bredd | Vridning | Bilder utan rutor | Bilder utan text | Knappt läst (<40 tecken) | Tecken/bild (median) |",
+  );
+  l.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const r of results) {
     const s = r.summary;
     l.push(
-      `| ${r.tier} | ${r.variant} | ${wname(r.width)} | ${s.shareNoBoxes} | ${s.shareNoText} | ` +
+      `| ${axes(r)} | ${s.shareNoBoxes} | ${s.shareNoText} | ` +
         `${s.shareBarelyRead} | ${s.charsPerImage.median} |`,
     );
   }
@@ -247,37 +303,103 @@ function report(results, sustained) {
   l.push("");
   if (w.charsPerImage.median < 40) {
     l.push(
-      `**Ingen inställning läser materialet.** Bästa försöket (${worst.tier}/${worst.variant}/${wname(worst.width)}) ` +
+      `**Ingen inställning läser materialet.** Bästa försöket (${worst.tier}/${worst.variant}/${wname(worst.width)}/${rname(worst.rotation)}) ` +
         `ger ${w.charsPerImage.median} tecken per bild. ` +
-        (w.shareNoBoxes > 0.5
+        (w.shareSideways > 0.2
+          ? `Felet ligger i **orienteringen**, inte i modellen: ${(w.shareSideways * 100).toFixed(0)} % av bilderna ` +
+            `ger ungefär ett tecken per läst rad. Se orienteringstabellen nedan innan något annat ändras.`
+          : w.shareNoBoxes > 0.5
           ? `Felet ligger i **detektionen**: ${(w.shareNoBoxes * 100).toFixed(0)} % av bilderna ger noll textrutor. ` +
             `Titta på bilderna själv — beskärning, skärpa och att kvittot fyller bilden är det som avgör här, inte modellnivån.`
           : `Detektionen hittar rutor men igenkänningen får inte ut text ur dem. Kör om med \`--crops\` och titta i \`crops/\`: ` +
             `står texten upp och ner, är den avskuren, eller är kontrasten borta?`),
     );
   } else {
-    l.push(`Bästa inställning: **${worst.tier}/${worst.variant}/${wname(worst.width)}**, ${w.charsPerImage.median} tecken per bild.`);
+    l.push(
+      `Bästa inställning: **${worst.tier}/${worst.variant}/${wname(worst.width)}/${rname(worst.rotation)}**, ` +
+        `${w.charsPerImage.median} tecken per bild.`,
+    );
   }
 
-  l.push("\n## Genomströmning och konfidens\n");
-  l.push("| Nivå | Variant | Bredd | ms/bild (median) | ms p90 | varav detektion | Rutor | Lästa rader | Radkonfidens median | p10 |");
-  l.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  // Orienteringen står näst i rapporten, före hastighet och konfidens, därför att
+  // den ogiltigförklarar allt under sig när den är fel: en bild som ligger ned ger
+  // textrutor på högkant, och en igenkänning byggd för vågrät text svarar med ett
+  // tecken per rad. Det ser ut som ett modellfel och är det inte.
+  l.push("\n## Orientering\n");
+  l.push(
+    "| Nivå | Variant | Bredd | Vridning | Liggande efter förbehandling | Utan EXIF-vridning | Höga rutor (median) | Tecken/rad (median) | Misstänkt sidledes |",
+  );
+  l.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const r of results) {
     const s = r.summary;
     l.push(
-      `| ${r.tier} | ${r.variant} | ${wname(r.width)} | ${s.msPerImage.median} | ${s.msPerImage.p90} | ` +
+      `| ${axes(r)} | ${s.shareLandscape} | ${s.shareNoExifRotation} | ${s.tallBoxShare.median} | ` +
+        `${s.charsPerLine.median} | ${s.shareSideways} |`,
+    );
+  }
+  // Domen ställs på exif-raderna, alltså på produktionsvägen. Rader som mätts med
+  // påtvingad vridning är avsiktligt vridna och skulle annars döma ut en körning
+  // som var frisk.
+  const baseline = results.filter((r) => r.rotation === 0);
+  const rows = baseline.length ? baseline : results;
+  const sideways = Math.max(...rows.map((r) => r.summary.shareSideways));
+  const landscape = Math.max(...rows.map((r) => r.summary.shareLandscape));
+  const noExif = Math.max(...rows.map((r) => r.summary.shareNoExifRotation));
+  l.push("");
+  if (rotations.length > 1) {
+    const best = (rot) =>
+      Math.max(...results.filter((r) => r.rotation === rot).map((r) => r.summary.charsPerImage.median));
+    l.push(
+      `Bästa läsning per vridning: ${rotations.map((rot) => `${rname(rot)} ${best(rot)}`).join(", ")} ` +
+        `tecken per bild.\n`,
+    );
+  }
+  if (sideways > 0.2) {
+    l.push(
+      `**${(sideways * 100).toFixed(0)} % av bilderna läses ett tecken i taget.** Det är text som ligger ` +
+        `på sidan, inte en modell som är för liten — och ${(landscape * 100).toFixed(0)} % av bilderna är ` +
+        `liggande *efter* förbehandlingen, alltså efter att EXIF-orienteringen tillämpats.` +
+        (noExif > 0.5
+          ? ` ${(noExif * 100).toFixed(0)} % av dem saknar dessutom EXIF-vridning: kameran sparade sensorns ` +
+            `liggande bild utan tagg, eller så tvättade överföringen bort den. Automatisk uppräting har då ` +
+            `ingenting att gå på — kör om med \`--rotations=exif,90,270\` och se vilken vridning som läser.`
+          : ` Taggen finns och tillämpas, så bilderna är faktiskt tagna liggande. Kör om med ` +
+            `\`--rotations=exif,90,270\` för att se vad uppräting är värd.`),
+    );
+  } else if (landscape > 0.5) {
+    l.push(
+      `${(landscape * 100).toFixed(0)} % av bilderna är liggande efter förbehandlingen, men läsningen ser ` +
+        `inte sidledes ut. Kvitton fotograferade liggande med gott om marginal är fullt läsbara — notera ` +
+        `bara att den nedskalade bredden då går till marginal i stället för till text.`,
+    );
+  } else {
+    l.push(
+      "Läsningen är radvis och inte teckenvis, och andelen liggande bilder är låg. Orienteringen är " +
+        "inte felkällan här.",
+    );
+  }
+
+  l.push("\n## Genomströmning och konfidens\n");
+  l.push(
+    "| Nivå | Variant | Bredd | Vridning | ms/bild (median) | ms p90 | varav detektion | Rutor | Lästa rader | Radkonfidens median | p10 |",
+  );
+  l.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const r of results) {
+    const s = r.summary;
+    l.push(
+      `| ${axes(r)} | ${s.msPerImage.median} | ${s.msPerImage.p90} | ` +
         `${s.detMsPerImage.median} | ${s.boxesPerImage.median} | ${s.linesPerImage.median} | ` +
         `${s.pooledLineConfidence?.median ?? "—"} | ${s.pooledLineConfidence?.p10 ?? "—"} |`,
     );
   }
 
   l.push("\n## Vad som gick att hitta på kvittot\n");
-  l.push("| Nivå | Variant | Bredd | Belopp | Totalord | Belopp nära totalord | Datum | åäö |");
-  l.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
+  l.push("| Nivå | Variant | Bredd | Vridning | Belopp | Totalord | Belopp nära totalord | Datum | åäö |");
+  l.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const r of results) {
     const s = r.summary;
     l.push(
-      `| ${r.tier} | ${r.variant} | ${wname(r.width)} | ${s.shareWithAmount} | ${s.shareWithTotalCue} | ` +
+      `| ${axes(r)} | ${s.shareWithAmount} | ${s.shareWithTotalCue} | ` +
         `${s.shareWithTotalNearCue} | ${s.shareWithDate} | ${s.shareWithDiacritic} |`,
     );
   }
@@ -316,7 +438,9 @@ function report(results, sustained) {
 const samples = await loadSamples();
 await mkdir(join(OUT, "text"), { recursive: true });
 console.log(
-  `${samples.length} bilder · nivåer: ${tiers.join(", ")} · varianter: ${variants.join(", ")} · bredder: ${widths.map(wname).join(", ")}`,
+  `${samples.length} bilder · nivåer: ${tiers.join(", ")} · varianter: ${variants.join(", ")} · ` +
+    `bredder: ${widths.map(wname).join(", ")} · vridning: ${rotations.map(rname).join(", ")}` +
+    (rotateVerticalCrops ? "" : " · vertikala beskärningar roteras inte"),
 );
 
 const results = [];
@@ -324,33 +448,39 @@ let sustained = null;
 for (const tier of tiers) {
   const service = await makeService(tier);
   // warm-up: first call pays model load and allocation, and must not pollute the timing
-  await runPass(service, samples.slice(0, 1), variants[0], widths[0], { label: "warmup" });
+  await runPass(service, samples.slice(0, 1), variants[0], widths[0], rotations[0], { label: "warmup" });
   for (const variant of variants) {
     for (const width of widths) {
-      const label = `${tier}__${variant}__${wname(width)}`;
-      process.stdout.write(`  ${tier}/${variant}/${wname(width)} ... `);
-      const { perImage, pooledConfidence } = await runPass(service, samples, variant, width, {
-        collectText: true,
-        tier,
-        label,
-      });
-      const summary = summarise(perImage, pooledConfidence);
-      results.push({ tier, variant, width, summary, perImage });
-      console.log(
-        `${summary.msPerImage.median} ms/bild · ${summary.charsPerImage.median} tecken · ` +
-          `${summary.boxesPerImage.median} rutor · konfidens ${summary.pooledLineConfidence?.median ?? "—"}`,
-      );
+      for (const rotation of rotations) {
+        const label = `${tier}__${variant}__${wname(width)}__${rotation ? `rot${rotation}` : "exif"}`;
+        process.stdout.write(`  ${tier}/${variant}/${wname(width)}/${rname(rotation)} ... `);
+        const { perImage, pooledConfidence } = await runPass(service, samples, variant, width, rotation, {
+          collectText: true,
+          tier,
+          label,
+        });
+        const summary = summarise(perImage, pooledConfidence);
+        results.push({ tier, variant, width, rotation, summary, perImage });
+        console.log(
+          `${summary.msPerImage.median} ms/bild · ${summary.charsPerImage.median} tecken · ` +
+            `${summary.charsPerLine.median} tecken/rad · ${summary.boxesPerImage.median} rutor · ` +
+            `konfidens ${summary.pooledLineConfidence?.median ?? "—"}`,
+        );
+      }
     }
   }
   if (sustainedMinutes && tier === tiers[tiers.length - 1]) {
     console.log(`  uthållighetstest ${sustainedMinutes} min ...`);
-    sustained = await runSustained(service, samples, variants[0], widths[0], sustainedMinutes);
+    sustained = await runSustained(service, samples, variants[0], widths[0], rotations[0], sustainedMinutes);
     console.log(`  strypfaktor ${sustained.throttleFactor}×`);
   }
   await service.destroy();
 }
 
-await writeFile(join(OUT, "summary.json"), JSON.stringify({ threads, results, sustained }, null, 2));
+await writeFile(
+  join(OUT, "summary.json"),
+  JSON.stringify({ threads, rotateVerticalCrops, results, sustained }, null, 2),
+);
 const md = report(results, sustained);
 await writeFile(join(OUT, "summary.md"), md);
 console.log(`\n${md}`);
