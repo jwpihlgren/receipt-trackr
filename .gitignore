@@ -11,8 +11,9 @@ data/
 # Angulars byggcache
 .angular/
 
-# Lokala kataloger vid utveckling
-backup/
+# Lokal backupkatalog vid utveckling. Rotankrad — ett omönstrat `backup/` matchar
+# även källkodskataloger som server/src/backup/, vilket tyst utelämnar dem ur git.
+/backup/
 
 # Maskinens egna inställningar, inte projektets.
 .env
