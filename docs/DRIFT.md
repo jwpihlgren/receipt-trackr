@@ -34,9 +34,19 @@ Inställningarna som hör till den här maskinen ligger i `.env` bredvid
 ```sh
 cd ~/repos/receipt-trackr
 cp .env.example .env                      # fyll i ARCHIVE_DIR och en ledig HTTP_PORT
+
+# En gång, innan första starten: katalogerna måste finnas och ägas av dig.
+sudo mkdir -p /pool/kvitton backup
+sudo chown -R $(id -u):$(id -g) /pool/kvitton backup
+
 docker compose up -d
 docker compose logs -f app                # första raden säger var arkivet ligger
 ```
+
+**Varför just det steget:** saknas en katalog som monteras in skapar Docker den åt sig
+med root som ägare. Servern kör som en vanlig användare och kan då inte skriva, och
+vägrar starta med `EACCES`. Felet ser ut som en rättighetsbugg och är i själva verket
+en katalog som aldrig fanns.
 
 Uppgradering, när ett register är valt:
 

@@ -21,7 +21,14 @@ async function assertWritable(dir: string, label: string): Promise<void> {
   try {
     await writeFile(probe, "");
   } catch (cause) {
-    throw new StartupError(`${label} (${dir}) går inte att skriva till: ${(cause as Error).message}`);
+    const hint =
+      (cause as NodeJS.ErrnoException).code === "EACCES"
+        ? ` Vanligaste orsaken i container: katalogen på värden saknades när containern ` +
+          `startade, och då skapar Docker den åt sig med root som ägare — medan servern ` +
+          `kör som en vanlig användare. Rätta på värden, inte i containern: ` +
+          `sudo chown -R $(id -u):$(id -g) <katalogen som ${label} pekar på i .env>`
+        : "";
+    throw new StartupError(`${label} (${dir}) går inte att skriva till: ${(cause as Error).message}.${hint}`);
   } finally {
     await rm(probe, { force: true });
   }
