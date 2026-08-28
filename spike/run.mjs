@@ -490,7 +490,9 @@ function report(results, sustained) {
     );
   }
 
-  const spread = results.map((r) => r.summary.pooledLineConfidence).filter(Boolean);
+  // Samma sak som orienteringsdomen: spridningen ska mätas på produktionsvägen.
+  // En avsiktligt vriden rad läser skräp, och skräp har gott om spridning.
+  const spread = rows.map((r) => r.summary.pooledLineConfidence).filter(Boolean);
   const pooledN = Math.max(0, ...spread.map((s) => s.n));
   l.push("\n## Duger konfidensmåttet?\n");
   const flat = spread.length ? Math.max(...spread.map((s) => s.p90 - s.p10)) : 0;
