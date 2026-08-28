@@ -124,11 +124,15 @@ Alla ska vara **faktiska**, aldrig tröskelberoende — det är samma princip so
 | Få tecken per läst rad | "Låg teckentäthet — kan ligga ned" |
 | Orienteringen osäker (marginal < 0,05 åt båda håll) | "Osäker orientering" |
 | Färre segment än väntat | "1 av 3 bilder har kommit fram" |
+| Sista segmentet saknas | "Sista bilden saknas — där står oftast totalbeloppet" |
+| Totalen hittad på annat än sista segmentet | "Totalbeloppet hittades på bild 1 av 3" |
 | Jobbet misslyckades | "Tolkningen misslyckades" |
 
 De tre första kommer ur M0:s mätning och ur planens krav på förbehandlingen: en bild som
-lästes ett tecken i taget får inte sparas som ett kvitto med tomma fält. Den fjärde
-förutsätter K1 i `UX-mobil.md`.
+lästes ett tecken i taget får inte sparas som ett kvitto med tomma fält. De två om segment
+förutsätter K1 i `UX-mobil.md`. Den sista är en ren faktakontroll utan tröskel — planen
+viktar sista segmentet högre just för att totalen står där, så en total som hittats någon
+annanstans på ett flerbildskvitto är värd en blick. Se avsnitt 11.
 
 ## 4. Sök (krav 27, 29)
 
@@ -176,7 +180,7 @@ text. Båda är sådant som annars gör att man tror att arkivet tappat ett kvit
 Fritextsöket går över `text`-fältet i sidecaren, alltså hela råtexten, med
 `remove_diacritics 2`. Det är precis vad planens M0-avsnitt kräver.
 
-*Konflikt, se avsnitt 11 (D1 och D2):* söksvaret innehåller i dag varken butik, datum,
+*Konflikt, se avsnitt 12 (D1 och D2):* söksvaret innehåller i dag varken butik, datum,
 belopp eller tumnagelsökväg, och flerordsfrågor blir fraser.
 
 ## 5. Kvittovyn
@@ -225,6 +229,11 @@ till påstående, inte tvärtom.
   segment där evidensen för totalbeloppet ligger**, inte alltid på segment 1.
 - Zoom med `+` / `−` / hjul, panorering med piltangenter eller drag, `⤢` = helskärm.
 - Klick på ett fälts evidensruta i panelen zoomar bilden till just den rutan.
+- `S` växlar mellan ett segment i taget och **sömvyn**: alla segment staplade lodrätt med
+  markerad skarv. Se avsnitt 11.1 — det är där man ser om en bild hoppats över.
+- Ett **kontrast- och ljusreglage** ligger under bilden. Det är ett rent visningsfilter i
+  webbläsaren och skrivs aldrig tillbaka till arkivet (krav 4). Motiv i 11.6: vikta rader
+  går ofta att läsa med ögat vid rätt kontrast, och då är rättningen ett tangenttryck bort.
 - Bilden visas som den ligger på disk plus samma uppräting som OCR-steget valde, med
   knappen **Visa som originalet ligger**. Motiv, direkt ur spikens README: webbläsaren
   rättar EXIF-orientering medan servern läser filen som den ligger, så samma bild kan se
@@ -423,7 +432,11 @@ annars smyger sig in i "Rätt".
    Pausa gärna." Går att ignorera. *Osäkerhet: 25 är gissat. Det som avgör är om
    felfrekvensen i andra halvan av ett pass skiljer sig från första halvan, vilket M9 kan
    räkna ut ur `dwellMs` och ordningen.*
-5. **Ett granskat kvitto granskas inte igen** i samma urval, men urvalet kan dras om senare
+5. **"Oläslig" gäller texten, inte papperet.** Ett rivet, vikt eller skrynkligt kvitto vars
+   tre fält går att läsa är **Rätt**. Först när skadan ätit det som ska bedömas är det
+   **Oläslig**. Regeln står som en dämpad hjälprad under knapparna, eftersom två personer
+   annars avgör den olika och urvalet blir en blandning av två mätningar (se 11.3).
+6. **Ett granskat kvitto granskas inte igen** i samma urval, men urvalet kan dras om senare
    som ett nytt urval med egen märkning — planen jämför backlogg och färska kvitton var för
    sig.
 
@@ -462,7 +475,7 @@ Varje sparad rättning skriver `corrections[]` med `from`, `fromConfidence`, `to
 tidpunkt, precis som planens format. Ett litet **Ångra** stannar kvar i 10 sekunder efter
 varje sparande.
 
-*Konflikt D3, avsnitt 11:* det finns ingen skriv-ändpunkt för fält än.
+*Konflikt D3, avsnitt 12:* det finns ingen skriv-ändpunkt för fält än.
 
 ## 9. Tangentbordsgenvägar
 
@@ -505,8 +518,10 @@ kosta ett finger.
 | `+` / `−` | Zooma |
 | `0` | Zooma till hela bilden |
 | `Blanksteg` | Växla zoomat evidensutsnitt ↔ hela bilden |
+| `S` | Sömvy: alla segment staplade ↔ ett segment |
 | `B` | Bilden i helskärm |
 | `T` | Fäll ut hela råtexten |
+| `C` | Fokusera kontrastreglaget (piltangenter justerar, `0` återställer) |
 | `Ctrl+Z` | Ångra senaste sparade rättning (10 s) |
 
 ### Granskningsläget
@@ -539,7 +554,147 @@ angränsande tangenter: två tangenter bredvid varandra går att trumma på med 
 | **Ljusläge** | Följer systemet. Bildpanelen har alltid neutralt grå bakgrund oavsett läge, eftersom en vit eller svart bakgrund ändrar hur ett fotograferat kvitto uppfattas. |
 | **Två personer, ett arkiv** | Rättningar och granskningsutfall visar vem som gjorde dem om inloggning någonsin införs; tills dess står "Fastställd av dig", vilket är sant i ett tvåpersonershushåll utan konton men bör bytas mot namn den dag konton finns. |
 
-## 11. Konflikter mot planen och mot servern som den ser ut i dag
+## 11. Kvittots fysiska former i datorläget
+
+Motsvarigheten till `UX-mobil.md`, avsnitt 9. Arbetsfördelningen mellan ytorna följer en
+regel: **mobilen ställer inga frågor den inte kan få svar på, och datorläget tiger inte om
+det som syns först när kvittot är helt.** Papperet är då oftast redan slängt, så allt här
+handlar om att göra bilden läsbar och felet synligt — aldrig om att laga något.
+
+### 11.1 Långt kvitto: täckningen syns bara här
+
+Mobilen kan inte veta om hela kvittot fotograferades (`UX-mobil.md`, 9.1). Datorläget kan
+inte heller *veta* det, men det kan visa allt på en gång, vilket är nästan lika bra.
+
+**Sömvyn i kvittovyn.** `S` växlar bildpanelen mellan ett segment i taget och alla
+segment staplade lodrätt, kant i kant, i nummerordning:
+
+```
+┌──────────────────────────────┬─────────────────────
+│  ▤ bild 1 av 3               │  BUTIK
+│  ─────────────────────────── │  …
+│  ▤ bild 2 av 3               │
+│  ─────────────────────────── │  ← tunn linje och etikett vid varje skarv;
+│  ▤ bild 3 av 3   ← totalen   │    bilderna fogas aldrig ihop
+└──────────────────────────────┴─────────────────────
+```
+
+Skarven markeras med en linje och en etikett, aldrig med en osynlig hopfogning. Att fotona
+har olika ljus, skala och vinkel är normalt, och en sömlös montage skulle antyda en
+kontinuitet ingen har kontrollerat. Överlappande rader ritas alltså två gånger — det är
+sant, och det är hur man ser att överlappet finns.
+
+**Två åtgärdsskäl som hör hit** (tabellen i avsnitt 3):
+
+- *"Sista bilden saknas — där står oftast totalbeloppet."* Uppstår när `segmentsExpected`
+  är större än antalet segment på disk och det är det sista numret som fattas. Formuleras
+  så, och inte som "segment 3 saknas", eftersom vad som går förlorat är poängen.
+- *"Totalbeloppet hittades på bild 1 av 3."* En ren faktakontroll: `fields.total.evidence.segment`
+  jämförs med antalet segment. Ingen tröskel, inget omdöme om konfidens — bara en
+  iakttagelse som är värd en blick, eftersom planens fältutvinning viktar sista segmentet
+  högre just för att totalen brukar stå där.
+
+Ingen av dem hindrar något. Båda är rader i **Kräver åtgärd** med **Öppna**.
+
+**Vad datorläget inte gör: fogar ihop bilderna.** Det vore vackert och skulle dölja precis
+det man behöver se.
+
+### 11.2 Kort kvitto
+
+Ingenting särskilt. Sömvyn erbjuds inte när det bara finns ett segment, och `S` gör då
+ingenting. Det enda att hålla ordning på är att inget i vyn ska *anta* flera segment:
+segmentväxlaren döljs, och åtgärdsskälen i 11.1 kan inte utlösas.
+
+### 11.3 Sönderrivet kvitto
+
+Ett kvitto med flera segment (`UX-mobil.md`, 9.3), och datorläget behandlar det som ett
+sådant. Skillnaden syns bara i sömvyn: **skarven går inte ihop**, för bitarna gick inte
+ihop i verkligheten heller.
+
+Det viktiga är att en granskare inte läser det som ett tappat segment. Två saker gör
+skillnaden tydlig:
+
+1. Varje segment är etiketterat **"bild N av M"** i sömvyn, och M kommer från
+   `segmentsExpected`. Stämmer antalet är ingenting borta, hur brutet det än ser ut.
+2. Granskningslägets hjälprad säger vad utfallen betyder i det här fallet:
+   **"Oläslig" gäller texten, inte papperet.** Ett rivet kvitto vars tre fält går att läsa
+   är **Rätt**. Är det just rivningen som ätit totalraden är det **Oläslig**.
+
+Den regeln måste stå skriven någonstans, för två personer som granskar hundra kvitton
+kommer annars att avgöra den olika, och kalibreringsurvalet i avsnitt 7 blir då en blandning
+av två mätningar.
+
+### 11.4 Två kvitton i samma bild
+
+En tolkningsmiss, inte en förlust — bilden innehåller båda, och tolkningen kan köras om.
+Följderna i datorläget:
+
+- **Fältpanelen visar ett kvitto.** Butik, datum och total kommer från det ena, eller är en
+  blandning. Evidensutsnitten (6.3) avslöjar blandningen direkt: totalen pekar på en rad
+  längst ned medan datumet pekar på en rad som hör till det andra kvittot.
+- **Söket hittar båda.** Hela råtexten indexeras, så det andra kvittots artiklar och belopp
+  är sökbara även om de inte ligger i något fält. Det är den egenskap som gör felet
+  uthärdligt i Steg 1 och värt att skriva ut i hjälpen.
+- **Rättningen är att välja ett.** Snabbrättningen (avsnitt 8) sätter fälten till det kvitto
+  som är intressantast. Uppdelning i två poster byggs inte i Steg 1 — det kräver att ett
+  kvitto kan skapas ur en befintlig bild, och papperskorgen finns inte (krav 30–35).
+- **I granskningsurvalet är utfallet `corrected` om fälten rättas**, aldrig `correct` för
+  att "det ena kvittot stämde". Samma skäl som i 11.3: regeln måste vara skriven, annars
+  mäter urvalet olika saker beroende på vem som satt vid tangenterna.
+
+### 11.5 Dubbletter
+
+Samma papper som blivit två poster (`UX-mobil.md`, 9.5). **Byggs inte i Steg 1**, och det
+är ett medvetet val, inte en glömska: det enda vettiga svaret på en upptäckt dubblett är att
+ta bort den ena, och radering är uttryckligen utanför Steg 1 (krav 30–35). En lista över
+dubbletter som ingen kan städa är en lista över irritationsmoment.
+
+Vad det skulle kräva den dag papperskorgen finns, så att beslutet är spårbart: en fråga mot
+det härledda indexet som grupperar på `store`, `date` och `total` — kolumnerna finns redan i
+`receipts`-tabellen, ingen ny data behövs. Kostnaden ligger alltså inte i upptäckten utan i
+åtgärden.
+
+En sak att notera för M9: **en dubblett kan dras två gånger till granskningsurvalet** och
+räknas då som två oberoende mätpunkter fast det är samma papper. Med hundra kvitton ur
+tiotusen är effekten liten, men den ska nämnas i mätuttaget snarare än upptäckas i
+efterhand.
+
+### 11.6 Vikta och skrynkliga kvitton
+
+M0:s material *är* det här fallet: vikta kvitton där vecken bryter raderna geometriskt.
+Datorläget är där följden landar, och den landar oftast som **"Totalbelopp saknas"** eller
+som ett belopp med låg konfidens och ett evidensutsnitt där raden är avbruten mitt itu.
+
+Tre saker i vyn hör hit:
+
+- **Råtexten med per-rad-konfidens** (avsnitt 5) är diagnosen. En vikt rad syns som en
+  avbruten rad med lågt värde, till skillnad från en rad som aldrig hittades.
+- **Ett kontrast- och ljusreglage i bildpanelen.** Rent visningsfilter, i webbläsaren, som
+  **aldrig** skrivs tillbaka till arkivet — bilden på disk är oföränderlig (krav 4). Det är
+  billigt och det hjälper exakt det material som finns: en svag rad i ett veck går ofta att
+  läsa med ögat vid rätt kontrast, och då är snabbrättningen ett tangenttryck bort.
+- **Ärlighet om "Kör om tolkningen".** Att köra om med *samma* motor på ett vikt kvitto ger
+  samma svar. Knappen finns kvar men vyn säger vad som gäller: "Tolkad med ppocrv6-tiny@1.
+  Samma motor är igång — en omkörning ger sannolikt samma resultat." Först när motorn eller
+  förbehandlingen ändrats är omkörningen meningsfull, och då är den gratis och kan göras för
+  hela arkivet.
+
+Att fältet får skrivas in för hand är alltså normalfallet här, inte ett nederlag. Det är
+också den enda vägen: papperet är slängt, bilden är allt som finns.
+
+### 11.7 Baksidor
+
+Om baksidor ändå fotograferas (`UX-mobil.md`, 9.7 avråder) syns det inte i kvittovyn utan i
+**söket**: en sökning på "öppet köp" eller "retur" ger plötsligt varje kvitto från en viss
+kedja. Symtomet är alltså sökbrus, inte ett trasigt kvitto.
+
+Ingen åtgärd byggs i Steg 1. Rätt åtgärd, den dagen bruset är mätbart, är en segmentroll
+(`front`/`back`) som utesluter baksidan ur FTS-indexet men behåller bilden — och eftersom
+indexet är härlett räcker det med `reindex` för att det ska slå igenom bakåt i hela arkivet.
+Det är ett bra exempel på vad sidecar-som-sanning köper: ett sökbeslut som visar sig fel
+kostar en ombyggnad, inte en migrering.
+
+## 12. Konflikter mot planen och mot servern som den ser ut i dag
 
 **D1 — söksvaret räcker inte för träfflistan.**
 `search()` i `server/src/store/index-db.ts` returnerar `{ id, capturedAt, segments, snippet }`.
@@ -586,12 +741,20 @@ sidecaren — jobbkön är rätt ägare av "bearbetas nu", och `needs_review` ä
 sidecarens innehåll som ändå räknas om vid varje `reindex`. Då slipper sidecaren ett fält
 som kan bli osant.
 
+**D8 — åtgärdsskälen i 11.1 vilar på två uppgifter som ännu inte finns.**
+"Sista bilden saknas" kräver `segmentsExpected` (samma sak som K1 i `UX-mobil.md`).
+"Totalbeloppet hittades på bild 1 av 3" kräver att `fields.total.evidence.segment` faktiskt
+skrivs av fältutvinningen. Det senare står redan i planens sidecar-format och är alltså
+inget avsteg — men det är ett *beroende* från M7 till M6 som är värt att skriva ner, för
+utan segmentnumret i evidensen går kontrollen inte att göra, och den kostar då en
+omtolkning av hela arkivet att lägga till i efterhand.
+
 **D7 — SSE finns inte än.** Väntat (M7). Formen som behövs:
 `GET /api/events` med händelserna `receipt.created`, `receipt.updated`, `job.progress`,
 `health.changed`. Arbetslistan och kvittovyn lyssnar; sökträfflistan gör det inte —
 en lista som ändrar sig medan man läser den är värre än en färsk lista.
 
-## 12. Vad jag inte vet
+## 13. Vad jag inte vet
 
 - **Ingen användarforskning finns.** Allt om hur arbetet faktiskt går till är slutsatser ur
   kravställningen och planen.
@@ -603,6 +766,12 @@ en lista som ändrar sig medan man läser den är värre än en färsk lista.
   råtexten. Det syns första gången granskningsläget körs skarpt.
 - **Om `dwellMs` faktiskt avslöjar rubberstamping** vet jag inte. Det är en hypotes som M9
   kan pröva, inte en etablerad metod.
+- **Hur vanliga de fysiska specialfallen är vet jag inte.** Avsnitt 11 är skrivet utifrån
+  vad papper gör, inte utifrån räknade fall i den här högen. Andelen flerbildskvitton, rivna
+  kvitton och dubbletter går att läsa ur arkivet efter första backloggpasset, och först då
+  går det att säga om sömvyn och åtgärdsskälen är rätt dimensionerade.
+- **Om kontrastreglaget (11.6) faktiskt gör vikta rader läsbara** är oprövat. Det är billigt
+  nog att bygga och kasta.
 - **Datumsvagheten (74 % i M0)** kan visa sig göra "Datum saknas" till det vanligaste skälet
   i Kräver åtgärd, med hundratals kvitton i den sektionen. Blir det så behövs en
   massinmatningsvy för just datum — men den ska inte byggas innan M6 utrett svagheten, för

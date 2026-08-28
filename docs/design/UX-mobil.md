@@ -126,6 +126,10 @@ efter första backloggpasset.
 
 ## 4. Flödet
 
+Flödet nedan beskriver ett kvitto som en följd av segment. Vad ett segment *är* i papper —
+en klippunkt på ett långt kvitto, en bit av ett rivet, en baksida — och vad de formerna gör
+med flödet står i avsnitt 9.
+
 ```
   start
     │
@@ -351,8 +355,12 @@ Ett kvitto med tre segment där segment 2 fastnat är **inte** klart, och får i
 ut. Kölistan visar `1 av 3 uppladdade`, kvittot står kvar överst tills alla segment är
 verifierade, och i datorläget hamnar det under **Kräver åtgärd** (se `UX-dator.md`, 4.3).
 
+Är det **sista** segmentet som fastnat byts texten mot "Sista bilden saknas — där står
+oftast totalbeloppet." Skälet står i 9.1: totalen står nästan alltid på sista bilden, så
+det tappet är det dyraste som finns.
+
 Det kräver att servern vet hur många segment som ska komma. Det gör den inte i dag — se
-avsnitt 11, konflikt K1.
+avsnitt 12, konflikt K1.
 
 ### 5.12 Avbrott
 
@@ -498,21 +506,381 @@ Mätningen är beskriven i planen och byggs i M8; här står bara gränssnittsde
   ett bord kan vilja ha full kontroll över takten, och att tvinga fram en automatik som
   triggar en halv sekund fel är dyrare än ett tryck.
 
-## 9. Text, samlad
+## 9. Kvittots fysiska former
+
+Fram till hit har "segment" behandlats som en abstraktion. Det är det inte — det är en bit
+papper i en viss form, och formerna skiljer sig mer än flödet i avsnitt 4 antyder. Det här
+avsnittet går igenom de sju former som faktiskt ligger i högen och vad var och en gör med
+flödet, kön och servern.
+
+Två saker gäller genomgående och är prövostenen för varje förslag nedan:
+
+- **Ingen form får leda till att en bild tyst försvinner eller att ett halvt kvitto ser
+  komplett ut.**
+- **Ingen form får lägga ett nytt beslut på den kritiska vägen** (avsnitt 6). Allt som
+  föreslås här är antingen passiv visning under siktandet, eller frivilligt och nåbart
+  *före* "Klart" — aldrig en fråga vid trycket.
+
+Sammanfattningen först, för den som bygger:
+
+| Form | Löses i mobilen | Löses i datorläget | Byggs inte i Steg 1 |
+| --- | --- | --- | --- |
+| 1 Långt kvitto | Skuggremsa + sömvy + "Klart · N bilder" | Saknad sista bild, total på fel segment | Automatisk hopfogning |
+| 2 Kort kvitto | Inget extra — flödet är redan minimalt | — | Enbildsläge |
+| 3 Sönderrivet | Bitarna = segment i läsordning | Ser sömbrottet, kan lämna det | Riven-flagga |
+| 4 Två kvitton i en bild | Råd i hjälpen, ingen bevakning | Sökbart ändå, syns i råtexten | Uppdelning i två kvitton |
+| 5 Dubblett | "Förra kvittot" kvar i remsan | — | Dubblettdetektering |
+| 6 Vikt / skrynkligt | Råd en gång, aldrig varning | "Totalbelopp saknas" | Automatisk veckdetektering |
+| 7 Baksida | Råd: bara när det står något eget | — | Segmentroll i indexet |
+
+### 9.1 Långt kvitto i flera segment
+
+**Vad användaren ser.** Efter första bilden byter kvalitetsraden innehåll under siktandet,
+och överst i förhandsvisningen ligger en **skuggremsa**: de nedersta ~20 % av föregående
+bild, halvgenomskinliga, fastnaglade vid ramens överkant.
+
+```
+┌───────────────────────────────┐
+│ ▣ Gamla högen      3 väntar ⬆ │
+├───────────────────────────────┤
+│▒▒▒ ART.NR 4711  199,00 ▒▒▒▒▒▒▒│  ← skuggremsa: slutet på bild 1
+│▒▒▒ ART.NR 4712   89,50 ▒▒▒▒▒▒▒│    lägg papperet så att de här
+├───────────────────────────────┤    raderna syns igen överst
+│                               │
+│      kameran, live            │
+```
+
+**Vad hen gör.** Skjuter papperet uppåt tills raderna i skuggremsan syns igen i den levande
+bilden, och låter autoutlösningen ta nästa segment. Klipppunkten är alltså inte ett beslut
+utan en handrörelse: *lägg om tills det som redan är taget syns en gång till*.
+
+**Överlapp: ja, ett par rader.** Motiven är två, och bara det ena är tekniskt:
+
+1. Det gör det **synligt för människan** att inget mellanrum hoppats över. Utan överlapp
+   finns ingen skillnad mellan "raderna fortsätter" och "tre rader saknas".
+2. Det gör en framtida hopfogning möjlig utan att den behöver byggas nu. Radtexten
+   återkommer i två segment, vilket är precis vad en matchning skulle behöva.
+
+Priset är att råtexten innehåller några dubblerade rader per kvitto. Det är billigt: FTS5
+bryr sig inte, och fältutvinningen letar ledord, inte unika rader.
+
+*Storleken på överlappet är inte mätt.* 20 % är vald för att skuggremsan ska rymma två
+till tre textrader vid normalt avstånd — färre går inte att känna igen, fler äter
+bildrutan. Det som avgör siffran är hur många rader som faktiskt syns i skuggremsan på den
+telefon som används, och det ses första passet.
+
+**Hur vet användaren att hela kvittot är täckt?** Ärligt svar: **systemet vet det aldrig.**
+Det ser aldrig papperet som helhet och kan därför inte intyga täckning. Att låtsas annat —
+en bock, en "komplett"-markering — vore det värsta gränssnittsfel som går att göra här,
+eftersom det bytte ut användarens uppmärksamhet mot en falsk garanti.
+
+I stället två hjälpmedel som båda är *visning*, inte omdöme:
+
+- **Sömvyn.** Ett tryck på remsan (eller på dess förstoringsikon) staplar segmenten
+  lodrätt, kant i kant, i nummerordning. Kvittot syns som en remsa och ett hopp i texten
+  syns direkt. Nåbar när som helst före "Klart", frivillig, utanför den kritiska vägen.
+
+```
+┌───────────────────────────────┐
+│ ← Sömvy               3 bilder │
+├───────────────────────────────┤
+│  ┌─────────────────────────┐  │
+│  │  bild 1                 │  │
+│  ├─────────────────────────┤  │  ← skarv: överlappande rader
+│  │  bild 2                 │  │    ritas dubbelt med en tunn linje
+│  ├─────────────────────────┤  │    emellan, ingen automatisk
+│  │  bild 3                 │  │    hopfogning
+│  └─────────────────────────┘  │
+├───────────────────────────────┤
+│   [ Lägg till bild ]  [ Klart ]│
+└───────────────────────────────┘
+```
+
+- **Knappens etikett räknar.** "Klart" blir **"Klart · 3 bilder"** från och med andra
+  segmentet. Det är den enda platsen där antalet möter ögat i samma ögonblick som beslutet
+  fattas, och det kostar ingenting: etiketten räknas om när segmentet läggs till, inte vid
+  trycket.
+
+**Vad som inte byggs: automatisk överlappsdetektering.** Att mäta om två bilder faktiskt
+överlappar kräver bildmatchning per segment, kostar hundratals millisekunder, och skulle —
+om den kopplades till "Klart" — lägga ett beslut på den kritiska vägen och kunna neka en
+korrekt fångst. Den vinner heller inte det viktiga: den kan säga att två bilder inte
+överlappar, men aldrig att kvittot är slut. Skuggremsan ger nästan hela nyttan för noll
+millisekunder.
+
+**Att totalen står sist — ska gränssnittet veta det?**
+
+Ja, men bara i *ordval*, aldrig i logik. Planen viktar redan sista segmentet högre i
+fältutvinningen. Följden för mobilläget är att ett tappat sista segment är värre än ett
+tappat första: det som försvinner är oftast totalbeloppet. Två konsekvenser:
+
+- **Kölistan säger det.** Har det sista segmentet fastnat: "Sista bilden saknas — där står
+  oftast totalbeloppet." I stället för det generiska "Fastnat — segment 3".
+- **Uppladdningsordningen ändras inte.** Att skicka sista segmentet först övervägdes och
+  valdes bort: ingenting går förlorat av att ligga sist i kön, eftersom blobben ligger kvar
+  lokalt tills servern kvitterat samma `sha256` (avsnitt 0, regel 2). Ordningen påverkar
+  bara vad som syns först i datorn, och där är nummerordning rätt.
+
+Resten hör hemma i datorläget, där man ser hela kvittot: total som hittades på segment 1 av
+3 är en åtgärdsrad där, inte en varning här. Se `UX-dator.md`, avsnitt 11.
+
+Serverns tak är 99 segment (`Archive.addSegment`). Ett kvitto som slår i det taket finns
+inte i den här högen; skulle det göra det är rätt svar en dialog, inte en tyst avkortning.
+
+### 9.2 Kort kvitto
+
+Det vanliga fallet, och det som får kosta minst. Hela sträckan är: rikta →
+autoutlösning → **Klart · 1 bild**. Ett tryck.
+
+**Vad som är byggt för det långa fallet och därför granskades igen:**
+
+| Byggt för långa kvitton | Kostar det korta fallet något? |
+| --- | --- |
+| Skuggremsan | Nej — den visas först från och med andra segmentet |
+| Sömvyn | Nej — den är frivillig och nås bara med ett tryck på remsan |
+| Räknaren i knappetiketten | Nej — "Klart · 1 bild" är lika kort |
+| Två knappar i stället för en | **Ja, marginellt.** Se nedan |
+| Remsan som yta | Nej, men den är tom vid ett segment och tar 72 dp. Behålls: att layouten hoppar mellan kvitton är dyrare än 72 dp |
+
+Den enda verkliga friktionen är att "Klart" måste tryckas även när det bara finns en bild.
+**Ett enbildsläge övervägdes och valdes bort**: ett läge som avslutar kvittot automatiskt
+efter första bilden gör att ett långt kvitto blir ett halvt kvitto i det ögonblick
+användaren glömmer att byta läge — exakt det fel avsnitt 0 finns för att förhindra. Ett
+extra tryck är billigare än en tyst avkortning.
+
+**Placeringen av knapparna följer av samma asymmetri.** Ett feltryck på "Nästa bild" kostar
+ingenting (man fotograferar en bild till, eller trycker Klart). Ett feltryck på "Klart"
+avslutar kvittot för tidigt. Därför ligger "Nästa bild" under den vilande tummen och
+"Klart" längre bort — samma resonemang som styr tangentvalet i granskningsläget
+(`UX-dator.md`, 6.4). Det är alltså inte frekvens som avgjort layouten i avsnitt 3, utan
+felkostnad.
+
+*Osäkerhet:* hur fördelningen mellan korta och långa kvitton faktiskt ser ut vet jag inte.
+Antalet segment per kvitto finns i sidecaren från första passet; visar det sig att nio av
+tio kvitton är enbildskvitton är det värt att pröva "Klart" som primärknapp med tydligare
+vikt — men inte att flytta den under tummen.
+
+### 9.3 Sönderrivet kvitto i två eller flera bitar
+
+**Det är ett kvitto med flera segment.** Datamodellen har ingen annan plats att lägga det,
+och behöver ingen: fält söks över alla segment, råtexten läggs ihop, och ett kvitto är den
+transaktion papperet beskriver — inte det pappersark den råkar vara tryckt på.
+
+**Vad användaren ser.** Ingenting särskilt. Flödet är identiskt med ett långt kvitto: en
+bild per bit, i läsordning, översta biten först.
+
+**Vad hen gör.** Två arbetssätt är båda giltiga, och gränssnittet väljer inte åt henne:
+
+- Lägg bitarna intill varandra så att de bildar kvittot igen, och fotografera som ett
+  vanligt kort eller långt kvitto.
+- Fotografera varje bit som ett eget segment.
+
+Det andra är oftast bättre när bitarna inte går att lägga plant, och det ger inget sämre
+resultat — men **skuggremsan blir meningslös** (bitarnas kanter går inte att lägga i
+varandra), och sömvyn kommer att visa ett brott i skarven. Det är korrekt: brottet finns i
+verkligheten.
+
+**Vad som händer i kön och på servern.** Ingenting särskilt. Segmenten laddas upp som
+vanligt, `segmentsExpected` blir antalet bitar, OCR läser varje bit för sig.
+
+**Ingen "riven"-flagga byggs i M4.** Den skulle vara ett beslut i fångstflödet, den skulle
+behöva en ny ändpunkt för att nå sidecaren (`tags.user` går inte att sätta utifrån i dag,
+se konflikt K5), och den enda nyttan är att en granskare i datorläget slipper undra över
+sömbrottet. Det är för lite för priset. *Vad som skulle ändra det: om granskningsurvalet i
+M9 visar att rivna kvitton systematiskt bedöms som "Oläslig" för att brottet tolkas som ett
+tappat segment.*
+
+**Om en bit är borta.** Då är kvittot ofullständigt i verkligheten, och ingenting i
+programvaran kan laga det. Det ska ändå fångas — halva kvittot är oändligt mycket mer än
+inget kvitto, och den saknade totalen fångas i datorläget som "Totalbelopp saknas". Det som
+inte får ske är att användaren låter bli att fotografera för att kvittot "ändå är trasigt".
+Hjälptexten säger det: **"Fotografera det som finns. Ett halvt kvitto går att söka i, ett
+slängt går inte."**
+
+### 9.4 Två kvitton i samma bildruta
+
+**Det är en tolkningsmiss, inte en förlust.** Bilden innehåller båda kvittona, bilden är
+det oåterkalleliga, och tolkningen kan köras om. Det är därför fallet **inte förtjänar
+någon friktion i fångstflödet** — och därför gränssnittet inte försöker upptäcka det.
+
+**Vad som faktiskt händer:** arkivet får ett kvitto med ett fältuppsättning. Butik, datum
+och total blir det ena kvittots (eller en blandning). Det andra kvittots belopp hamnar inte
+i något fält.
+
+**Vad som ändå fungerar:** hela råtexten indexeras, så **båda kvittona är sökbara**. Frågan
+"vad kostade kakel till badrummet" hittar posten även om det var det andra kvittot i
+bilden som handlade om kakel. Det är en verklig egenskap hos valet att indexera råtexten,
+inte en efterhandskonstruktion — och den gör felet uthärdligt i Steg 1.
+
+**Vad användaren ser:** inget varningsmeddelande. Två skäl:
+
+1. Det går inte att upptäcka tillförlitligt i förhandsvisningen. Texthöjdsmåttet mäter
+   radhöjd, inte hur många papper som ligger i bildrutan, och en varning som slår fel på ett
+   kvitto med stor blankyta mitt i är värre än ingen varning.
+2. Krav 7 och planens riskrad: kvalitetsvarningar blockerar aldrig, och en varning man inte
+   får agera på är bara brus.
+
+**Vad hen får veta i stället**, en gång, i startvyn och i hjälpen:
+
+> **Ett kvitto per bild.** Två kvitton i samma bild blir ett kvitto i arkivet — texten går
+> att söka i, men beloppen hamnar fel.
+
+Och den fysiska motåtgärden, som är den enda som fungerar: fotografera mot en enfärgad yta
+och lägg resten av högen utanför bildrutan. Ramen i förhandsvisningen (avsnitt 3) finns för
+just det.
+
+**Uppdelning i två kvitton byggs inte i Steg 1.** Det skulle kräva att ett nytt kvitto kan
+skapas ur en befintlig bild, och papperskorg och radering är uttryckligen utanför Steg 1
+(krav 30–35). Rättningen är alltså: låt posten vara, rätta fälten för hand till det kvitto
+som är viktigast, och lita på fritextsöket för det andra.
+
+### 9.5 Samma kvitto fotograferat två gånger
+
+Två fall som ser lika ut men inte är det:
+
+**(a) Två segment i samma kvitto visar samma pappersyta.** Helt ofarligt. Råtexten
+upprepas, fältutvinningen hittar samma ledord två gånger och väljer ett, och totalen
+viktas mot sista segmentet som vanligt. Ingen åtgärd, ingen varning.
+
+**(b) Samma papper blir två separata kvitton.** Det verkliga fallet vid köksbordet: man
+tappar bort var i högen man var. Resultatet är två poster i arkivet med samma innehåll.
+
+**Går det att upptäcka?** Inte i mobilen på ett hederligt sätt. `sha256` skiljer sig alltid
+mellan två foton av samma papper, så identitetsjämförelsen som kön redan gör hjälper inte.
+Det som skulle krävas är en perceptuell hash över alla tidigare bilder i passet — en
+kostnad i den kritiska vägen för att lösa ett problem som inte förstör något.
+
+**Ska det upptäckas, och var?** Senare, och i datorläget, av en enkel anledning: en
+dubblett går inte att göra något åt i Steg 1. Papperskorg och radering är inte byggda (krav
+30–35), så det enda mobilen kunde göra vore att varna för något användaren inte kan städa.
+En varning utan åtgärd är brus.
+
+**Vad mobilen gör i stället — det som kostar noll:** efter "Klart" töms remsan, men den
+sista bildens tumnagel ligger kvar, nedtonad, med etiketten **Förra kvittot**, tills nästa
+bild tas.
+
+```
+├───────────────────────────────┤
+│ [▨ Förra kvittot]              │  ← nedtonad, försvinner vid nästa bild
+├───────────────────────────────┤
+```
+
+Det gör att man kan svara på "tog jag redan den där?" med en blick i stället för med
+minnet. Det är ingen ny operation vid "Klart" — remsan rensas ändå, och en ruta får stå
+kvar i stället för att tas bort. Kostnad på den kritiska vägen: noll.
+
+Därtill hör en fysisk rutin som ingen programvara ersätter, och som står i hjälpen: **lägg
+det fotograferade i en egen hög med trycket nedåt.** Passräknaren ("Uppladdat och
+verifierat: 128 kvitton i det här passet") är avstämningen mot den högen.
+
+*Dubblettlistning i datorläget är inte byggd i Steg 1;* vad som skulle krävas står i
+`UX-dator.md`, avsnitt 11.
+
+### 9.6 Hopvikta och skrynkliga kvitton
+
+Det här är inte ett kantfall utan **materialet**: M0 mätte 35 kvitton ur den gamla högen och
+beskriver dem som "förhållandevis nya kvitton, en del vikta — inte blekt termopapper". Vecken
+är det som gör materialet svårt, och de bryter raderna **geometriskt**, inte kontrastmässigt
+— vilket också är skälet till att `clahe` inte hjälpte.
+
+**Vad gränssnittet ska säga:** ett råd, en gång, i startvyn och i hjälpen — och det ska
+förklara varför, för det är rådet som avgör hur bra hela arkivet blir:
+
+> **Platta till kvittot innan du fotograferar.** Vecken är det som gör texten svår att
+> läsa, inte ljuset. Bilden är det enda som blir kvar — tolkningen kan köras om hur många
+> gånger som helst, men bilden tas bara en gång.
+
+Det är den enda platsen i hela systemet där asymmetrin från avsnitt 0 vänder sig mot
+användaren i stället för för henne: allt annat går att göra om, men *bildens kvalitet* går
+inte att förbättra i efterhand när papperet är slängt. Därför får rådet ta plats.
+
+**Vad gränssnittet inte ska säga:** ingen körningsvarning om veck. Måttet som finns är
+mediantexthöjd i pixlar; det mäter inte veck. En varning byggd på fel mått skulle antingen
+tiga när den borde tala eller tala i tid och otid, och krav 7 säger dessutom att den aldrig
+får blockera. Kvalitetsraden håller sig alltså till det den faktiskt mäter (avsnitt 5.4).
+
+**En taktik som är värd att lära ut**, för den är billig och räddar det viktigaste: **går
+vecket rakt över totalraden och papperet inte vill ligga plant — ta en extra närbild på den
+delen som eget segment.** Ett tryck till, utanför den kritiska vägen, och totalbeloppet får
+en andra chans att läsas. Utan den är alternativet att felet upptäcks i datorläget som
+"Totalbelopp saknas" — vilket det gör, men då är papperet borta.
+
+*Osäkerhet:* om närbildstaktiken faktiskt hjälper är **inte mätt**. Det avgörs enkelt när
+materialet finns: jämför konfidensen på totalfältet i kvitton med och utan extra närbild,
+i M9:s mätuttag. Tills dess är det ett råd, inte ett krav, och det står i hjälpen — inte
+som en knapp.
+
+### 9.7 Tryck på baksidan
+
+**Standardsvar: fotografera inte baksidan.**
+
+Skälet är konkret och handlar om söket. Baksidan på ett butikskvitto innehåller nästan
+alltid samma returvillkor på varje kvitto från samma kedja. Läggs den texten in i FTS-
+indexet blir varje sökning på ord ur villkoren — "retur", "öppet köp", "garanti" — en
+träfflista med samtliga kvitton från den kedjan. Det gör krav 27 sämre, inte bättre, och
+det är inte reparabelt utan att ta bort segment.
+
+**Undantaget, och regeln som gäller i stället:** fotografera baksidan **när det står något
+som just det här kvittot behöver** — en garantistämpel, en returkod, ett handskrivet
+kolliprisnummer, en anteckning om vilket rum kaklet gick till. Då är det ett segment som
+vilket som helst, sist i ordningen.
+
+Hjälptexten:
+
+> **Baksidan behövs sällan.** Fotografera den bara när det står något eget där — en
+> stämpel, en returkod eller en anteckning. Standardvillkor gör bara söket sämre.
+
+**Vad användaren ser:** ingenting extra. Ingen "baksida"-knapp, ingen fråga.
+
+**Vad som övervägdes och valdes bort: en segmentroll.** Ett fält per segment
+(`role: "front" | "back"`) skulle låta indexet utesluta baksidestext från FTS medan bilden
+ändå sparas. Det är den tekniskt rena lösningen, och den är inte dyr — men den kräver ett
+val vid varje bild, alltså ett beslut i fångstflödet, och den kräver att servern tar emot
+och lagrar rollen (blockerat av konflikt K2, som ändå måste lösas). Den kostar mer än den
+smakar när svaret "fotografera inte baksidan" löser samma problem gratis.
+
+*Osäkerhet, uttalad:* **hur mycket baksidestext egentligen stör söket är inte mätt** — det
+finns inga baksidor i M0:s material. Den dag några ändå fotograferas syns det direkt: en
+sökning på "öppet köp" som ger femtio träffar från samma kedja är beviset. Då är
+segmentrollen rätt åtgärd, och den går att lägga till i efterhand eftersom bilderna finns
+kvar och tolkningen kan köras om.
+
+### 9.8 Vad det här kostar på den kritiska vägen
+
+Prövningen mot krav 1, punkt för punkt:
+
+| Tillägg | När det körs | Kostnad vid "Klart" |
+| --- | --- | --- |
+| Skuggremsan | Ritas när ett segment lagts till, ligger som en statisk bild över förhandsvisningen | 0 |
+| Sömvyn | Bara när användaren trycker på remsan | 0 |
+| "Klart · N bilder" | Etiketten skrivs om när segmentet läggs till | 0 |
+| "Förra kvittot" i remsan | Ersätter en rensning som ändå sker | 0 |
+| Ordvalet "Sista bilden saknas" | I kölistan, efter uppladdningsförsöket | 0 |
+| Råden om veck, baksida, ett kvitto per bild | Startvyn och hjälpen, aldrig i flödet | 0 |
+
+Inget av det lägger ett beslut mellan tryck och nästa kvitto. Det är inte en tillfällighet
+utan urvalskriteriet: varje förslag som krävde en fråga vid "Klart" — bekräfta antal bilder,
+välj segmentroll, godkänn överlapp — ströks av den anledningen.
+
+## 10. Text, samlad
 
 | Plats | Text |
 | --- | --- |
 | Titel/PWA-namn | Kvittofångst |
 | Startknapp | Slå på kameran |
 | Lägesväljare | Gamla högen / Nytt kvitto |
-| Primärknappar | Nästa bild · Klart |
+| Primärknappar | Nästa bild · Klart · Klart · N bilder |
 | Avtryckare (skärmläsare) | Fotografera nu |
 | Remsa, ta bort | Ta bort sista |
 | Remsa, i bildvy | Ta om · Stäng |
+| Remsa, efter Klart | Förra kvittot |
+| Sömvy | Sömvy · N bilder · Lägg till bild · Klart |
+| Skuggremsa (skärmläsare) | Slutet på förra bilden — lägg papperet så att raderna syns igen |
 | Kvalitetsrad | Redo · Gå närmare — texten är liten · Håll stilla · För mörkt — tänd lampan · Rikta mot kvittot · Startar kameran… · Autoutlösning av — tryck för att fotografera |
 | Köräknare | N kvitton väntar · Allt uppladdat · N väntar · 1 fastnat |
 | Kölista, tomt | Allt är uppladdat. Inget väntar. |
 | Kölista, status | Verifierad på servern · Laddar upp… · Väntar på nätet · Fastnat |
+| Kölista, sista segmentet fastnat | Sista bilden saknas — där står oftast totalbeloppet. |
 | Kölista, botten | Uppladdat och verifierat: N kvitton i det här passet |
 | Offline | Ingen kontakt med servern. Bilderna sparas i telefonen och skickas när kontakten är tillbaka. |
 | Server full | Servern har slut på utrymme. Bilderna ligger kvar i telefonen. |
@@ -523,11 +891,16 @@ Mätningen är beskriven i planen och byggs i M8; här står bara gränssnittsde
 | Återupptaget kvitto | Du har ett påbörjat kvitto med N bilder. / Fortsätt · Avsluta kvittot |
 | Automatiskt avslutat | Ett påbörjat kvitto från i går lades i kön. |
 | Kamera nekad | Kameran är blockerad för den här sidan. Öppna webbläsarens platsinställningar och tillåt kamera, ladda sedan om. |
+| Hjälp: ett kvitto per bild | Ett kvitto per bild. Två kvitton i samma bild blir ett kvitto i arkivet — texten går att söka i, men beloppen hamnar fel. |
+| Hjälp: veck | Platta till kvittot innan du fotograferar. Vecken är det som gör texten svår att läsa, inte ljuset. Bilden är det enda som blir kvar — tolkningen kan köras om hur många gånger som helst, men bilden tas bara en gång. |
+| Hjälp: trasigt kvitto | Fotografera det som finns. Ett halvt kvitto går att söka i, ett slängt går inte. |
+| Hjälp: baksida | Baksidan behövs sällan. Fotografera den bara när det står något eget där — en stämpel, en returkod eller en anteckning. Standardvillkor gör bara söket sämre. |
+| Hjälp: långt kvitto | Låt ett par rader från förra bilden synas överst i nästa. Då syns det om något hoppats över. |
 
 Genomgående: **du-tilltal, ingen jargong, ingen versalisering av knappar**. Felmeddelanden
 säger vad som hände och vad som gäller för bilden — aldrig bara att något gick fel.
 
-## 10. Tillgänglighet
+## 11. Tillgänglighet
 
 | Krav | Lösning |
 | --- | --- |
@@ -541,9 +914,10 @@ säger vad som hände och vad som gäller för bilden — aldrig bara att något
 | Textstorlek | Layouten håller vid 200 % systemtext; knapparna växer på höjden, förhandsvisningen krymper. |
 | Ljus | Mörkt gränssnitt genomgående — kameravyer i ljust läge bländar i mörka butiker och ger sämre bedömning av förhandsvisningen. Detta är den enda vyn i systemet som inte följer systemets ljusläge, och det är avsiktligt. |
 
-## 11. Konflikter mot planen och mot servern som den ser ut i dag
+## 12. Konflikter mot planen och mot servern som den ser ut i dag
 
-Fyra saker den här designen behöver som inte finns. De tre första är blockerande för M4.
+Fem saker den här designen behöver som inte finns. De tre första är blockerande för M4;
+K5 är det bara om avsnitt 9 någon gång ska få sina flaggor, vilket den inte ska i Steg 1.
 
 **K1 — servern vet inte när ett kvitto är komplett.**
 `POST /api/receipts` är idempotent på så sätt att den returnerar det befintliga kvittot och
@@ -551,6 +925,10 @@ Fyra saker den här designen behöver som inte finns. De tre första är blocker
 tala om att kvittot har tre segment. Följden: ett kvitto där segment 2 tappats bort ser
 likadant ut som ett kvitto med ett segment — den tysta förlusten planen är byggd för att
 undvika. Det påverkar också M5: OCR-jobbet vet inte när det får starta.
+Avsnitt 9.1 skärper kravet: eftersom totalbeloppet nästan alltid står på det **sista**
+segmentet är ett tappat sista segment det dyraste tappet som finns, och utan
+`segmentsExpected` är det också det mest osynliga — ett kvitto på tre bilder där den sista
+aldrig kom fram ser ut som ett komplett tvåbildskvitto med ett oläst totalbelopp.
 *Förslag:* `POST /api/receipts/:id/complete { "segments": 3 }`, idempotent, som sätter ett
 `segmentsExpected` i sidecaren och köar tolkningsjobbet. Kvitton där antalet inte stämmer
 hamnar i **Kräver åtgärd**.
@@ -562,6 +940,9 @@ hamnar i **Kräver åtgärd**.
 bilder från manuella. Utan det går den mätningen inte att göra i efterhand — mätvärdena
 finns bara i telefonens ögonblick.
 *Förslag:* ta emot ett `capture`-fält i samma multipart-anrop och skicka det vidare.
+`Segment.capture` är redan `Record<string, unknown>`, så det behöver inget schemaarbete —
+och det är samma lucka som skulle behöva stängas den dag en segmentroll (`front`/`back`,
+avsnitt 9.7) eller ett mått på överlapp någonsin blir aktuellt.
 
 **K3 — `backlog` går inte att sätta i efterhand, och det är rätt, men lägesväljaren måste
 därför läsas vid *skapandet*.** Ingen ändring behövs i servern; det är en anmärkning till
@@ -574,7 +955,14 @@ bilden som räknas, och lägesväljaren låses visuellt medan ett kvitto pågår
 tumnaglarna ligger i `derived/`. Mobilläget klarar sig utan (det har egna lokala
 tumnaglar), men datorläget gör det inte — se `UX-dator.md`.
 
-## 12. Vad jag inte vet
+**K5 — `tags.user` går inte att sätta utifrån.**
+Sidecaren har `tags: { user: [], auto: [] }` men ingen ändpunkt skriver till dem. Det är
+skälet till att avsnitt 9.3 inte bygger någon "riven"-märkning i mobilen: den skulle behöva
+en ny ändpunkt för en nytta som är svår att belägga. **Blockerar inte M4** och ska inte
+lösas för den här designens skull — det noteras bara så att beslutet är spårbart, och för
+att automatisk taggning (krav 21, 23–26) ändå är utanför Steg 1.
+
+## 13. Vad jag inte vet
 
 Skrivet så här för att inget ska förväxlas med underlag:
 
@@ -588,3 +976,18 @@ Skrivet så här för att inget ska förväxlas med underlag:
   saknas i allt underlag.
 - **Sex timmars gräns för övergivna kvitton** är gissad.
 - **Scenbyteströskeln efter "Klart"** är gissad; tidsgränsen på 1,2 s är säkerhetsnätet.
+- **Fördelningen mellan korta och långa kvitton är okänd.** Planens räkneexempel antar ~2
+  bilder per kvitto, men det är ett lagringsantagande, inte en mätning. Antalet segment per
+  kvitto finns i sidecaren efter första passet och avgör om knapparnas vikt i avsnitt 3 och
+  9.2 är rätt.
+- **Överlappets storlek (20 %) är inte mätt** — den är vald för att rymma två till tre
+  textrader i skuggremsan vid normalt avstånd. Vad som avgör: hur många rader som faktiskt
+  syns där på den telefon som används.
+- **Om närbild på totalraden räddar ett vikt kvitto är inte mätt.** Jämför konfidensen på
+  totalfältet med och utan extra närbild i M9:s mätuttag.
+- **Hur mycket baksidestext stör fritextsöket är inte mätt.** Det finns inga baksidor i
+  M0:s material. Beviset, om det kommer, är en sökning på "öppet köp" som ger femtio
+  träffar från samma kedja.
+- **Hur ofta rivna kvitton förekommer i högen vet jag inte.** Är de många kan sömvyns
+  brutna skarv bli en återkommande källa till onödig oro i granskningen, och då är en
+  märkning värd sitt pris. Är de få är den det inte.
