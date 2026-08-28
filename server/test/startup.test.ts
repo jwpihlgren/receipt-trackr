@@ -47,7 +47,8 @@ describe("arkivformatet", () => {
       const text = await readFile(file, "utf8");
       expect(file.endsWith(ARKIVFORMAT_FILE)).toBe(true);
       expect(text).toMatch(/receipts\/<år>\/<månad>\/<ULID>/);
-      expect(text).toMatch(/Inga kvitton lagras ännu/);
+      // Skrivordningen är den enda regel en reparatör måste känna till.
+      expect(text).toMatch(/skrivs alltid först, och atomiskt/);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

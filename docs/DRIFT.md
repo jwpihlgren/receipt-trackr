@@ -121,6 +121,18 @@ genomförts på riktigt** — inte planerats, inte antagits fungera. När den fi
 dokumenteras övningen här, steg för steg, tillsammans med hur man kontrollerar att
 antal och sha256 stämmer.
 
+## Bygga om sökindexet
+
+`index.sqlite` är härlett — allt i det går att räkna fram ur `receipts/` igen. Har det
+tappats bort, blivit inkonsekvent eller ändrat schema:
+
+```sh
+docker compose exec app node server/dist/reindex.js
+```
+
+Ingenting går förlorat av att köra det, och det är samma väg som används efter en
+återställning från säkerhetskopia.
+
 ## Loggar
 
 Servern loggar strukturerad JSON till standard ut, alltså till `docker compose logs`.
@@ -132,6 +144,6 @@ ledigt. Läs den varje gång du startar om.
 
 ## Vad som inte finns ännu
 
-Kvittolagring, mobilläge, OCR, sök och säkerhetskopiering. Det här är driftskelettet:
-en tjänst som startar, kontrollerar disken, svarar på sin hälsa och serverar en vy som
-visar just det. Ordningen är avsiktlig — se milstolparna i planen.
+Mobilläge, textutläsning, datorvy och säkerhetskopiering. Servern tar emot och lagrar
+kvitton, men ingenting läser dem ännu — `fields` och `text` i sidecaren står tomma.
+Ordningen är avsiktlig, se milstolparna i planen.

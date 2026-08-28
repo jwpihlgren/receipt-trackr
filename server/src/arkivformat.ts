@@ -47,13 +47,18 @@ grep -rl "kakel" receipts/ | head
 
 Bilderna är vanliga JPEG-filer och kräver ingenting alls.
 
+## Skrivordningen, om du någonsin ska reparera något
+
+\`receipt.json\` skrivs alltid först, och atomiskt: till en temporärfil, som synkas
+mot disken och därefter byts in med \`rename\`. Först när det gått igenom uppdateras
+\`index.sqlite\`. Kraschar maskinen däremellan är disken korrekt och indexet
+efterblivet — kör om indexeringen, så är de i takt igen. Det omvända kan inte inträffa.
+
 ## Vad den här versionen skriver
 
-Version ${VERSION} är ett driftskelett: den kontrollerar disken, svarar på
-\`/api/health\` och skriver den här filen. **Inga kvitton lagras ännu** — \`receipts/\`
-skapas först när kvittolagringen finns på plats. Beskrivningen ovan är formatet
-arkivet kommer att ha, och den ligger här redan nu därför att formatet är bestämt
-och en tom disk är rätt tillfälle att läsa den.
+Version ${VERSION} lagrar kvitton: segmentbilder, sidecar, tumnaglar och sökindex.
+Fälten (\`fields\`) och råtexten (\`text\`) fylls först när textutläsningen finns på
+plats, så de står tomma tills vidare.
 `;
 }
 

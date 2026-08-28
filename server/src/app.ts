@@ -5,14 +5,25 @@
  */
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from "fastify";
 import fastifyStatic from "@fastify/static";
+import fastifyMultipart from "@fastify/multipart";
 import { stat } from "node:fs/promises";
 import type { Config } from "./config.js";
 import { registerHealth } from "./http/health.js";
+import { registerReceipts } from "./http/receipts.js";
+import { Archive } from "./store/archive.js";
 
 export async function buildApp(config: Config, options: FastifyServerOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" }, ...options });
 
+  // Ett kvittosegment är ett telefonfoto: taket är satt för att rymma det med god
+  // marginal, inte för att vara generöst.
+  await app.register(fastifyMultipart, { limits: { fileSize: 32 * 1024 * 1024, files: 1 } });
+
+  const archive = Archive.open(config.dataDir);
+  app.addHook("onClose", () => archive.close());
+
   registerHealth(app, config);
+  registerReceipts(app, archive);
 
   // Webbygget serveras av samma process: en image, en tjänst, en port (krav 52).
   if (config.webRoot && (await stat(config.webRoot).catch(() => null))?.isDirectory()) {
