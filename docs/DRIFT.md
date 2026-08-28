@@ -32,19 +32,20 @@ Inställningarna som hör till den här maskinen ligger i `.env` bredvid
 
 ```sh
 cd ~/repos/receipt-trackr
-cp .env.example .env                      # fyll i ARCHIVE_DIR och en ledig HTTP_PORT
-
-# En gång, innan första starten: katalogen måste finnas och ägas av dig.
-mkdir -p /media-pool/kvitton
-
+cp .env.example .env                      # ARCHIVE_DIR och en ledig HTTP_PORT
 docker compose up -d
 docker compose logs -f app                # första raden säger var arkivet ligger
 ```
 
-**Varför just det steget:** saknas en katalog som monteras in skapar Docker den åt sig
-med root som ägare. Servern kör som en vanlig användare och kan då inte skriva, och
-vägrar starta med `EACCES`. Felet ser ut som en rättighetsbugg och är i själva verket
-en katalog som aldrig fanns.
+Ingenting behöver förberedas på värden. Saknas arkivkatalogen skapar containern den
+och sätter ägarskapet till `PUID:PGID` (1000 som standard, alltså den första vanliga
+användaren). Är ditt uid något annat, sätt `PUID` och `PGID` i `.env` — då går arkivet
+att läsa och kopiera utan `sudo`.
+
+**En fälla värd att känna till:** en variabel som är exporterad i skalet vinner över
+`.env`. Har du någon gång kört `export ARCHIVE_DIR=…` gäller den, tyst, och compose
+monterar något annat än filen säger. `docker compose config` visar alltid vad som
+faktiskt gäller.
 
 Uppgradering:
 

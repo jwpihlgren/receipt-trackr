@@ -12,14 +12,16 @@ services:
       DATA_DIR: /data
       WEB_ROOT: /app/web/public
       PORT: "8080"
+      # Vem som äger filerna i arkivet, sett från värden. Sätt till din egen användare
+      # (`id -u` och `id -g`) om den inte är 1000, så går arkivet att läsa utan sudo.
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
       # Golvet för ledigt utrymme. Under det vägrar servern starta — se docs/DRIFT.md.
       MIN_FREE_BYTES: 5G
       LOG_LEVEL: info
     volumes:
       # Enda monteringen. Pekar mot ZFS-poolen, aldrig mot kortets eMMC: en
       # backloggkörning mot bootenheten fyller den och tar ner maskinen.
-      # Katalogen måste finnas innan containern startar — saknas den skapar Docker
-      # den åt sig med root som ägare, och servern kan då inte skriva.
       - ${ARCHIVE_DIR:?ARCHIVE_DIR måste peka på en katalog i ZFS-poolen}:/data
       # Säkerhetskopieringen och sin katalog kommer i M3.
     ports:

@@ -34,10 +34,10 @@ WORKDIR /app
 COPY --from=deps /app ./
 COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/web/dist/web/browser ./web/public
+COPY entrypoint.sh /entrypoint.sh
 
-# node-användaren finns i imagen och har uid 1000, vilket matchar en vanlig
-# hemmaanvändare på värden — filerna i arkivet blir därmed läsbara utanför containern.
-USER node
+# Startar som root enbart för att kunna rätta ägarskapet på monteringen; entrypoint
+# släpper rättigheterna till PUID:PGID innan servern startar. Se entrypoint.sh.
 EXPOSE 8080
 
 # Hälsokontrollen frågar servern samma sak som runbooken: ligger arkivet rätt och
@@ -45,4 +45,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=1m --timeout=5s --start-period=10s --retries=3 CMD \
   node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8080)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "server/dist/index.js"]
