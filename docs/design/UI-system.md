@@ -100,9 +100,12 @@ En enda konvention bär hela systemet över åren:
 > literal övergångstid. Bara `var(--…)`.** Nya tokens läggs till i `tokens.css`, aldrig i en
 > komponentfil.
 
-Det är den regeln som gör mörkt läge gratis, gör en temajustering till en femradersändring, och
-gör att en person som återvänder efter ett år kan ändra hela systemets uttryck utan att läsa en
-enda komponent. Den går att kontrollera med ett `grep` i en pre-commit-hook:
+Samma disciplin gäller täthet: mellanrum som täthetsaxeln styr skrivs `var(--d-*)`, aldrig som
+literalt mått. Se §2.6.5 för den regeln och dess kontroll.
+
+Det är de reglerna som gör mörkt läge och två tätheter gratis, gör en temajustering till en
+femradersändring, och gör att en person som återvänder efter ett år kan ändra hela systemets
+uttryck utan att läsa en enda komponent. Den går att kontrollera med ett `grep` i en pre-commit-hook:
 
 ```sh
 # Ingen literal färg utanför tokens.css
@@ -120,7 +123,7 @@ web/src/
   styles.css            @import av de tre nedan, inget annat
   styles/tokens.css     alla custom properties, ljust + mörkt. Enda filen med färgvärden
   styles/base.css       reset, typografi, fokusring, :focus-visible, reduced motion
-  styles/utilities.css  ~10 klasser, se §2.6. Växer inte till ett ramverk
+  styles/utilities.css  ~10 klasser, se §2.7. Växer inte till ett ramverk
 ```
 
 ```css
@@ -151,6 +154,10 @@ definitionslista med tabulära siffror, ett fel- och ett degraderat tillstånd.
 ## 2. Designtokens
 
 ### 2.1 Färg — grundtanke
+
+> **Bekräftat av beställaren 2026-08-29.** Varma neutraler med dämpad blå accent är ett fattat
+> beslut, inte en default som ärvts in. Motiveringen nedan lades fram och höll. Den som vill
+> ändra riktningen ändrar ett beslut och bör säga det.
 
 Neutralerna är **varma** (en aning gult i gråskalan), av ett skäl som är specifikt för det här
 innehållet: kvittobilderna är vitt till gulvitt termopapper fotograferat i inomhusljus. Mot en
@@ -488,9 +495,12 @@ body {
   font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: var(--leading-body);
-  /* Grått rutnät under bilden ser bättre ut än vitt när fotot laddas. */
   -webkit-font-smoothing: antialiased;
 }
+
+/* Radavståndet är den enda typografiska storhet som täthetsaxeln får röra —
+   se §2.6.2. Regeln sitter på ytans skal, så att den ärvs ned i hela trädet. */
+[data-density] { line-height: var(--d-leading); }
 
 h1, h2, h3, p, dl, dd, figure { margin: 0; }
 h1, h2, h3 { line-height: var(--leading-tight); font-weight: var(--weight-bold); }
@@ -549,14 +559,216 @@ Fyra saker får röra sig, och inget annat:
 Kamerans autoutlösningsring är ett femte fall men styrs av mätdata, inte av tid; se §4.8.
 Inget i systemet rör sig för att vara trevligt.
 
-### 2.6 utilities.css
+### 2.6 Täthet
+
+> **Bekräftat av beställaren 2026-08-29: tätt i datorläget, luftigt i mobilläget.**
+
+Skälet är att situationerna skiljer sig. Mobilen används med en hand, i rörelse, ofta stående i
+en butik med en pappershög under armen — där kostar en missad träffyta en omtagning. Datorläget
+används för att beta av hundratals kvitton i följd — där kostar varje bortslösad rad en
+rullning till.
+
+Utan en uttalad täthetspolicy ärver komponenterna ingenting och var och en väljer sina egna
+mellanrum. Det är precis så två ytor glider isär över åren. Täthet är därför en egen axel, vid
+sidan av färg och mellanrumsskala, och den sätts en gång per yta.
+
+#### Mekanismen: `data-density` på ytans skal
+
+`data-density="compact" | "comfortable"` sätts **en gång, på ruttkomponentens värdelement**, och
+definierar en uppsättning `--d-*`-tokens som ärvs ned genom hela trädet. En komponent skriver
+`padding: var(--d-pad-y) var(--d-pad-x)` — samma rad i båda ytorna, olika resultat.
+
+```ts
+@Component({ selector: 'app-shell',   host: { 'data-density': 'compact' },     … })
+@Component({ selector: 'app-capture', host: { 'data-density': 'comfortable' }, … })
+```
+
+**Varför ett attribut och inte en skalär.** Den frestande varianten är `--density: 0.75` som
+multiplicerar varje mellanrum. Tre skäl att låta bli:
+
+1. **Den skalar allt, även det som inte får skalas.** Ett 44 px träffgolv, en 1 px linje och
+   konfidensremsans 3 px är absoluta mått. En multiplikator kan inte skilja dem från en padding
+   utan att man ändå räknar upp undantagen — och då har man attributet, fast otydligare.
+2. **Den producerar brutna pixlar.** `calc(0.75 * 13px)` blir 9,75 px; en rad blir 35,5 px hög
+   och en 1 px-linje ritas som en suddig 2 px-grå på en skärm utan HiDPI — vilket 1080p-skärmen
+   i §2.6.4 är.
+3. **Den låser relationerna.** I tätt läge ska innerpaddingen krympa *mer* än avståndet mellan
+   grupper, annars blir raderna täta men sidan lika lång. Två uttryckliga block går att läsa
+   bredvid varandra och rätta; en multiplikator går bara att gissa på.
+
+**Varför på skalet och inte på `<html>`.** Attributet ärver, alltså kan en delyta sätta om det.
+Det utnyttjas på exakt ett ställe, med flit (§2.6.3). Sitter det på roten är den möjligheten
+borta, och mobilläget skulle behöva skriva på `<html>` från en komponent — en sidoeffekt utanför
+sitt eget träd, och just den sortens sak som är svår att hitta tre år senare.
+
+#### 2.6.1 Tokens och värden
+
+```css
+/* tokens.css, efter måtten.
+ *
+ * :root är luftigt. En komponent som renderas utanför båda skalen — i en test,
+ * i en framtida vy som ännu inte fått ett skal — ska bli för rymlig, aldrig för
+ * trång. Fel åt det hållet går att se; fel åt andra hållet gör en knapp omöjlig
+ * att träffa på en telefon.
+ */
+:root {
+  --d-row-h:       56px;               /* listradens totala höjd, linjen inräknad */
+  --d-pad-y:       0.75rem;            /* 12 — komponentens innerpadding, block */
+  --d-pad-x:       1rem;               /* 16 — innerpadding, inline */
+  --d-gap:         var(--space-3);     /* 12 — .stack och .row utan eget värde */
+  --d-gap-tight:   var(--space-2);     /*  8 — inom en grupp */
+  --d-card-pad:    var(--space-4);     /* 16 */
+  --d-section-gap: var(--space-5);     /* 24 — mellan grupper i en panel */
+  --d-leading:     var(--leading-body);   /* 1,55 — se §2.6.2 */
+  --d-control-h:   var(--tap-comfort); /* 48 — synlig höjd på knapp, fält, listrad */
+  --d-thumb-w:     64px;
+  --d-thumb-h:     84px;
+}
+
+[data-density="compact"] {
+  --d-row-h:       36px;
+  --d-pad-y:       0.375rem;           /*  6 */
+  --d-pad-x:       0.75rem;            /* 12 */
+  --d-gap:         var(--space-2);     /*  8 */
+  --d-gap-tight:   var(--space-1);     /*  4 */
+  --d-card-pad:    var(--space-3);     /* 12 */
+  --d-section-gap: var(--space-4);     /* 16 */
+  --d-leading:     1.45;               /* enda typografiska storhet täthet får röra */
+  --d-control-h:   36px;
+  --d-thumb-w:     48px;
+  --d-thumb-h:     64px;
+}
+
+/* Skrivs ut trots att det är identiskt med :root. Utan det kan en lokal
+   återställning inuti ett compact-träd (§2.6.3) inte fungera. */
+[data-density="comfortable"] {
+  --d-row-h:       56px;
+  --d-pad-y:       0.75rem;
+  --d-pad-x:       1rem;
+  --d-gap:         var(--space-3);
+  --d-gap-tight:   var(--space-2);
+  --d-card-pad:    var(--space-4);
+  --d-section-gap: var(--space-5);
+  --d-leading:     var(--leading-body);
+  --d-control-h:   var(--tap-comfort);
+  --d-thumb-w:     64px;
+  --d-thumb-h:     84px;
+}
+```
+
+| Token | luftigt | tätt | Styr |
+| --- | --- | --- | --- |
+| `--d-row-h` | 56 px | 36 px | arbetslisterad, sökträffrad, granskningsrad |
+| `--d-pad-y` / `--d-pad-x` | 12 / 16 | 6 / 12 | all innerpadding i rader, paneler, rutor |
+| `--d-gap` | 12 px | 8 px | `.stack`, `.row`, rutnätsluckor |
+| `--d-gap-tight` | 8 px | 4 px | mellanrum inom en grupp (etikett + värde) |
+| `--d-card-pad` | 16 px | 12 px | kvittokortets insida |
+| `--d-section-gap` | 24 px | 16 px | mellan grupper i fältpanelen och i skalet |
+| `--d-leading` | 1,55 (`--leading-body`) | 1,45 | radavstånd på brödtext |
+| `--d-control-h` | 48 px | 36 px | synlig höjd på knapp, sökfält, listrad |
+| `--d-thumb-w` / `--d-thumb-h` | 64 / 84 | 48 / 64 | kvittokortets tumnagel |
+
+#### 2.6.2 Vad tätheten inte får styra
+
+Listan är lika viktig som tokens, och den är avsiktligt kort och sluten.
+
+| Får aldrig stå i ett `[data-density]`-block | Varför |
+| --- | --- |
+| `--tap-min` (44 px) | Mobilgolvet. Absolut, i alla lägen. Se nedan. |
+| `--text-xs … --text-2xl` | **Textstorlek krymper aldrig av täthet.** Att pressa in fler rader genom mindre text är ett annat beslut — det handlar om läsbarhet, inte om luft — och ska fattas för sig och medvetet. I tätt läge blir raden kortare för att padding och radavstånd krymper, inte för att texten gör det. |
+| `--focus-width`, `--focus-offset` | En tunnare fokusring i tätt läge försämrar just den yta där tangentbordet används mest. |
+| Linjebredder, `--conf-track`-remsans 3 × 56 px, evidensrutans 2 px | Optiska mått. En 2 px punktlinje under ett maskinläst värde ska se likadan ut överallt — det är §5:s hela poäng. |
+| `--shutter-size`, `--thumb-w` / `--thumb-h` (kamerans segmentremsa) | Mobilytan är luftig ändå, men de namnges här så att ingen råkar täthetsskala kameran. Notera att kamerans `--thumb-*` och kortets `--d-thumb-*` är två olika saker. |
+| Tomma tillstånd (§3.7) | De är sällsynta och ska andas i båda ytorna. |
+
+**Om 44 px-golvet, exakt.** I mobilläget är `--d-control-h` 48 px och får aldrig underskrida
+`--tap-min`. I datorläget är `--d-control-h` 36 px, och det är ett medvetet avsteg som är värt
+att skriva ut: WCAG **2.5.8 Target Size (Minimum), nivå AA**, kräver 24 × 24 CSS-pixlar — 36 px
+klarar det med marginal. Talet 44 kommer från **2.5.5, nivå AAA**. Det behålls som husregel i
+mobilläget, där handen är i rörelse, och släpps i datorlägets täta lista, där pekdonet är en mus
+och raderna ligger kant i kant.
+
+Följdregeln, som är den som faktiskt bränns: **en träffyta får aldrig växa in i grannradens
+yta.** Mönstret i §4.3 som lånar utrymme utanför sig själv gäller därför bara där det finns
+minst 8 px fritt runt om — aldrig i en tät lista, där en 44 px träffyta på en 36 px rad skulle
+göra varannan klickning fel. Ett litet mål är bättre än ett stort som träffar fel rad.
+
+#### 2.6.3 Det enda lokala undantaget
+
+**Fältpanelen (§3.2) sätter `data-density="comfortable"` på sig själv, inuti det täta
+datorskalet.**
+
+```html
+<aside class="field-panel" data-density="comfortable"> … </aside>
+```
+
+Skälet: panelen är den enda ytan i systemet där en människa **bedömer** i stället för att skanna.
+Där sitter punktlinjen, konfidensremsan och totalbeloppet i 28 px, och där fattas beslutet som
+hela §5 handlar om. Tre fältrader tar inget utrymme som gör skillnad, och en trång
+bedömningsyta ger sämre bedömningar — vilket är dyrare än en rullning.
+
+Det är också demonstrationen av varför mekanismen är ett ärvande attribut i stället för en
+global inställning: undantaget kostar en rad HTML och noll rader CSS.
+
+Fler undantag ska inte finnas. Läggs ett till, skrivs skälet här — annars har systemet i
+praktiken ingen täthetspolicy igen.
+
+#### 2.6.4 Rimlighetskontroll: rader per skärm
+
+Beställarens skäl var att kunna beta av en hög. Då är radantalet poängen, inte tätheten i sig.
+
+1920 × 1080, maximerat fönster, 100 % skalning:
+
+```
+1080   skärmens höjd
+ -40   aktivitetsfält
+ -88   webbläsarens flikrad + adressfält
+ ────
+ 952   synlig yta
+ -28   statusremsa (§1.7)
+ -40   kolumnhuvud i arbetslistan
+ -44   listfot: genomströmning, krav 47
+ ────
+ 840   kvar till rader
+```
+
+| Läge | `--d-row-h` | Rader per skärm |
+| --- | --- | --- |
+| **compact** (datorläget) | 36 px | **23** |
+| comfortable | 56 px | 15 |
+
+**23 rader mot 15 — drygt halva listan till på samma skärm, utan att en enda bokstav krympt.**
+Det är hela vinsten med axeln, och den räcker som motivering.
+
+Vad det betyder i den här högen: M0 mätte datum till 74 %, systemets svagaste fältutvinning. Går
+den siffran oförändrad in i M6 hamnar i storleksordningen 2 600 av tiotusen kvitton i
+`needs_review` — omkring **113 skärmar i tätt läge mot 174 i luftigt**. Sextio skärmars rullning
+i skillnad. Det är just den sortens skillnad som avgör om en hög betas av eller läggs undan, och
+det är därför beslutet är riktigt.
+
+Kontrollen bör göras om när `--d-row-h` ändras. Räkningen är fem rader och står ovan.
+
+#### 2.6.5 Disciplinen
+
+Samma regel som för färg (§1.5): **komponent-CSS får inte innehålla ett literalt mått för något
+som täthetsaxeln styr.** `padding`, `gap` och radhöjd skrivs `var(--d-*)`. Literala pixlar är
+tillåtna bara för optiska detaljer under 4 px och för de mått §2.6.2 uttryckligen undantar.
+
+```sh
+# Literalt mellanrum i komponent-CSS
+! grep -rnE '^\s*(padding|gap|row-gap|column-gap|min-height|min-block-size)\s*:\s*[0-9]' \
+    web/src --include='*.component.css' \
+  || { echo 'Literalt mellanrum i komponent-CSS — använd var(--d-*)'; exit 1; }
+```
+
+### 2.7 utilities.css
 
 Tio klasser, och listan får inte växa utan att någon frågar sig varför.
 
 ```css
 /* web/src/styles/utilities.css */
-.stack     { display: flex; flex-direction: column; gap: var(--stack-gap, var(--space-3)); }
-.row       { display: flex; align-items: center; gap: var(--row-gap, var(--space-2)); }
+.stack     { display: flex; flex-direction: column; gap: var(--stack-gap, var(--d-gap)); }
+.row       { display: flex; align-items: center; gap: var(--row-gap, var(--d-gap-tight)); }
 .row--wrap { flex-wrap: wrap; }
 .push      { margin-inline-start: auto; }      /* skjut resten åt höger */
 .measure   { max-width: var(--measure); }
@@ -594,10 +806,12 @@ primär          sekundär          tyst              fara
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center;
-  gap: var(--space-2);
-  min-height: var(--tap-min);
-  min-width: var(--tap-min);
-  padding-inline: var(--space-4);
+  gap: var(--d-gap-tight);
+  /* Höjden kommer från täthetsaxeln: 48 px i mobilläget, 36 i datorläget.
+     Aldrig från komponenten själv — se §2.6. */
+  min-block-size: var(--d-control-h);
+  min-inline-size: var(--d-control-h);
+  padding-inline: var(--d-pad-x);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   font-size: var(--text-base);
@@ -628,7 +842,7 @@ primär          sekundär          tyst              fara
 .btn[data-variant="secondary"]:hover:not(:disabled) { background: var(--sunken); }
 
 .btn[data-variant="quiet"] {
-  background: transparent; color: var(--accent); padding-inline: var(--space-3);
+  background: transparent; color: var(--accent); padding-inline: var(--d-gap);
 }
 .btn[data-variant="quiet"]:hover:not(:disabled) { background: var(--accent-soft); }
 
@@ -636,18 +850,26 @@ primär          sekundär          tyst              fara
   background: var(--danger); color: var(--on-danger);
 }
 
-/* Storlekar. --size="lg" är mobilens primära åtgärd. */
-.btn[data-size="sm"] { min-height: 36px; padding-inline: var(--space-3);
-                       font-size: var(--text-sm); }
-.btn[data-size="lg"] { min-height: var(--tap-primary); padding-inline: var(--space-5);
-                       font-size: var(--text-lg); border-radius: var(--radius-md); }
-
-/* En sm-knapp är under 44 px hög. Den får bara användas i datorläget, och då
-   med en osynlig träffyta som tar upp skillnaden. */
-.btn[data-size="sm"]::after {
-  content: ""; position: absolute; inset: -4px;
+/* Två storlekar, inte tre.
+ *
+ * REVIDERAT efter täthetsbeslutet: `sm` är borttagen. Den var täthet förklädd
+ * till storlek — dess enda syfte var att göra knappar mindre i datorläget, och
+ * det gör täthetsaxeln nu, för alla komponenter samtidigt och på ett ställe.
+ *
+ * `md` (standard) följer `--d-control-h`. `lg` är fast 56 px: det är mobilens
+ * primära åtgärd och den ska inte krympa av något skäl. */
+.btn[data-size="lg"] {
+  min-block-size: var(--tap-primary);
+  padding-inline: var(--space-5);
+  font-size: var(--text-lg);
+  border-radius: var(--radius-md);
 }
-.btn[data-size="sm"] { position: relative; }
+
+/* Fristående knapp i datorläget är 36 px synlig men får låna 4 px åt varje håll
+   till träffytan. Gäller bara där det finns fritt utrymme runt om — aldrig i en
+   tät lista, se §2.6.2. */
+.btn[data-reach="extended"] { position: relative; }
+.btn[data-reach="extended"]::after { content: ""; position: absolute; inset: -4px; }
 
 /* Väntande knapp: texten står kvar, ett spår fylls under den. Ingen spinner
    som byter ut etiketten — man ska kunna se vad man tryckte på. */
@@ -678,7 +900,7 @@ Angular-sida:
 })
 export class ButtonComponent {
   readonly variant = input<'primary' | 'secondary' | 'quiet' | 'danger'>('secondary');
-  readonly size    = input<'sm' | 'md' | 'lg'>('md');
+  readonly size    = input<'md' | 'lg'>('md');
   readonly busy    = input(false);
   readonly disabled = input(false);
   readonly type    = input<'button' | 'submit'>('button');
@@ -717,13 +939,18 @@ Rad i redigeringsläge (Enter på markerad rad):
 ```
 
 ```css
-/* field-row.component.css */
+/* field-row.component.css
+ *
+ * Panelen runt de här raderna sätter data-density="comfortable" på sig själv,
+ * även inuti det täta datorskalet (§2.6.3): det här är systemets enda
+ * bedömningsyta, och den ska inte vara trång. Raden själv vet inget om det —
+ * den läser bara sina --d-tokens. */
 :host {
   display: grid;
   grid-template-columns: 5.5rem minmax(0, 1fr) auto;
   align-items: baseline;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--d-gap);
+  padding: var(--d-pad-y) var(--d-pad-x);
   border-block-end: 1px solid var(--line);
   cursor: default;
   transition: background-color var(--dur-fast) var(--ease-out);
@@ -764,6 +991,9 @@ Rad i redigeringsläge (Enter på markerad rad):
   border-block-end: 2px dashed var(--line-strong);
 }
 
+/* Panelen är luftig även i det täta skalet — det lokala undantaget i §2.6.3. */
+.field-panel { display: flex; flex-direction: column; gap: var(--d-section-gap); }
+
 /* Sammanfattningen som gör frånvaron av markör entydig. Står i panelhuvudet. */
 .field-panel__summary { font-size: var(--text-sm); color: var(--ink-muted); }
 .field-panel__legend  { font-size: var(--text-xs); color: var(--ink-faint); }
@@ -802,9 +1032,9 @@ Används i sökresultat, i "senast fångade", och i granskningsläget.
 /* receipt-card.component.css */
 :host {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: var(--space-4);
-  padding: var(--space-4);
+  grid-template-columns: var(--d-thumb-w) minmax(0, 1fr);
+  gap: var(--d-card-pad);
+  padding: var(--d-card-pad);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
@@ -818,7 +1048,7 @@ Används i sökresultat, i "senast fångade", och i granskningsläget.
                         outline-offset: var(--focus-offset); }
 
 .thumb {
-  inline-size: 64px; block-size: 84px;
+  inline-size: var(--d-thumb-w); block-size: var(--d-thumb-h);
   object-fit: cover; object-position: top center;   /* butiksnamnet står överst */
   background: var(--image-bed);
   border-radius: var(--radius-sm);
@@ -854,11 +1084,10 @@ väntar
 │ ○  01K5F8…  18:22   2 segment                     väntar │
 └──────────────────────────────────────────────────────────┘
 
-bearbetas
+bearbetas  — spåret ligger i radens underkant, raden växer inte
 ┌──────────────────────────────────────────────────────────┐
 │ ◐  01K5F8…  18:22   segment 2 av 2                       │
-│    ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░                          │
-└──────────────────────────────────────────────────────────┘
+└──▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░─┘
 
 kräver åtgärd
 ┌──────────────────────────────────────────────────────────┐
@@ -868,6 +1097,8 @@ kräver åtgärd
 Listfot (krav 47):
   14 väntar · 1 bearbetas · 3 kräver åtgärd
   Genomströmning senaste timmen: 132 kvitton · 2,4 s per bild
+
+Radhöjd: 36 px i datorläget (tätt), 56 px luftigt. Se §2.6 och räkningen i §2.6.4.
 ```
 
 ```css
@@ -876,10 +1107,15 @@ Listfot (krav 47):
   display: grid;
   grid-template-columns: 1.25rem minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-3);
-  min-height: var(--tap-min);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--d-gap);
+  /* Täthetens tydligaste utslag i hela systemet: 56 px luftigt, 36 px tätt.
+     Höjden är *satt*, inte härledd ur innehållet — det är förutsättningen för
+     att räkningen i §2.6.4 ska gå att lita på, och för att raden inte ska
+     hoppa när tillståndet byts. Linjen ingår i måttet. */
+  block-size: var(--d-row-h);
+  padding-inline: var(--d-pad-x);
   border-block-end: 1px solid var(--line);
+  position: relative;
 }
 
 .state-dot { inline-size: 10px; block-size: 10px; border-radius: var(--radius-full);
@@ -888,15 +1124,22 @@ Listfot (krav 47):
 :host([data-state="running"])   .state-dot { background: var(--accent); }
 :host([data-state="attention"]) .state-dot { background: var(--warn); }
 
-/* Framdriftsspåret sitter under raden och är en grid-radspann, så att raden
-   inte hoppar i höjd när den byter tillstånd — spåret finns alltid, tomt. */
+/* REVIDERAT efter täthetsbeslutet. Spåret låg tidigare i en egen rutnätsrad,
+   vilket lade 5 px på *varje* rad i listan — nära tre rader mindre per skärm i
+   tätt läge, för en detalj som syns på högst en rad i taget. Nu ligger det
+   absolut placerat i radens underkant, ovanpå linjen. Höjden hålls konstant
+   mellan tillstånden lika bra, och 3 px är ett optiskt mått som inte
+   täthetsskalas (§2.6.2). */
 .progress {
-  grid-column: 2 / -1;
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: var(--d-pad-x) 0;
   block-size: 3px;
-  border-radius: var(--radius-xs);
   background: var(--conf-track);
   overflow: hidden;
+  opacity: 0;
 }
+:host([data-state="running"]) .progress { opacity: 1; }
 .progress__fill {
   block-size: 100%; background: var(--accent);
   inline-size: var(--progress, 0%);
@@ -967,9 +1210,9 @@ segments(snippet: string): { text: string; hit: boolean }[] {
 /* search.component.css */
 .search-field {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center; gap: var(--space-2);
-  min-height: var(--tap-comfort);
-  padding-inline: var(--space-3);
+  align-items: center; gap: var(--d-gap-tight);
+  min-block-size: var(--d-control-h);
+  padding-inline: var(--d-pad-x);
   background: var(--surface);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
@@ -981,8 +1224,8 @@ segments(snippet: string): { text: string; hit: boolean }[] {
 }
 .search-field input {
   border: none; background: none; outline: none;
-  padding-block: var(--space-3);
-  font-size: var(--text-base);
+  padding-block: var(--d-pad-y);
+  font-size: var(--text-base);   /* aldrig täthetsskalad — se §2.6.2 */
 }
 /* iOS zoomar in på fokus om fältet är under 16 px. Aldrig mindre än --text-base. */
 
@@ -1339,6 +1582,16 @@ export const routes: Routes = [
 Mobilläget laddas separat, så att telefonen inte hämtar datorlägets kod innan den kan
 fotografera.
 
+Täthetsaxeln (§2.6) hänger på samma delning, och det är hela skälet till att den bor på
+ruttkomponentens värdelement:
+
+```ts
+@Component({ selector: 'app-shell',   host: { 'data-density': 'compact' },     … })
+@Component({ selector: 'app-capture', host: { 'data-density': 'comfortable' }, … })
+```
+
+Ingen annan komponent i systemet sätter attributet, med det enda undantag §2.6.3 räknar upp.
+
 ### 4.2 Datorlägets rutnät
 
 ```
@@ -1362,7 +1615,7 @@ fotografera.
 ```
 
 ```css
-/* shell.component.css */
+/* shell.component.css — värdelementet bär data-density="compact" (§2.6) */
 .shell {
   display: grid;
   grid-template-rows: 1fr auto;
@@ -1393,18 +1646,25 @@ sidled. Det är den enskilt vanligaste orsaken till sidoscroll i den här typen 
 
 ### 4.3 Träffytor
 
-| Yta | Golv | Standard |
-| --- | --- | --- |
-| Mobilläget, allt | 44 px | 48 px (`--tap-comfort`) |
-| Mobilläget, primär åtgärd | 56 px (`--tap-primary`) | avtryckaren 76 px |
-| Datorläget, pekbart | 44 px | 44 px |
-| Datorläget, tät lista med tangentbordsstöd | 36 px synligt | 44 px träffyta via `::after` |
+Träffytor är den plats där täthetsaxeln (§2.6) möter ett hårt krav, så tabellen skiljer på vad
+som *syns* och vad som går att *träffa*.
+
+| Yta | Synligt | Träffyta | Grund |
+| --- | --- | --- | --- |
+| Mobilläget, allt | 48 px (`--d-control-h`) | 48 px | husregel, över 2.5.5 AAA (44) |
+| Mobilläget, primär åtgärd | 56 px (`--tap-primary`) | 56 px | avtryckaren 76 px |
+| Datorläget, fristående kontroll | 36 px (`--d-control-h`) | 44 px via `::after` | 2.5.5 AAA där utrymmet finns |
+| Datorläget, rad i tät lista | 36 px (`--d-row-h`) | 36 px, hela raden | 2.5.8 AA (24 px) med marginal |
+| Fältpanelen, lokalt luftig (§2.6.3) | 48 px | 48 px | bedömningsyta, inte skanningsyta |
+
+**Mobilläget sjunker aldrig under 44 px.** `--tap-min` står utanför täthetsaxeln och får inte
+förekomma i ett `[data-density]`-block (§2.6.2).
 
 Mönstret när det visuella är mindre än träffytan:
 
 ```css
-.tight-target { position: relative; }
-.tight-target::after {
+[data-reach="extended"] { position: relative; }
+[data-reach="extended"]::after {
   content: "";
   position: absolute;
   inset: 50% auto auto 50%;
@@ -1415,8 +1675,14 @@ Mönstret när det visuella är mindre än träffytan:
 }
 ```
 
-Avstånd mellan två träffytor: minst 8 px (`--space-2`). I segmentremsan och i kamerans
-åtgärdsrad minst 16 px, eftersom de används i rörelse med en hand.
+**Villkoret för att få använda det:** minst 8 px fritt runt kontrollen. I en tät lista, där
+36 px-rader ligger kant i kant, skulle en 44 px träffyta växa in i grannraden och göra
+varannan klickning fel. Där är hela raden målet och 36 px är rätt svar — ett litet mål är
+bättre än ett stort som träffar fel rad.
+
+Avstånd mellan två fristående träffytor: minst `--d-gap-tight`. I segmentremsan och i kamerans
+åtgärdsrad minst 16 px, eftersom de används i rörelse med en hand — de måtten är
+täthetsoberoende och står i §3.9 respektive §3.8.
 
 ### 4.4 Enhandsräckvidd på mobil
 
@@ -1814,12 +2080,15 @@ och som annars bara samlas i det slumpmässiga granskningsurvalet.
 
 ## 6. Ordning att bygga i
 
-1. `styles/tokens.css` + `base.css` + `utilities.css`, och `AppComponent` omgjord till skal med
-   statusremsa (§1.7). Ingen ny funktion — bara att kedjan färgas.
+1. `styles/tokens.css` (färg, mått **och täthet**) + `base.css` + `utilities.css`, och
+   `AppComponent` omgjord till skal med statusremsa (§1.7) och `data-density="compact"` på
+   värdelementet. Ingen ny funktion — bara att kedjan färgas och tätheten får en ägare.
 2. Knapp, felruta, tomt tillstånd (§3.1, §3.7, §3.6). Tre komponenter, alla behövs av allt annat.
 3. Kameraöverlägg + segmentremsa + köräknare (§3.8–3.10) → **M4**.
-4. Fältrad + konfidens + kvittokort (§3.2, §5, §3.3) → **M6/M7**.
-5. Arbetslista + sök (§3.4, §3.5) → **M7**.
+4. Fältrad + konfidens + kvittokort (§3.2, §5, §3.3) → **M6/M7**. Fältpanelen får sitt lokala
+   `data-density="comfortable"` här, inte senare (§2.6.3).
+5. Arbetslista + sök (§3.4, §3.5) → **M7**. Kontrollera radantalet mot §2.6.4 när listan står
+   på en riktig 1080p-skärm — räkningen är gjord på papper.
 
 Punkt 4 är den enda som bör läsas om i sin helhet innan den byggs, och den enda där ett
 gränssnittsbeslut kan låsa fast ett produktbeslut som planen med flit lämnat öppet.
