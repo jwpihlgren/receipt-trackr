@@ -46,16 +46,27 @@ med root som ägare. Servern kör som en vanlig användare och kan då inte skri
 vägrar starta med `EACCES`. Felet ser ut som en rättighetsbugg och är i själva verket
 en katalog som aldrig fanns.
 
-Uppgradering, när ett register är valt:
+Uppgradering:
 
 ```sh
 docker compose pull && docker compose up -d
 ```
 
-Tills dess byggs imagen med `docker compose build`. Det går att köra på ZimaBoarden —
-allt bygge sker inne i containern, så värden behöver varken Node eller npm — men ett
-N150 tar sin tid på det. Snabbare är att bygga på en utvecklingsmaskin och lägga imagen
-i ett register.
+Det är hela uppgraderingen. Imagen byggs av GitHub Actions vid varje push till master
+och ligger i `ghcr.io/jwpihlgren/receipt-trackr:latest` — ZimaBoarden bygger ingenting
+och behöver varken Node eller byggverktyg.
+
+Är paketet privat krävs en inloggning en gång på värden:
+
+```sh
+docker login ghcr.io -u jwpihlgren        # lösenord = personlig token med read:packages
+```
+
+Enklare är att göra paketet publikt i GitHubs paketinställningar. Imagen innehåller
+bara programkoden — inga kvitton, inga nycklar, ingenting privat.
+
+Behöver du bygga lokalt ändå går `docker compose build`. Det fungerar på ZimaBoarden
+(allt bygge sker inne i containern) men tar sin tid på ett N150.
 
 ## Mår den bra?
 

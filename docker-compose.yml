@@ -1,8 +1,9 @@
 # Uppgradering är hela vägen: `docker compose pull && docker compose up -d` (krav 53).
-# Tills ett register är valt byggs imagen lokalt med `docker compose build`.
+# Imagen byggs av GitHub vid varje push till master — ZimaBoarden bygger ingenting.
+# `build` finns kvar för utveckling: `docker compose build` går fortfarande.
 services:
   app:
-    image: receipt-trackr:latest
+    image: ghcr.io/jwpihlgren/receipt-trackr:latest
     build:
       context: .
       platforms: [linux/amd64]
