@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "reindex": "node dist/reindex.js"
+    "reindex": "node dist/reindex.js",
+    "backup": "node dist/backup-cli.js"
   },
   "dependencies": {
     "@fastify/multipart": "^9.4.0",

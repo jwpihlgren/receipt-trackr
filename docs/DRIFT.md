@@ -16,6 +16,7 @@ billigt fel, en förlorad bild ett oåterkalleligt.
 | Vad | Var |
 | --- | --- |
 | Arkivet (sanningen) | `$ARCHIVE_DIR` på värden, monterad som `/data` i containern |
+| Säkerhetskopior | `$BACKUP_DIR` (standard `./backup`), monterad som `/backup` |
 | Beskrivning av arkivformatet | `/data/ARKIVFORMAT.md` — skrivs om av servern vid varje start |
 | Appen | en container, en port, `127.0.0.1:8080` på värden |
 | TLS och åtkomst utifrån | `tailscale serve` på värden, inte i containern |
@@ -114,12 +115,62 @@ haveri. Servern vägrar starta hellre än att låta en körning fylla disken. Tr
 Servern varnar också i loggen, utan att vägra starta, när arkivet ligger på något
 annat filsystem än ZFS. Den varningen är värd att läsa varje gång den dyker upp.
 
-## Säkerhetskopiering och återställning
+## Säkerhetskopiering
 
-Byggs i M3. **Grinden är att inget papper slängs förrän en återställning har
-genomförts på riktigt** — inte planerats, inte antagits fungera. När den finns
-dokumenteras övningen här, steg för steg, tillsammans med hur man kontrollerar att
-antal och sha256 stämmer.
+Kopian speglar `receipts/` och skriver ett manifest med sha256 per fil. Sökindexet
+kopieras aldrig — det är härlett och byggs om med `reindex`.
+
+```sh
+docker compose exec app node server/dist/backup-cli.js          # kopiera och kontrollera
+docker compose exec app node server/dist/backup-cli.js verify   # kontrollera kopian igen
+```
+
+Kopieringen kontrollerar alltid sig själv mot manifestet innan den rapporterar klart.
+En kopia ingen läst tillbaka är precis den sortens trygghet som sviker när den behövs.
+
+Bilderna är oföränderliga, så bara nytillkomna filer kopieras; sidecar-filerna
+kopieras alltid eftersom de ändras när fält rättas. Andra körningen mot samma kopia
+tar därför en bråkdel av tiden.
+
+Samma sak går att starta från datorläget, och följa medan den kör:
+`POST /api/backup` startar, `GET /api/backup` visar framdriften.
+
+**Kopian ska ligga på en annan disk än arkivet.** Standardvärdet `./backup` ligger
+bredvid repot och duger för att komma igång, men skyddar bara mot misstag — inte mot
+att disken går sönder. Sätt `BACKUP_DIR` i `.env` så snart du har någonstans att peka.
+
+## Återställningsövningen
+
+**Inget papper slängs förrän den här har genomförts på riktigt.** Inte planerats,
+inte antagits fungera — genomförts. Den tar tio minuter och är enda sättet att veta
+att kopian är värd något.
+
+```sh
+# 1. Kopiera, och notera antalet kvitton och filer i utskriften.
+docker compose exec app node server/dist/backup-cli.js
+
+# 2. Flytta undan arkivet. Flytta — radera inte, förrän övningen är klar.
+docker compose down
+mv /mnt/media-pool/kvitton /mnt/media-pool/kvitton.undan
+mkdir -p /mnt/media-pool/kvitton
+
+# 3. Kopiera tillbaka från säkerhetskopian.
+cp -a /din/backup/receipts /mnt/media-pool/kvitton/
+
+# 4. Starta, kontrollera mot manifestet och bygg om indexet.
+docker compose up -d
+docker compose exec app node server/dist/backup-cli.js verify data
+docker compose exec app node server/dist/reindex.js
+
+# 5. Sök efter något du vet finns. Samma träff som före övningen = klart.
+curl -s "localhost:$HTTP_PORT/api/search?q=<ord ur ett kvitto>" | jq
+
+# 6. Först nu: ta bort det undanflyttade arkivet.
+rm -rf /mnt/media-pool/kvitton.undan
+```
+
+Steg 4 ska säga att alla filer stämmer mot manifestet, och steg 5 ska ge samma
+sökträff som före. Gör de inte det: **släng ingenting**, och felsök i stället.
 
 ## Bygga om sökindexet
 

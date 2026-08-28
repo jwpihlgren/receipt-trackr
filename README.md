@@ -23,7 +23,7 @@ och `docs/DRIFT.md` säger vad man gör åt det.
 
 | Del | Var | Status |
 | --- | --- | --- |
-| Server (Fastify) | `server/` | Drift och kvittolagring: diskkontroll, `/api/health`, kvitton, segment, sökindex |
+| Server (Fastify) | `server/` | Drift, kvittolagring och säkerhetskopiering |
 | Webb (Angular 19) | `web/` | En vy som visar arkivets status |
 | OCR-spike | `spike/` | Klar. Mätningen som valde modellnivå och förbehandling |
 | Runbook | `docs/DRIFT.md` | Skriven för någon som inte minns hur systemet är byggt |

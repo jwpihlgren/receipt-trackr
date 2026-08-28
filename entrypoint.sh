@@ -13,10 +13,13 @@ if [ "$(id -u)" = "0" ]; then
   PUID="${PUID:-1000}"
   PGID="${PGID:-1000}"
 
-  mkdir -p "$DATA_DIR"
-  # Bara monteringens topp, inte hela arkivet: en rekursiv chown över tiotusen
-  # kvitton vid varje start vore både långsam och onödig.
-  chown "$PUID:$PGID" "$DATA_DIR"
+  for dir in "$DATA_DIR" "$BACKUP_DIR"; do
+    [ -n "$dir" ] || continue
+    mkdir -p "$dir"
+    # Bara monteringens topp, inte hela innehållet: en rekursiv chown över tiotusen
+    # kvitton vid varje start vore både långsam och onödig.
+    chown "$PUID:$PGID" "$dir"
+  done
 
   if ! command -v setpriv >/dev/null 2>&1; then
     echo "entrypoint: setpriv saknas i imagen — kan inte släppa root." >&2

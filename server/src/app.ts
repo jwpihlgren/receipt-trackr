@@ -10,6 +10,8 @@ import { stat } from "node:fs/promises";
 import type { Config } from "./config.js";
 import { registerHealth } from "./http/health.js";
 import { registerReceipts } from "./http/receipts.js";
+import { registerBackup } from "./http/backup.js";
+import { BackupJob } from "./backup/job.js";
 import { Archive } from "./store/archive.js";
 
 export async function buildApp(config: Config, options: FastifyServerOptions = {}): Promise<FastifyInstance> {
@@ -24,6 +26,9 @@ export async function buildApp(config: Config, options: FastifyServerOptions = {
 
   registerHealth(app, config);
   registerReceipts(app, archive);
+  // Utan monterad katalog finns ingen säkerhetskopiering — rutterna svarar då 503
+  // med ett begripligt skäl i stället för att saknas.
+  registerBackup(app, config.backupDir ? new BackupJob(config.dataDir, config.backupDir) : null, config.dataDir);
 
   // Webbygget serveras av samma process: en image, en tjänst, en port (krav 52).
   if (config.webRoot && (await stat(config.webRoot).catch(() => null))?.isDirectory()) {

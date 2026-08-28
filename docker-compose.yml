@@ -10,6 +10,9 @@ services:
     restart: unless-stopped
     environment:
       DATA_DIR: /data
+      # Sätts bara när en katalog för säkerhetskopior är monterad nedan. Utan den
+      # svarar backup-rutterna 503 med skälet, i stället för att låtsas fungera.
+      BACKUP_DIR: /backup
       WEB_ROOT: /app/web/public
       PORT: "8080"
       # Vem som äger filerna i arkivet, sett från värden. Sätt till din egen användare
@@ -23,7 +26,9 @@ services:
       # Enda monteringen. Pekar mot ZFS-poolen, aldrig mot kortets eMMC: en
       # backloggkörning mot bootenheten fyller den och tar ner maskinen.
       - ${ARCHIVE_DIR:?ARCHIVE_DIR måste peka på en katalog i ZFS-poolen}:/data
-      # Säkerhetskopieringen och sin katalog kommer i M3.
+      # Säkerhetskopior. Ska ligga på en annan disk än arkivet — en kopia på samma
+      # disk skyddar mot misstag men inte mot att disken går sönder.
+      - ${BACKUP_DIR:-./backup}:/backup
     ports:
       # Bara loopback: TLS termineras av `tailscale serve` på värden, och ingenting
       # ska nå appen förbi den vägen. Porten på värden är därför godtycklig — krockar
