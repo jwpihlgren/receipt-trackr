@@ -40,8 +40,10 @@ Uppgradering, när ett register är valt:
 docker compose pull && docker compose up -d
 ```
 
-Tills dess byggs imagen lokalt på en utvecklingsmaskin: `docker compose build`.
-Bygg aldrig på ZimaBoarden — den har varken Node eller byggverktyg, med flit.
+Tills dess byggs imagen med `docker compose build`. Det går att köra på ZimaBoarden —
+allt bygge sker inne i containern, så värden behöver varken Node eller npm — men ett
+N150 tar sin tid på det. Snabbare är att bygga på en utvecklingsmaskin och lägga imagen
+i ett register.
 
 ## Mår den bra?
 
