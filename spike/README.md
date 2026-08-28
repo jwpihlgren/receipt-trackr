@@ -85,7 +85,16 @@ spike --tiers=tiny,small,medium         # medium är inte med som standard
 spike --crops --tiers=small             # sparar varje beskuren textruta som PNG
 spike --rotations=exif,90,270           # orienteringen som egen mätaxel
 spike --vertcrops=false                 # läs höga rutor ovridna, se nedan
+
+# orienteringsdiagnos utan mätmatris — kör den först på ett nytt urval
+spike --orient-only --orientwidth=1600,800,480 --out=./out-orient
 ```
+
+`--orient-only` kalibrerar och stannar. Med flera bredder mäter den vad en billigare
+provläsning kostar i träffsäkerhet: den bredaste är referens, och kolumnen *samma val som
+referensen* säger om den billiga väljer likadant. Gör den det på alla bilder är
+skillnaden i kostnad ren vinst, eftersom beslutet tas en gång per uppladdning.
+`--orientwidth` sätter sedan bredden för den riktiga körningen.
 
 Sökvägarna i flaggorna är relativa till `/repo/spike` inne i containern, alltså till
 repot — inte till katalogen du står i på värden.

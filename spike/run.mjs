@@ -56,6 +56,15 @@ if (rotations.includes("auto") && rotations.length > 1) {
 if (rotations.some((r) => r !== "auto" && ![0, 90, 180, 270].includes(r))) {
   throw new Error("--rotations tar exif, auto, 90, 180 eller 270, kommaseparerat.");
 }
+// Provläsningen som avgör åt vilket håll sidan ligger behöver inte samma bredd som
+// mätningen: den ska skilja läsbart från oläsbart, inte läsa kvittot. Bredden är
+// därför en egen flagga, och en lista mäter vad billigare provläsning kostar i
+// träffsäkerhet. Standard är den minsta uppmätta bredden.
+const orientWidths = (args.orientwidth ? String(args.orientwidth).split(",").map(Number) : null) ?? [
+  widths.filter(Boolean).sort((a, b) => a - b)[0] ?? 1600,
+];
+// Enbart kalibreringen, ingen mätmatris — diagnosen att köra först på ett nytt urval.
+const orientOnly = Boolean(args["orient-only"]);
 /** Bild → vald vridning. Fylls av calibrateOrientation() när `auto` är påslaget. */
 let calibration = null;
 const threads = Number(args.threads ?? 2);
@@ -176,7 +185,15 @@ async function calibrateOrientation(samples, width) {
       const tallShare = det.boxes.length
         ? det.boxes.filter((b) => b.height > b.width).length / det.boxes.length
         : 0;
-      const entry = { tallShare: +tallShare.toFixed(2), rotation: 0, confidence: null, uncertain: false };
+      const entry = {
+        tallShare: +tallShare.toFixed(2),
+        rotation: 0,
+        confidence: null,
+        // Båda kandidaterna sparas: marginalen mellan dem är det som säger om valet
+        // vilar på något, och den är enda sättet att bedöma en billigare provläsning.
+        candidates: null,
+        uncertain: false,
+      };
       if (tallShare > 0.5) {
         const scores = [];
         for (const candidate of [90, 270]) {
@@ -191,6 +208,8 @@ async function calibrateOrientation(samples, width) {
         const best = scores.reduce((a, b) => (a.confidence >= b.confidence ? a : b));
         entry.rotation = best.candidate;
         entry.confidence = +best.confidence.toFixed(3);
+        entry.candidates = Object.fromEntries(scores.map((c) => [c.candidate, +c.confidence.toFixed(3)]));
+        entry.margin = +Math.abs(scores[0].confidence - scores[1].confidence).toFixed(3);
         // Två svaga kandidater betyder att valet inte vilar på någonting. Bilden är
         // då inte automatiskt uppräteligt, och det ska synas i stället för döljas.
         entry.uncertain = best.confidence < 0.5;
@@ -448,7 +467,7 @@ function report(results, sustained) {
     const share = (pred) => +(calibRows.filter(pred).length / calibRows.length).toFixed(2);
     const cost = stats(calibRows.map((r) => r.ms));
     l.push("\n## Automatisk uppräting\n");
-    l.push("Avgjord en gång per bild med `tiny`, före mätmatrisen. Vald vridning:\n");
+    l.push(`Avgjord en gång per bild med \`tiny\` på ${orientWidths[0]} px, före mätmatrisen. Vald vridning:\n`);
     l.push("| Vridning | Andel bilder |");
     l.push("| --- | --- |");
     for (const rot of [0, 90, 270]) {
@@ -457,6 +476,13 @@ function report(results, sustained) {
     }
     l.push("");
     l.push(`Beslutet kostar ${cost.median} ms per bild i median, ${cost.p90} p90 — en gång per uppladdning.`);
+    const margins = stats(calibRows.map((r) => r.margin).filter(Number.isFinite));
+    if (margins) {
+      l.push(
+        `Marginalen mellan hållen är ${margins.median} i median och ${margins.min} som minst. ` +
+          `Är den minsta marginalen liten är valet på den bilden i praktiken en slantsingling.`,
+      );
+    }
     const uncertain = share((r) => r.uncertain);
     if (uncertain) {
       l.push(
@@ -528,22 +554,65 @@ function report(results, sustained) {
 const samples = await loadSamples();
 await mkdir(join(OUT, "text"), { recursive: true });
 console.log(
-  `${samples.length} bilder · nivåer: ${tiers.join(", ")} · varianter: ${variants.join(", ")} · ` +
-    `bredder: ${widths.map(wname).join(", ")} · vridning: ${rotations.map(rname).join(", ")}` +
-    (rotateVerticalCrops ? "" : " · vertikala beskärningar roteras inte"),
+  orientOnly
+    ? `${samples.length} bilder · orienteringsdiagnos på ${orientWidths.join(", ")} px`
+    : `${samples.length} bilder · nivåer: ${tiers.join(", ")} · varianter: ${variants.join(", ")} · ` +
+        `bredder: ${widths.map(wname).join(", ")} · vridning: ${rotations.map(rname).join(", ")}` +
+        (rotateVerticalCrops ? "" : " · vertikala beskärningar roteras inte"),
 );
 
-if (rotations.includes("auto")) {
-  // Kalibreringen körs på den minsta uppmätta bredden: valet av vridning är
-  // grovt nog att inte behöva full upplösning, och ska inte kosta som en mätning.
-  const calibWidth = widths.filter(Boolean).sort((a, b) => a - b)[0] ?? 1600;
-  process.stdout.write(`  avgör vridning per bild (tiny, ${calibWidth} px) ... `);
-  calibration = await calibrateOrientation(samples, calibWidth);
+if (rotations.includes("auto") && !orientOnly) {
+  process.stdout.write(`  avgör vridning per bild (tiny, ${orientWidths[0]} px) ... `);
+  calibration = await calibrateOrientation(samples, orientWidths[0]);
   const chosen = [...calibration.values()];
   console.log(
     `${chosen.filter((c) => c.rotation).length} av ${chosen.length} bilder behöver vridas` +
       `${chosen.some((c) => c.uncertain) ? `, ${chosen.filter((c) => c.uncertain).length} osäkra` : ""}`,
   );
+}
+
+if (orientOnly) {
+  // Referensen är den bredaste provläsningen: frågan är inte vad som är sant i
+  // absolut mening, utan om en billigare provläsning väljer samma håll som en dyr.
+  const byWidth = new Map();
+  for (const w of [...orientWidths].sort((a, b) => b - a)) {
+    process.stdout.write(`  kalibrerar på ${w} px ... `);
+    const c = await calibrateOrientation(samples, w);
+    byWidth.set(w, c);
+    const cost = stats([...c.values()].map((r) => r.ms));
+    console.log(`${cost.median} ms/bild (median)`);
+  }
+  const [reference, ...rest] = [...byWidth.keys()];
+  const l = [`# M0 — orienteringsdiagnos\n`, `${samples.length} bilder · urval: ${SAMPLES}\n`];
+  l.push("| Provläsningsbredd | ms/bild (median) | ms p90 | Vrids | Osäkra | Minsta marginal | Samma val som referensen |");
+  l.push("| --- | --- | --- | --- | --- | --- | --- |");
+  for (const w of byWidth.keys()) {
+    const rows = [...byWidth.get(w).values()];
+    const cost = stats(rows.map((r) => r.ms));
+    const margins = rows.map((r) => r.margin).filter(Number.isFinite);
+    const agree =
+      w === reference
+        ? "referens"
+        : `${[...byWidth.get(w)].filter(([n, e]) => byWidth.get(reference).get(n).rotation === e.rotation).length}/${samples.length}`;
+    l.push(
+      `| ${w} | ${cost.median} | ${cost.p90} | ${rows.filter((r) => r.rotation).length} | ` +
+        `${rows.filter((r) => r.uncertain).length} | ${margins.length ? Math.min(...margins) : "—"} | ${agree} |`,
+    );
+  }
+  if (rest.length) {
+    l.push(
+      `\nEn billigare provläsning duger om den väljer samma håll som referensen på alla bilder. ` +
+        `Gör den det är skillnaden i kostnad ren vinst, en gång per uppladdning.`,
+    );
+  }
+  const md = l.join("\n") + "\n";
+  await writeFile(join(OUT, "orientering.md"), md);
+  await writeFile(
+    join(OUT, "orientering.json"),
+    JSON.stringify(Object.fromEntries([...byWidth].map(([w, c]) => [w, Object.fromEntries(c)])), null, 2),
+  );
+  console.log(`\n${md}`);
+  process.exit(0);
 }
 
 const results = [];
