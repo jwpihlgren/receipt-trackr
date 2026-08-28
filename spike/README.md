@@ -277,12 +277,29 @@ Orienteringen: 33 av 35 bilder behövde vridas, 91 % ett kvarts varv medurs, 3 %
 6 % stod redan upp. Beslutet kostar 1225 ms per bild i median, och den svagaste marginalen
 mellan hållen i hela urvalet är 0,106.
 
-**Två frågor lämnas öppna med flit.** Teckennivån är inte avgjord: fälttabellen ser att
-åäö *förekommer*, inte att de är *rätt*, så fyndet nedan om `tiny` och diakriter är varken
-bekräftat eller motbevisat på riktigt papper. Det avgörs bara för hand, genom att jämföra
-`tiny__*` mot `small__*` i `text/`. Uthållighetstestet är medvetet inte kört, vilket
-betyder att 1297 ms per bild är mätt på ett kallt kort — en importkörning av tiotusen
-kvitton kan gå långsammare, och det är i så fall en överraskning som kommer i drift.
+### Diakriterna, avgjort för hand
+
+Fyndet från den syntetiska bilden — att `tiny` skulle tappa svenska diakriter — **håller
+inte på riktigt papper**. Teckenräkningen över all utläst text: `tiny` har Å:1 Ä:21 Ö:26
+å:9 ä:193 ö:89, `small` har Å:1 Ä:16 Ö:32 å:11 ä:198 ö:82. Inget hål där Ä ska vara, ingen
+hög med Å. Totalt antal diakriter är i praktiken lika (339 mot 340) trots att `tiny` läser
+18 % mer text.
+
+Ordjämförelsen visar i stället ett fel som **båda nivåerna** gör: å, ä och ö förväxlas med
+varandra, åt båda hållen. `small` skrev "Alingsäsvägen", "äterköp", "Behäll"; `tiny` skrev
+"ihäg", "ÄTER", "Mälericentralen". Dessutom faller versalläget bort mitt i ord: "kÖp",
+"KASSöR", "GöTEBORG". Ingen av nivåerna är fri, så det går inte att välja bort — det måste
+hanteras i läsningen av texten.
+
+**Det är ett krav på fritextsöket och på fältutvinningen**, inte en kuriosa: en sökning på
+"återköp" hittar inte "äterköp", och ett ledord som "att erlägga" matchar inte "att
+erlågga". Både sökindex och ledordsmatchning måste vika ihop å/ä/ö och versalläge, precis
+som `foldConfusables()` redan viker ihop 0/O och 1/I. Den funktionen gör numera båda
+delarna och är den minsta versionen av regeln.
+
+**En fråga lämnas öppen med flit.** Uthållighetstestet är inte kört, vilket betyder att
+1297 ms per bild är mätt på ett kallt kort — en importkörning av tiotusen kvitton kan gå
+långsammare, och det är i så fall en överraskning som kommer i drift.
 
 ## Vad som redan är känt
 
@@ -290,11 +307,11 @@ Mätt mot en syntetisk kvittobild — alltså ren, renderad text, inte riktigt p
 Slutsatserna om *kvalitet* är preliminära, men båda fynden nedan uppträder redan på ren
 indata och kan bara bli värre på fotograferat papper.
 
-**`tiny` tappar svenska diakriter.** VÄGG lästes som "VÅGG", FÄSTMASSA som "FÅSTMASSA",
-GRÅ som "GRA". `small` fick alla rätt. Det stämmer med modellkatalogens notering om att
-tiny har en reducerad ordbok. Det avgör nivåvalet oavsett hur snabb tiny är: fritextsök
-över kvittots innehåll är ett Steg 1-krav, och en sökning på "kakel till badrummet"
-hittar inte det som lästes fel.
+**~~`tiny` tappar svenska diakriter.~~** VÄGG lästes som "VÅGG", FÄSTMASSA som
+"FÅSTMASSA", GRÅ som "GRA", medan `small` fick alla rätt. **Motbevisat på riktigt papper**
+— se avsnittet om diakriterna ovan. Felet finns på båda nivåerna där, och i båda
+riktningarna. Renderad text i ett typsnitt visade sig alltså ge fel bild av vilken modell
+som läser svenska; det är värt att minnas nästa gång något mäts mot syntetisk indata.
 
 **Versalt O läses som nolla.** "T0TALT", "0rg.nr", "R0STFRI" — på båda nivåerna.
 Fältutvinningen i M6 måste därför vika ihop de förväxlingsklasserna innan den letar efter

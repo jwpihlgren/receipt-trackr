@@ -105,17 +105,26 @@ async function preprocess(buf, variant, width, rotation = 0) {
 const toArrayBuffer = (b) => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
 
 const AMOUNT = /\d{1,3}(?:[ .]\d{3})*[,.]\d{2}/;
-const TOTAL_CUE = /(att\s*betala|totalt|total|summa|att\s*erl[aä]gga)/i;
+// Ledorden skrivs i hopvikt form: se foldConfusables().
+const TOTAL_CUE = /(att\s*betala|totalt|total|summa|att\s*erlagga)/i;
 
 /**
  * PP-OCR reads uppercase O as zero on receipt fonts ("T0TALT", "0rg.nr"), and
  * the same class of confusion hits 1/I and 5/S. Cue words must be matched after
  * folding these back, or the measurement reports a miss that is really a hit.
+ *
+ * Mätt mot 35 kvitton förväxlas dessutom å, ä och ö med varandra åt båda hållen —
+ * "ihäg" för "ihåg", "äterköp" för "återköp" — och versalläget faller bort mitt i
+ * ord ("kÖp", "KASSöR"). Båda modellnivåerna gör det, så det är inget som går att
+ * välja bort; ledorden måste matchas med diakriterna hopvikta.
  */
 function foldConfusables(text) {
-  return text.replace(/[A-ZÅÄÖ0-9]{3,}/g, (word) =>
-    word.replace(/0/g, "O").replace(/1/g, "I").replace(/5/g, "S").replace(/8/g, "B"),
-  );
+  return text
+    .replace(/[A-ZÅÄÖ0-9]{3,}/g, (word) =>
+      word.replace(/0/g, "O").replace(/1/g, "I").replace(/5/g, "S").replace(/8/g, "B"),
+    )
+    .replace(/[åäÅÄ]/g, "a")
+    .replace(/[öÖ]/g, "o");
 }
 const DIACRITIC = /[åäöÅÄÖ]/;
 
