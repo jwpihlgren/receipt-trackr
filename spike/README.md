@@ -87,14 +87,22 @@ spike --rotations=exif,90,270           # orienteringen som egen mätaxel
 spike --vertcrops=false                 # läs höga rutor ovridna, se nedan
 
 # orienteringsdiagnos utan mätmatris — kör den först på ett nytt urval
-spike --orient-only --orientwidth=1600,800,480 --out=./out-orient
+spike --orient-only --orientwidth=1600,800 --out=./out-orient
 ```
 
-`--orient-only` kalibrerar och stannar. Med flera bredder mäter den vad en billigare
-provläsning kostar i träffsäkerhet: den bredaste är referens, och kolumnen *samma val som
-referensen* säger om den billiga väljer likadant. Gör den det på alla bilder är
-skillnaden i kostnad ren vinst, eftersom beslutet tas en gång per uppladdning.
-`--orientwidth` sätter sedan bredden för den riktiga körningen.
+`--orient-only` kalibrerar och stannar. Den mäter två axlar mot samma referens (dyraste
+inställningen: bredaste provläsningen över hela sidan): bredden på bilden som provläses
+(`--orientwidth`) och hur mycket av den som läses (`--orientprobe=full|strip`). Kolumnen
+*samma val som referensen* säger om en billigare inställning väljer likadant, och
+kolumnen *vrids* om den ens upptäcker att sidan ligger ned — att missa det är samma fel
+som att välja fel håll.
+
+Två saker är redan mätta på 35 kvitton och sparar dig försöken. **Nedskalning hjälper
+föga**: 480 px kostade bara hälften av 1600 px men missade sju av trettiotre vridna
+bilder, och 800 px var 40 % billigare med ett avvikande val. Kostnaden i igenkänningen
+växer nämligen med **antalet rader**, inte med bildytan — därför är `--orientprobe=strip`,
+som läser en remsa på ett par hela rader i stället för hela sidan, den knapp som faktiskt
+biter. Standard är `full` tills remsan är mätt mot riktigt material.
 
 Sökvägarna i flaggorna är relativa till `/repo/spike` inne i containern, alltså till
 repot — inte till katalogen du står i på värden.

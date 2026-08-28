@@ -63,6 +63,11 @@ if (rotations.some((r) => r !== "auto" && ![0, 90, 180, 270].includes(r))) {
 const orientWidths = (args.orientwidth ? String(args.orientwidth).split(",").map(Number) : null) ?? [
   widths.filter(Boolean).sort((a, b) => a - b)[0] ?? 1600,
 ];
+// `strip` provläser en remsa på ett par rader i stället för hela sidan. Kostnaden i
+// igenkänningen växer med antalet rader, inte med bildytan — det är därför nedskalning
+// gav så lite. Standard är `full` tills remsan mätts mot den på riktigt material.
+const orientProbe = args.orientprobe ?? "full";
+if (!["full", "strip"].includes(orientProbe)) throw new Error("--orientprobe tar full eller strip.");
 // Enbart kalibreringen, ingen mätmatris — diagnosen att köra först på ett nytt urval.
 const orientOnly = Boolean(args["orient-only"]);
 /** Bild → vald vridning. Fylls av calibrateOrientation() när `auto` är påslaget. */
@@ -175,13 +180,36 @@ async function makeService(tier) {
  * och en provläsning åt båda hållen säger *åt vilket håll* — 90° och 270° går inte
  * att skilja på formen, bara på vad som faktiskt går att läsa.
  */
-async function calibrateOrientation(samples, width) {
+/**
+ * Klipper ut en remsa med ett par hela textrader ur en sida som ligger ned. På en
+ * vriden sida löper raderna lodrätt genom bilden, så en remsa i x-led ger några
+ * kompletta rader medan en i y-led hade gett stumpar av alla. Bilden skalas inte
+ * ned: detektionen behåller sin träffsäkerhet, det är bara läsningen som kortas.
+ */
+const PROBE_LINES = 6;
+async function extractProbeStrip(input, boxes, meta) {
+  const tall = boxes.filter((b) => b.height > b.width).sort((a, b) => a.x - b.x);
+  if (tall.length <= PROBE_LINES) return null;
+  // En bit in från kanten: kvittots början och slut är glesare än mitten.
+  const window = tall.slice(Math.floor(tall.length * 0.25), Math.floor(tall.length * 0.25) + PROBE_LINES);
+  const pad = 8;
+  const left = Math.max(0, Math.floor(Math.min(...window.map((b) => b.x)) - pad));
+  const right = Math.min(meta.width, Math.ceil(Math.max(...window.map((b) => b.x + b.width)) + pad));
+  if (right - left < 16) return null;
+  return sharp(input)
+    .extract({ left, top: 0, width: right - left, height: meta.height })
+    .jpeg({ quality: 95 })
+    .toBuffer();
+}
+
+async function calibrateOrientation(samples, width, probe = orientProbe) {
   const service = await makeService("tiny");
   const calibrated = new Map();
   try {
     for (const { name, buf } of samples) {
       const t0 = performance.now();
-      const det = await service.detect(toArrayBuffer(await preprocess(buf, "raw", width, 0)));
+      const upright = await preprocess(buf, "raw", width, 0);
+      const det = await service.detect(toArrayBuffer(upright));
       const tallShare = det.boxes.length
         ? det.boxes.filter((b) => b.height > b.width).length / det.boxes.length
         : 0;
@@ -193,11 +221,15 @@ async function calibrateOrientation(samples, width) {
         // vilar på något, och den är enda sättet att bedöma en billigare provläsning.
         candidates: null,
         uncertain: false,
+        probe,
       };
       if (tallShare > 0.5) {
+        const strip = probe === "strip" ? await extractProbeStrip(upright, det.boxes, await sharp(upright).metadata()) : null;
+        const source = strip ?? upright;
+        entry.probe = strip ? "strip" : "full";
         const scores = [];
         for (const candidate of [90, 270]) {
-          const input = await preprocess(buf, "raw", width, candidate);
+          const input = await sharp(source).rotate(candidate).jpeg({ quality: 95 }).toBuffer();
           const res = await service.recognize(toArrayBuffer(input), { flatten: true, noCache: true });
           const confs = (res.results ?? [])
             .filter((r) => r.text.trim().length > 0)
@@ -467,7 +499,10 @@ function report(results, sustained) {
     const share = (pred) => +(calibRows.filter(pred).length / calibRows.length).toFixed(2);
     const cost = stats(calibRows.map((r) => r.ms));
     l.push("\n## Automatisk uppräting\n");
-    l.push(`Avgjord en gång per bild med \`tiny\` på ${orientWidths[0]} px, före mätmatrisen. Vald vridning:\n`);
+    l.push(
+      `Avgjord en gång per bild med \`tiny\` på ${orientWidths[0]} px, provläsning \`${orientProbe}\`, ` +
+        `före mätmatrisen. Vald vridning:\n`,
+    );
     l.push("| Vridning | Andel bilder |");
     l.push("| --- | --- |");
     for (const rot of [0, 90, 270]) {
@@ -574,42 +609,55 @@ if (rotations.includes("auto") && !orientOnly) {
 if (orientOnly) {
   // Referensen är den bredaste provläsningen: frågan är inte vad som är sant i
   // absolut mening, utan om en billigare provläsning väljer samma håll som en dyr.
-  const byWidth = new Map();
+  // Referensen är dyraste inställningen: hela sidan, bredaste provläsningen. Frågan är
+  // inte vad som är sant i absolut mening, utan om en billigare variant väljer samma håll.
+  const combos = [];
   for (const w of [...orientWidths].sort((a, b) => b - a)) {
-    process.stdout.write(`  kalibrerar på ${w} px ... `);
-    const c = await calibrateOrientation(samples, w);
-    byWidth.set(w, c);
-    const cost = stats([...c.values()].map((r) => r.ms));
-    console.log(`${cost.median} ms/bild (median)`);
+    for (const probe of args.orientprobe ? [orientProbe] : ["full", "strip"]) {
+      combos.push({ width: w, probe });
+    }
   }
-  const [reference, ...rest] = [...byWidth.keys()];
+  const runs = [];
+  for (const combo of combos) {
+    process.stdout.write(`  kalibrerar på ${combo.width} px, ${combo.probe} ... `);
+    const c = await calibrateOrientation(samples, combo.width, combo.probe);
+    runs.push({ ...combo, calibration: c });
+    console.log(`${stats([...c.values()].map((r) => r.ms)).median} ms/bild (median)`);
+  }
+  const reference = runs[0];
   const l = [`# M0 — orienteringsdiagnos\n`, `${samples.length} bilder · urval: ${SAMPLES}\n`];
-  l.push("| Provläsningsbredd | ms/bild (median) | ms p90 | Vrids | Osäkra | Minsta marginal | Samma val som referensen |");
-  l.push("| --- | --- | --- | --- | --- | --- | --- |");
-  for (const w of byWidth.keys()) {
-    const rows = [...byWidth.get(w).values()];
+  l.push("| Bredd | Provläsning | ms/bild (median) | ms p90 | Vrids | Osäkra | Minsta marginal | Samma val som referensen |");
+  l.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const run of runs) {
+    const rows = [...run.calibration.values()];
     const cost = stats(rows.map((r) => r.ms));
     const margins = rows.map((r) => r.margin).filter(Number.isFinite);
     const agree =
-      w === reference
+      run === reference
         ? "referens"
-        : `${[...byWidth.get(w)].filter(([n, e]) => byWidth.get(reference).get(n).rotation === e.rotation).length}/${samples.length}`;
+        : `${[...run.calibration].filter(([n, e]) => reference.calibration.get(n).rotation === e.rotation).length}/${samples.length}`;
     l.push(
-      `| ${w} | ${cost.median} | ${cost.p90} | ${rows.filter((r) => r.rotation).length} | ` +
+      `| ${run.width} | ${run.probe} | ${cost.median} | ${cost.p90} | ${rows.filter((r) => r.rotation).length} | ` +
         `${rows.filter((r) => r.uncertain).length} | ${margins.length ? Math.min(...margins) : "—"} | ${agree} |`,
     );
   }
-  if (rest.length) {
+  if (runs.length > 1) {
     l.push(
-      `\nEn billigare provläsning duger om den väljer samma håll som referensen på alla bilder. ` +
-        `Gör den det är skillnaden i kostnad ren vinst, en gång per uppladdning.`,
+      `\nEn billigare inställning duger om den väljer samma håll som referensen på **alla** bilder. ` +
+        `Kolumnen *vrids* är lika viktig: väljer den färre bilder att vrida har den missat att sidan ` +
+        `ligger ned, vilket är samma fel som att välja fel håll. Gör den varken eller är skillnaden i ` +
+        `kostnad ren vinst, en gång per uppladdning.`,
     );
   }
   const md = l.join("\n") + "\n";
   await writeFile(join(OUT, "orientering.md"), md);
   await writeFile(
     join(OUT, "orientering.json"),
-    JSON.stringify(Object.fromEntries([...byWidth].map(([w, c]) => [w, Object.fromEntries(c)])), null, 2),
+    JSON.stringify(
+      Object.fromEntries(runs.map((r) => [`${r.width}__${r.probe}`, Object.fromEntries(r.calibration)])),
+      null,
+      2,
+    ),
   );
   console.log(`\n${md}`);
   process.exit(0);
