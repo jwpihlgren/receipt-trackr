@@ -32,7 +32,20 @@ monteringen av repot. Utan den katalogen hämtas ~150 MB modeller vid varje ny c
 cd ~/repos/receipt-trackr && git pull
 ```
 
-**Starta containern**, på värden:
+**På värden**, en gång per terminalsession — en funktion som kör spiken i en
+engångscontainer, så att varje körning nedan är ett kommando och inget mer:
+
+```sh
+spike() {
+  docker run --rm -u $(id -u):$(id -g) -e HOME=/home/node \
+    -v ~/repos/receipt-trackr:/repo \
+    -v ~/.cache/ppu-paddle-ocr:/home/node/.cache/ppu-paddle-ocr \
+    -w /repo/spike node:22 node run.mjs "$@"
+}
+```
+
+Behövs en prompt i containern i stället — för `npm ci`, eller för att titta på
+`crops/` — startas samma container med `bash`:
 
 ```sh
 docker run -it --rm -u $(id -u):$(id -g) -e HOME=/home/node \
@@ -46,7 +59,8 @@ råkar slå upp mot `node`-användaren i imagen; annars hamnar cachen någon ann
 monteringen ovan blir verkningslös. `-u` gör att filerna containern skapar ägs av dig och
 går att läsa på värden efteråt.
 
-**I containern**, första gången och efter varje `git pull` som rör `package.json`:
+**I containern** (`bash`-varianten ovan), första gången och efter varje `git pull` som
+rör `package.json`:
 
 ```sh
 npm ci
@@ -56,22 +70,24 @@ npm ci
 det hoppas över. Installationen måste ske i containern: `onnxruntime-node` har kompilerade
 binärer som ska matcha den runtime som kör dem.
 
-**I containern**, körningarna:
+**På värden**, körningarna — `spike` startar en egen container per anrop:
 
 ```sh
 # de två högarna mäts var för sig, aldrig ihop
-node run.mjs --samples=./samples/gamla   --out=./out-gamla
-node run.mjs --samples=./samples/farska --out=./out-farska
+spike --samples=./samples/gamla  --out=./out-gamla  --rotations=auto
+spike --samples=./samples/farska --out=./out-farska --rotations=auto
 
-node run.mjs --tiers=small --sustained=60      # uthållighetstest, en timme
-node run.mjs --threads=4                       # trådtak för ONNX-runtimen
-node run.mjs --widths=1280,1600,2000,full      # nedskalning före OCR som egen axel
-node run.mjs --tiers=tiny,small,medium         # medium är inte med som standard
-node run.mjs --crops --tiers=small             # sparar varje beskuren textruta som PNG
-node run.mjs --rotations=auto                   # vridningen avgörs per bild — använd den
-node run.mjs --rotations=exif,90,270           # orienteringen som egen mätaxel
-node run.mjs --vertcrops=false                 # läs höga rutor ovridna, se nedan
+spike --tiers=small --sustained=60      # uthållighetstest, en timme
+spike --threads=4                       # trådtak för ONNX-runtimen
+spike --widths=1280,1600,2000,full      # nedskalning före OCR som egen axel
+spike --tiers=tiny,small,medium         # medium är inte med som standard
+spike --crops --tiers=small             # sparar varje beskuren textruta som PNG
+spike --rotations=exif,90,270           # orienteringen som egen mätaxel
+spike --vertcrops=false                 # läs höga rutor ovridna, se nedan
 ```
+
+Sökvägarna i flaggorna är relativa till `/repo/spike` inne i containern, alltså till
+repot — inte till katalogen du står i på värden.
 
 `--rotations=auto` avgör vridningen en gång per bild före mätmatrisen och är den enda
 inställning som är rättvis mot materialet: högen innehåller både liggande och stående
