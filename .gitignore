@@ -13,3 +13,6 @@ data/
 
 # Lokala kataloger vid utveckling
 backup/
+
+# Maskinens egna inställningar, inte projektets.
+.env

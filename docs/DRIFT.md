@@ -27,9 +27,13 @@ fyller den.
 
 ## Starta och uppgradera
 
+Inställningarna som hör till den här maskinen ligger i `.env` bredvid
+`docker-compose.yml`. Den läses automatiskt och är utestängd från git — kopiera
+`.env.example` en gång och glöm den sedan:
+
 ```sh
 cd ~/repos/receipt-trackr
-export ARCHIVE_DIR=/pool/kvitton          # lägg den i din profil, inte i huvudet
+cp .env.example .env                      # fyll i ARCHIVE_DIR och en ledig HTTP_PORT
 docker compose up -d
 docker compose logs -f app                # första raden säger var arkivet ligger
 ```

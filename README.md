@@ -33,5 +33,6 @@ Planen med milstolpar och kravnummer ligger utanför repot, i
 
 ## Drift
 
-Se `docs/DRIFT.md`. Kortversionen: `ARCHIVE_DIR=/pool/kvitton docker compose up -d`,
-och `curl localhost:8080/api/health` svarar på om arkivet ligger rätt.
+Se `docs/DRIFT.md`. Kortversionen: `cp .env.example .env`, fyll i `ARCHIVE_DIR`,
+`docker compose up -d`, och `curl localhost:8080/api/health` svarar på om arkivet
+ligger rätt.
