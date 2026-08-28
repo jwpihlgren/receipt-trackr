@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { stat } from "node:fs/promises";
 import { Archive, ConflictError, ImageError } from "../store/archive.js";
 import { InvalidIdError, isSafeFileName } from "../store/paths.js";
-import { ftsQuery, search } from "../store/index-db.js";
+import { count, ftsQuery, recent, search } from "../store/index-db.js";
 import { thumbName } from "../store/paths.js";
 
 const CONTENT_TYPES: Record<string, string> = { ".jpg": "image/jpeg", ".webp": "image/webp" };
@@ -83,6 +83,15 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
       return reply.send(await archive.complete(request.params.id, segments));
     },
   );
+
+  app.get<{ Querystring: { limit?: string; before?: string } }>("/api/receipts", async (request) => {
+    const limit = Math.min(Math.max(Number(request.query.limit ?? 50) || 50, 1), 200);
+    const before = request.query.before;
+    return {
+      total: count(archive.db),
+      receipts: recent(archive.db, limit, before),
+    };
+  });
 
   app.get<{ Params: { id: string } }>("/api/receipts/:id", async (request, reply) => {
     const receipt = await archive.get(request.params.id);

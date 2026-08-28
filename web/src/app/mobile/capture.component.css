@@ -20,7 +20,7 @@
   font-size: var(--text-sm);
 }
 
-.lage { color: var(--ink-muted); }
+.lage { color: var(--accent); text-decoration: none; display: grid; align-items: center; min-height: var(--tap-min); }
 .ko { color: var(--ink); font-variant-numeric: tabular-nums; }
 .ko.laddar { color: var(--accent); }
 
@@ -115,6 +115,37 @@
   margin: 0;
   color: var(--ink-faint);
   font-size: var(--text-sm);
+}
+
+/* Kvittensen sitter på bilden: uppåtpil medan den väntar, bock när servern
+   svarat med samma sha256. Det är skillnaden mellan "sparad" och "i säkerhet". */
+.kvittens {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-end: 3px;
+  min-width: 14px;
+  padding-inline: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--ink-faint);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.kvittens.klar { color: var(--accent); }
+
+/* Flödet ska ha ett slut, inte bara ta slut. */
+.klartkvittens {
+  position: fixed;
+  inset-inline: var(--space-4);
+  inset-block-end: 148px;
+  margin: 0;
+  padding: var(--d-pad-y) var(--d-pad-x);
+  border-radius: var(--radius-md);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  text-align: center;
 }
 
 /* ---- handzonen ------------------------------------------------------- */

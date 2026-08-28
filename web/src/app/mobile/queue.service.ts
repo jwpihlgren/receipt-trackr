@@ -21,6 +21,12 @@ export type QueueState = {
   offline: boolean;
   /** Kvitton där ett segment vägrats av servern och som behöver hanteras på datorn. */
   stuck: string[];
+  /**
+   * Nycklarna (`kvitto:nummer`) som ännu ligger kvar lokalt. En bild försvinner ur
+   * mängden först när servern kvitterat samma sha256 — därför är den här mängden
+   * också svaret på "har bilden kommit fram?", och inte bara "har vi försökt?".
+   */
+  pending: string[];
 };
 
 const RETRY_MS = 15_000;
@@ -33,6 +39,7 @@ export class QueueService {
     uploading: false,
     offline: !navigator.onLine,
     stuck: [],
+    pending: [],
   });
 
   readonly snapshot = this.state.asReadonly();
@@ -103,7 +110,8 @@ export class QueueService {
     this.state.update((s) => ({
       ...s,
       waiting: receipts.length,
-      pendingSegments: segments.filter((seg) => !seg.confirmedAt).length,
+      pendingSegments: segments.length,
+      pending: segments.map((seg) => seg.key),
       offline: !navigator.onLine,
     }));
   }
@@ -127,6 +135,8 @@ export class QueueService {
       for (const receipt of receipts) {
         const mine = segments.filter((s) => s.receiptId === receipt.id).sort((a, b) => a.index - b.index);
         if (!(await this.uploadReceipt(receipt, mine))) break;
+        // Efter varje kvitto: låt vyn se framdriften i stället för att vänta på slutet.
+        await this.refresh();
       }
     } catch {
       // Ett avbrott är ett normaltillstånd i den här kön, inte ett fel att visa.

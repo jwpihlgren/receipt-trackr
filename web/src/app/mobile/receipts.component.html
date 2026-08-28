@@ -1,0 +1,42 @@
+<header class="topp">
+  <a routerLink="/fanga" class="tillbaka">← Fånga</a>
+  <h1>Kvitton</h1>
+  <span class="antal">{{ total() }}</span>
+</header>
+
+@if (error(); as message) {
+  <p class="fel" role="alert">{{ message }} <button type="button" (click)="load()">Försök igen</button></p>
+} @else {
+  <!-- `as`-alias går bara på @if, inte på @else if. -->
+  @if (receipts(); as list) {
+  @if (list.length === 0) {
+    <p class="tom">Inga kvitton ännu. Fånga det första.</p>
+  }
+  <ul class="lista">
+    @for (r of list; track r.id) {
+      <li>
+        <button type="button" class="rad" (click)="toggle(r.id)" [attr.aria-expanded]="open() === r.id">
+          <img class="tumnagel" [src]="'/api/receipts/' + r.id + '/thumbs/1'" alt="" loading="lazy" />
+          <span class="text">
+            <span class="butik">{{ r.store ?? 'Inte utläst ännu' }}</span>
+            <span class="under">
+              {{ when(r.capturedAt) }} · {{ r.segments }} {{ r.segments === 1 ? 'bild' : 'bilder' }}
+            </span>
+          </span>
+          @if (r.total !== null) { <span class="belopp num">{{ r.total }} kr</span> }
+        </button>
+
+        @if (open() === r.id) {
+          <div class="bilder">
+            @for (i of indices(r.segments); track i) {
+              <img [src]="'/api/receipts/' + r.id + '/files/segment-0' + i + '.jpg'" [alt]="'Bild ' + i" loading="lazy" />
+            }
+          </div>
+        }
+      </li>
+    }
+  </ul>
+  } @else {
+    <p class="tom">Hämtar …</p>
+  }
+}

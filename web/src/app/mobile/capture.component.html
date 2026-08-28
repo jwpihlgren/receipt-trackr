@@ -1,6 +1,6 @@
 <div class="skarm">
   <header class="status">
-    <span class="lage">Gamla högen</span>
+    <a class="lage" routerLink="/kvitton">Kvitton →</a>
     <span class="ko" [class.laddar]="queueState().uploading">
       @if (queueState().offline) {
         Ingen anslutning · {{ queueState().waiting }} väntar
@@ -27,6 +27,11 @@
       <div class="ruta" role="listitem" [class.ersatt]="shot.replaced">
         <img [src]="shot.url" [alt]="'Bild ' + shot.index" />
         <span class="nummer">{{ shot.index }}</span>
+        <!-- Sparad lokalt är inte samma sak som framme hos servern. Remsan visar båda. -->
+        <span class="kvittens" [class.klar]="isConfirmed(shot.index)">
+          {{ isConfirmed(shot.index) ? '✓' : '↑' }}
+          <span class="sr-only">{{ isConfirmed(shot.index) ? 'uppladdad' : 'väntar på servern' }}</span>
+        </span>
         @if (shot.replaced) { <span class="ersatt-markor" aria-label="ersatt">omtagen</span> }
       </div>
     } @empty {
@@ -56,6 +61,12 @@
       <span class="etikett">Ta om</span>
     </button>
   </div>
+
+  @if (justFinished(); as done) {
+    <p class="klartkvittens" role="status">
+      Kvitto sparat · {{ done.segments }} {{ done.segments === 1 ? 'bild' : 'bilder' }} · laddas upp
+    </p>
+  }
 
   @if (saveError(); as message) {
     <div class="sparfel" role="alert">

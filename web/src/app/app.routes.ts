@@ -13,9 +13,14 @@ export const routes: Routes = [
     loadComponent: () => import('./mobile/capture.component').then((m) => m.CaptureComponent),
   },
   {
+    path: 'kvitton',
+    title: 'Kvitton',
+    loadComponent: () => import('./mobile/receipts.component').then((m) => m.ReceiptsComponent),
+  },
+  {
     path: 'drift',
     title: 'Drift',
     loadComponent: () => import('./desktop/drift.component').then((m) => m.DriftComponent),
   },
-  { path: '', pathMatch: 'full', redirectTo: 'drift' },
+  { path: '', pathMatch: 'full', redirectTo: 'fanga' },
 ];

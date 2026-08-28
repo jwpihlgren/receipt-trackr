@@ -115,5 +115,27 @@ export function search(db: ReceiptIndex, query: string, limit = 50): SearchHit[]
     .all(query, limit) as SearchHit[];
 }
 
+export type ReceiptRow = {
+  id: string;
+  capturedAt: string;
+  segments: number;
+  store: string | null;
+  date: string | null;
+  total: number | null;
+  currency: string | null;
+};
+
+/** Senaste kvittona, nyast först. Indexet har redan sorteringen som kolumn. */
+export function recent(db: ReceiptIndex, limit = 50, before?: string): ReceiptRow[] {
+  const where = before ? "WHERE captured_at < ?" : "";
+  const params = before ? [before, limit] : [limit];
+  return db
+    .prepare(
+      `SELECT id, captured_at AS capturedAt, segments, store, date, total, currency
+       FROM receipts ${where} ORDER BY captured_at DESC LIMIT ?`,
+    )
+    .all(...params) as ReceiptRow[];
+}
+
 export const count = (db: ReceiptIndex): number =>
   (db.prepare("SELECT COUNT(*) AS n FROM receipts").get() as { n: number }).n;

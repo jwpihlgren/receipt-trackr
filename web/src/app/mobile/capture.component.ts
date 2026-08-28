@@ -1,4 +1,5 @@
 import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { QueueService } from './queue.service';
 import { ulid } from '../shared/ulid';
 import { sha256 } from '../shared/sha256';
@@ -20,7 +21,7 @@ type Shot = { index: number; url: string; sha: string; replaced: boolean };
 @Component({
   selector: 'app-capture',
   host: { 'data-density': 'comfortable' },
-  imports: [],
+  imports: [RouterLink],
   templateUrl: './capture.component.html',
   styleUrl: './capture.component.css',
 })
@@ -34,6 +35,17 @@ export class CaptureComponent {
   readonly busy = signal(false);
   readonly queueState = this.queue.snapshot;
   readonly hasShots = computed(() => this.shots().length > 0);
+
+  /** Kvittensen efter "Klart" — det som gör att flödet har ett slut och inte bara tar slut. */
+  readonly justFinished = signal<{ segments: number } | null>(null);
+
+  /**
+   * Har servern kvitterat den här bilden? Kön raderar posten först när samma sha256
+   * kommit tillbaka, så frånvaro ur `pending` är svaret — inte "vi har försökt".
+   */
+  isConfirmed(index: number): boolean {
+    return this.receiptId !== null && !this.queueState().pending.includes(`${this.receiptId}:${index}`);
+  }
 
   /** ULID:ens tidsstämpel bestämmer katalogen på disk, så den myntas vid första bilden. */
   private receiptId: string | null = null;
@@ -164,6 +176,8 @@ export class CaptureComponent {
     for (const shot of this.shots()) URL.revokeObjectURL(shot.url);
     this.shots.set([]);
     this.receiptId = null;
+    this.justFinished.set({ segments: count });
+    setTimeout(() => this.justFinished.set(null), 4000);
     navigator.vibrate?.([20, 40, 20]);
 
     // Efter nollställningen: användaren väntar inte på skrivningen.
