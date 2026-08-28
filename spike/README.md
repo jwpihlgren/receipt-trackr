@@ -13,9 +13,51 @@ Ingenting härifrån ska överleva in i servern.
 
 ## Kör
 
-```sh
-npm install
+Spiken körs i en engångscontainer, aldrig direkt på ZimaBoarden — värden hålls fri från
+Node, npm och globala paket. Varje kommando nedan säger var det ska köras.
 
+**På värden**, en gång:
+
+```sh
+mkdir -p ~/.cache/ppu-paddle-ocr
+```
+
+Modellcachen ligger på `$HOME/.cache/ppu-paddle-ocr` inne i containern, alltså utanför
+monteringen av repot. Utan den katalogen hämtas ~150 MB modeller vid varje ny container.
+
+**På värden**, före varje körning:
+
+```sh
+cd ~/repos/receipt-trackr && git pull
+```
+
+**Starta containern**, på värden:
+
+```sh
+docker run -it --rm -u $(id -u):$(id -g) -e HOME=/home/node \
+  -v ~/repos/receipt-trackr:/repo \
+  -v ~/.cache/ppu-paddle-ocr:/home/node/.cache/ppu-paddle-ocr \
+  -w /repo/spike node:22 bash
+```
+
+`-e HOME=/home/node` gör hemkatalogen explicit i stället för att förlita sig på att uid:t
+råkar slå upp mot `node`-användaren i imagen; annars hamnar cachen någon annanstans och
+monteringen ovan blir verkningslös. `-u` gör att filerna containern skapar ägs av dig och
+går att läsa på värden efteråt.
+
+**I containern**, första gången och efter varje `git pull` som rör `package.json`:
+
+```sh
+npm ci
+```
+
+`node_modules/` ligger under monteringen och överlever `--rm`, så resten av gångerna kan
+det hoppas över. Installationen måste ske i containern: `onnxruntime-node` har kompilerade
+binärer som ska matcha den runtime som kör dem.
+
+**I containern**, körningarna:
+
+```sh
 # de två högarna mäts var för sig, aldrig ihop
 node run.mjs --samples=./samples/gamla   --out=./out-gamla
 node run.mjs --samples=./samples/farska --out=./out-farska
@@ -31,8 +73,8 @@ Standard är `--tiers=tiny,small` och `--widths=1600,full`. `medium` togs ur sta
 sedan den mätts till ~28 s/bild på ZimaBoarden — den behöver läggas till med flaggan om den
 ska vara med, och bara när det finns skäl att tro att den är värd tio gånger körtiden.
 
-Kräver Node 18 eller senare (utvecklat mot 22). Första körningen hämtar modellerna,
-~150 MB för medium, så maskinen behöver nå nätet just då.
+Första körningen hämtar modellerna, ~150 MB för medium, så maskinen behöver nå nätet just
+då. Med cachen monterad enligt ovan sker det bara en gång.
 
 Resultat hamnar i `--out`-katalogen: `summary.md` (läsbar tabell), `summary.json` (rådata),
 `text/` (all utläst text med konfidens per rad, för att bedöma kvalitet för hand) och med

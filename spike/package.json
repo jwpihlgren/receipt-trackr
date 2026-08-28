@@ -5,12 +5,11 @@
   "type": "module",
   "description": "M0: mäter PP-OCRv6-nivåer mot verkliga kvitton på målhårdvaran",
   "scripts": {
-    "probe": "node probe-api.mjs",
     "spike": "node run.mjs"
   },
   "dependencies": {
     "onnxruntime-node": "^1.29.0",
-    "ppu-paddle-ocr": "*",
+    "ppu-paddle-ocr": "^6.4.3",
     "sharp": "^0.34.0"
   }
 }
