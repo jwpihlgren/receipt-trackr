@@ -44,10 +44,19 @@ const widths = (args.widths ?? "1600,full").split(",").map((w) => (w === "full" 
 // sparade sensorns liggande bild utan att märka den, eller så tvättade
 // överföringen bort metadatan — hjälper ingen automatik, och då är 90/180/270
 // sättet att mäta vad orienteringen kostade i stället för att gissa.
-const rotations = (args.rotations ?? "exif").split(",").map((r) => (r === "exif" ? 0 : Number(r)));
-if (rotations.some((r) => ![0, 90, 180, 270].includes(r))) {
-  throw new Error("--rotations tar exif, 90, 180 eller 270, kommaseparerat.");
+// `auto` är produktionsregeln: vridningen avgörs per bild i stället för att
+// antas, och kan därför inte mätas mot en annan vridning i samma körning.
+const rotations = (args.rotations ?? "exif")
+  .split(",")
+  .map((r) => (r === "exif" ? 0 : r === "auto" ? "auto" : Number(r)));
+if (rotations.includes("auto") && rotations.length > 1) {
+  throw new Error("--rotations=auto avgör vridningen per bild och körs ensam.");
 }
+if (rotations.some((r) => r !== "auto" && ![0, 90, 180, 270].includes(r))) {
+  throw new Error("--rotations tar exif, auto, 90, 180 eller 270, kommaseparerat.");
+}
+/** Bild → vald vridning. Fylls av calibrateOrientation() när `auto` är påslaget. */
+let calibration = null;
 const threads = Number(args.threads ?? 2);
 const sustainedMinutes = Number(args.sustained ?? 0);
 const saveCrops = Boolean(args.crops);
@@ -148,6 +157,51 @@ async function makeService(tier) {
   return service;
 }
 
+/**
+ * Orienteringen är en egenskap hos filen, inte hos modellnivån, och avgörs därför
+ * en gång per bild före mätmatrisen i stället för om och om igen i varje pass.
+ * Två steg: andelen textrutor som är högre än breda säger *om* sidan ligger ned,
+ * och en provläsning åt båda hållen säger *åt vilket håll* — 90° och 270° går inte
+ * att skilja på formen, bara på vad som faktiskt går att läsa.
+ */
+async function calibrateOrientation(samples, width) {
+  const service = await makeService("tiny");
+  const calibrated = new Map();
+  try {
+    for (const { name, buf } of samples) {
+      const t0 = performance.now();
+      const det = await service.detect(toArrayBuffer(await preprocess(buf, "raw", width, 0)));
+      const tallShare = det.boxes.length
+        ? det.boxes.filter((b) => b.height > b.width).length / det.boxes.length
+        : 0;
+      const entry = { tallShare: +tallShare.toFixed(2), rotation: 0, confidence: null, uncertain: false };
+      if (tallShare > 0.5) {
+        const scores = [];
+        for (const candidate of [90, 270]) {
+          const input = await preprocess(buf, "raw", width, candidate);
+          const res = await service.recognize(toArrayBuffer(input), { flatten: true, noCache: true });
+          const confs = (res.results ?? [])
+            .filter((r) => r.text.trim().length > 0)
+            .map((r) => r.confidence)
+            .filter((c) => Number.isFinite(c));
+          scores.push({ candidate, confidence: confs.length ? confs.reduce((a, b) => a + b, 0) / confs.length : 0 });
+        }
+        const best = scores.reduce((a, b) => (a.confidence >= b.confidence ? a : b));
+        entry.rotation = best.candidate;
+        entry.confidence = +best.confidence.toFixed(3);
+        // Två svaga kandidater betyder att valet inte vilar på någonting. Bilden är
+        // då inte automatiskt uppräteligt, och det ska synas i stället för döljas.
+        entry.uncertain = best.confidence < 0.5;
+      }
+      entry.ms = +(performance.now() - t0).toFixed(1);
+      calibrated.set(name, entry);
+    }
+  } finally {
+    await service.destroy();
+  }
+  return calibrated;
+}
+
 async function runPass(service, samples, variant, width, rotation, { collectText, tier, label } = {}) {
   const perImage = [];
   const pooledConfidence = [];
@@ -157,7 +211,8 @@ async function runPass(service, samples, variant, width, rotation, { collectText
     // "taggen fanns och lästes" — utan den skillnaden går ett orienteringsfel
     // inte att felsöka, bara att gissa om.
     const src = await sharp(buf).metadata();
-    const input = await preprocess(buf, variant, width, rotation);
+    const rot = rotation === "auto" ? calibration.get(name)?.rotation ?? 0 : rotation;
+    const input = await preprocess(buf, variant, width, rot);
     const meta = await sharp(input).metadata();
     const ab = toArrayBuffer(input);
 
@@ -179,6 +234,7 @@ async function runPass(service, samples, variant, width, rotation, { collectText
     const chars = items.reduce((s, r) => s + r.text.trim().length, 0);
     perImage.push({
       image: name,
+      rotation: rot,
       source: `${src.width}x${src.height}`,
       // sharp utelämnar fältet när taggen saknas; 1 betyder "upprätt, vrid inte".
       exifOrientation: src.orientation ?? null,
@@ -253,8 +309,9 @@ async function runSustained(service, samples, variant, width, rotation, minutes)
   const started = Date.now();
   let i = 0;
   while (Date.now() < deadline) {
-    const { buf } = samples[i++ % samples.length];
-    const input = await preprocess(buf, variant, width, rotation);
+    const { name, buf } = samples[i++ % samples.length];
+    const rot = rotation === "auto" ? calibration.get(name)?.rotation ?? 0 : rotation;
+    const input = await preprocess(buf, variant, width, rot);
     const t0 = performance.now();
     await service.recognize(toArrayBuffer(input), { flatten: true, noCache: true });
     const ms = performance.now() - t0;
@@ -276,7 +333,7 @@ async function runSustained(service, samples, variant, width, rotation, minutes)
 }
 
 const wname = (w) => (w ? String(w) : "full");
-const rname = (r) => (r ? `${r}°` : "exif");
+const rname = (r) => (r === "auto" ? "auto" : r ? `${r}°` : "exif");
 /** Nivå/variant/bredd/vridning i en cell — samma ordning som etiketterna i text/. */
 const axes = (r) => `${r.tier} | ${r.variant} | ${wname(r.width)} | ${rname(r.rotation)}`;
 
@@ -340,8 +397,15 @@ function report(results, sustained) {
   // Domen ställs på exif-raderna, alltså på produktionsvägen. Rader som mätts med
   // påtvingad vridning är avsiktligt vridna och skulle annars döma ut en körning
   // som var frisk.
-  const baseline = results.filter((r) => r.rotation === 0);
+  const baseline = results.filter((r) => r.rotation === 0 || r.rotation === "auto");
   const rows = baseline.length ? baseline : results;
+  // Rådet ska peka på nästa steg, inte på det som just kördes.
+  const advice = rotations.includes("auto")
+    ? " Automatisk uppräting är påslagen — se avsnittet nedan för vad den valde och vad den kostade."
+    : rotations.length > 1
+    ? " Vinnaren står i tabellen ovan. Kör mätserien med `--rotations=auto` så avgörs vridningen per" +
+      " bild i stället för att antas — bilder som redan står upp får inte vridas."
+    : " Kör om med `--rotations=auto`, som avgör vridningen per bild.";
   const sideways = Math.max(...rows.map((r) => r.summary.shareSideways));
   const landscape = Math.max(...rows.map((r) => r.summary.shareLandscape));
   const noExif = Math.max(...rows.map((r) => r.summary.shareNoExifRotation));
@@ -361,10 +425,8 @@ function report(results, sustained) {
         `liggande *efter* förbehandlingen, alltså efter att EXIF-orienteringen tillämpats.` +
         (noExif > 0.5
           ? ` ${(noExif * 100).toFixed(0)} % av dem saknar dessutom EXIF-vridning: kameran sparade sensorns ` +
-            `liggande bild utan tagg, eller så tvättade överföringen bort den. Automatisk uppräting har då ` +
-            `ingenting att gå på — kör om med \`--rotations=exif,90,270\` och se vilken vridning som läser.`
-          : ` Taggen finns och tillämpas, så bilderna är faktiskt tagna liggande. Kör om med ` +
-            `\`--rotations=exif,90,270\` för att se vad uppräting är värd.`),
+            `liggande bild utan tagg, eller så tvättade överföringen bort den.${advice}`
+          : ` Taggen finns och tillämpas, så bilderna är alltså faktiskt tagna liggande.${advice}`),
     );
   } else if (landscape > 0.5) {
     l.push(
@@ -377,6 +439,30 @@ function report(results, sustained) {
       "Läsningen är radvis och inte teckenvis, och andelen liggande bilder är låg. Orienteringen är " +
         "inte felkällan här.",
     );
+  }
+
+  if (calibration) {
+    const calibRows = [...calibration.values()];
+    const share = (pred) => +(calibRows.filter(pred).length / calibRows.length).toFixed(2);
+    const cost = stats(calibRows.map((r) => r.ms));
+    l.push("\n## Automatisk uppräting\n");
+    l.push("Avgjord en gång per bild med `tiny`, före mätmatrisen. Vald vridning:\n");
+    l.push("| Vridning | Andel bilder |");
+    l.push("| --- | --- |");
+    for (const rot of [0, 90, 270]) {
+      const part = share((r) => r.rotation === rot);
+      if (part) l.push(`| ${rname(rot)} | ${part} |`);
+    }
+    l.push("");
+    l.push(`Beslutet kostar ${cost.median} ms per bild i median, ${cost.p90} p90 — en gång per uppladdning.`);
+    const uncertain = share((r) => r.uncertain);
+    if (uncertain) {
+      l.push(
+        `\n**${(uncertain * 100).toFixed(0)} % av bilderna gav svaga kandidater åt båda hållen** ` +
+          `(under 0,5 i medelkonfidens). För dem vilar valet inte på något, och de hör till ` +
+          `granskningskön oavsett vad läsningen sedan ger.`,
+      );
+    }
   }
 
   l.push("\n## Genomströmning och konfidens\n");
@@ -443,6 +529,19 @@ console.log(
     (rotateVerticalCrops ? "" : " · vertikala beskärningar roteras inte"),
 );
 
+if (rotations.includes("auto")) {
+  // Kalibreringen körs på den minsta uppmätta bredden: valet av vridning är
+  // grovt nog att inte behöva full upplösning, och ska inte kosta som en mätning.
+  const calibWidth = widths.filter(Boolean).sort((a, b) => a - b)[0] ?? 1600;
+  process.stdout.write(`  avgör vridning per bild (tiny, ${calibWidth} px) ... `);
+  calibration = await calibrateOrientation(samples, calibWidth);
+  const chosen = [...calibration.values()];
+  console.log(
+    `${chosen.filter((c) => c.rotation).length} av ${chosen.length} bilder behöver vridas` +
+      `${chosen.some((c) => c.uncertain) ? `, ${chosen.filter((c) => c.uncertain).length} osäkra` : ""}`,
+  );
+}
+
 const results = [];
 let sustained = null;
 for (const tier of tiers) {
@@ -479,7 +578,17 @@ for (const tier of tiers) {
 
 await writeFile(
   join(OUT, "summary.json"),
-  JSON.stringify({ threads, rotateVerticalCrops, results, sustained }, null, 2),
+  JSON.stringify(
+    {
+      threads,
+      rotateVerticalCrops,
+      orientation: calibration ? Object.fromEntries(calibration) : null,
+      results,
+      sustained,
+    },
+    null,
+    2,
+  ),
 );
 const md = report(results, sustained);
 await writeFile(join(OUT, "summary.md"), md);

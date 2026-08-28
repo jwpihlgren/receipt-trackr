@@ -68,9 +68,16 @@ node run.mjs --threads=4                       # trådtak för ONNX-runtimen
 node run.mjs --widths=1280,1600,2000,full      # nedskalning före OCR som egen axel
 node run.mjs --tiers=tiny,small,medium         # medium är inte med som standard
 node run.mjs --crops --tiers=small             # sparar varje beskuren textruta som PNG
+node run.mjs --rotations=auto                   # vridningen avgörs per bild — använd den
 node run.mjs --rotations=exif,90,270           # orienteringen som egen mätaxel
 node run.mjs --vertcrops=false                 # läs höga rutor ovridna, se nedan
 ```
+
+`--rotations=auto` avgör vridningen en gång per bild före mätmatrisen och är den enda
+inställning som är rättvis mot materialet: högen innehåller både liggande och stående
+bilder, så en påtvingad vridning förstör den ena gruppen medan den räddar den andra.
+Beslutet tas med `tiny` på den minsta uppmätta bredden och kostade 0,55 s per bild när det
+mättes. Det kan inte kombineras med andra vridningar i samma körning.
 
 Standard är `--tiers=tiny,small`, `--widths=1600,full` och `--rotations=exif`. `medium` togs
 ur standard­urvalet sedan den mätts till ~28 s/bild på ZimaBoarden — den behöver läggas till
@@ -133,9 +140,20 @@ förklaringar återstår, och de kräver olika åtgärder:
 - **Taggen finns och är 1.** Bilderna är helt enkelt tagna med telefonen liggande, och
   kvittot ligger på sidan i bildrutan.
 
-Vilket det är avgörs av kolumnerna *liggande efter förbehandling* och *utan EXIF-vridning*
-i orienteringstabellen, och per bild av `exifOrientation` i `summary.json`. Kör diagnosen
-först, mät sedan.
+**Diagnosen kördes 2026-08-28 och svaret är entydigt: taggen saknas.** 91 % av bilderna i
+den gamla högen har ingen EXIF-vridning alls, 94 % är liggande efter förbehandlingen och
+86 % lästes ett tecken i taget. Vriden 90° läser samma hög med 834 tecken per bild och
+konfidens 0,95 mot 29 tecken och 0,27 upprätt — belopp hittas på 94 % av bilderna mot 6 %,
+och åäö på 89 % mot 3 %. Motsatt håll, 270°, ger 639 tecken men konfidens 0,58 och belopp
+på 11 %: texten står då upp och ner, vilket ger läsbar längd utan läsbart innehåll. Det är
+värt att notera, för teckenantal ensamt hade sagt att båda hållen fungerade.
+
+Tiderna ska läsas i samma ljus. 583 ms per bild upprätt mot 1272 ms vriden är inte en
+kostnad för uppräting — det är priset för att faktiskt läsa text i stället för att kasta
+tomma rutor.
+
+Åtgärden är alltså inte en generell vridning: två bilder av 35 står redan upp och skulle
+förstöras av en sådan. Vridningen avgörs per bild, med `--rotations=auto`.
 
 Hela mätserien före det här är ogiltig, slutsatsen om `clahe` inräknad: 33 av 35 bilder
 mätte brus, och brus varierar godtyckligt mellan modellnivåer. Att `small` såg sämre ut än
@@ -162,13 +180,18 @@ Uppräting är inte en spikedetalj utan ett krav på servern, och hör därför 
 1. **Bilden rätas upp explicit, först i kedjan** — `sharp(buf, { autoOrient: true })`, före
    skalning, gråskala och kontrastarbete. Att stegen inte går att kasta om av misstag är
    halva poängen med att lägga det på indatasteget.
-2. **EXIF räcker inte som garanti.** Saknas taggen finns ingen metadata att gå på och bilden
-   passerar liggande. Orienteringen måste därför gå att avgöra på pixlarna: mät andelen
-   textrutor som är högre än breda efter detektionen, och läs om vriden när den andelen är
-   hög. Spiken mäter redan exakt den andelen, så tröskeln går att sätta på riktiga siffror.
-3. **Felet ska synas.** En bild som lästes ett tecken i taget får inte sparas som ett kvitto
+2. **EXIF räcker inte som garanti** — 91 % av bilderna i den gamla högen saknar taggen helt.
+   Orienteringen måste avgöras på pixlarna, och regeln som mätts fram ser ut så här:
+   andelen textrutor som är högre än breda avgör *om* sidan ligger ned (tröskel 0,5, mätt
+   till 0,86 på liggande bilder och 0 på stående), och en provläsning åt båda hållen avgör
+   *åt vilket håll* — 90° och 270° går inte att skilja på formen, bara på medelkonfidensen
+   (0,95 mot 0,58 på samma hög). `calibrateOrientation()` i `run.mjs` är den regeln.
+3. **Vridningen avgörs per bild, aldrig för hela högen.** Två bilder av 35 står redan upp;
+   en generell vridning räddar 33 och förstör 2.
+4. **Felet ska synas.** En bild som lästes ett tecken i taget får inte sparas som ett kvitto
    med tomma fält. Tecken per läst rad är måttet som fångar det, och det hör till samma
-   granskningskö som låg konfidens.
+   granskningskö som låg konfidens. Samma sak gäller bilder där provläsningen var svag åt
+   båda hållen: valet vilar då inte på något, och `uncertain` i `summary.json` märker dem.
 
 Skälet till att det måste stå som krav och inte bara implementeras: felet är osynligt i det
 ena ledet. Webbläsaren läser Orientation-taggen och visar bilden upprätt, servern läser
