@@ -1,0 +1,61 @@
+<div class="skarm">
+  <header class="status">
+    <span class="lage">Gamla högen</span>
+    <span class="ko" [class.laddar]="queueState().uploading">
+      @if (queueState().offline) {
+        Ingen anslutning · {{ queueState().waiting }} väntar
+      } @else if (queueState().waiting > 0) {
+        {{ queueState().waiting }} {{ queueState().waiting === 1 ? 'kvitto väntar' : 'kvitton väntar' }}
+      } @else {
+        Allt är uppladdat
+      }
+    </span>
+  </header>
+
+  <div class="sokare">
+    <video #video autoplay playsinline muted aria-label="Kameravy"></video>
+    @if (cameraError(); as message) {
+      <p class="kamerafel" role="alert">{{ message }}</p>
+    } @else {
+      <div class="ram" aria-hidden="true"></div>
+    }
+  </div>
+
+  <!-- Remsan ska ses i ögonvrån, inte studeras. -->
+  <div class="remsa" role="list" aria-label="Tagna bilder">
+    @for (shot of shots(); track shot.sha) {
+      <div class="ruta" role="listitem">
+        <img [src]="shot.url" [alt]="'Bild ' + shot.index" />
+        <span class="nummer">{{ shot.index }}</span>
+      </div>
+    } @empty {
+      <p class="tom">Ta första bilden på kvittot.</p>
+    }
+  </div>
+
+  <div class="handzon">
+    <button type="button" class="avsluta" [disabled]="!hasShots()" (click)="done()">
+      @if (hasShots()) { Klart · {{ shots().length }} {{ shots().length === 1 ? 'bild' : 'bilder' }} }
+      @else { Klart }
+    </button>
+
+    <button type="button" class="avtryckare" [disabled]="busy() || !!cameraError()" (click)="capture()">
+      <span class="sr-only">Ta bild</span>
+    </button>
+
+    <button type="button" class="nasta" [disabled]="busy() || !!cameraError()" (click)="capture()">
+      Nästa bild
+    </button>
+  </div>
+
+  @if (saveError(); as message) {
+    <div class="sparfel" role="alert">
+      <p>{{ message }}</p>
+      <button type="button" (click)="dismissSaveError()">Jag har läst</button>
+    </div>
+  }
+</div>
+
+<p class="sr-only" aria-live="polite">
+  {{ shots().length }} bilder tagna. {{ queueState().waiting }} kvitton väntar på servern.
+</p>

@@ -1,1 +1,4 @@
-/* You can add global styles to this file, and also import other style files */
+/* Enda globala ingången. Tokens först, sedan grunden — inget annat får ligga här:
+   allt utseende hör hemma i sin komponent, och alla färger i tokens.css. */
+@import "./styles/tokens.css";
+@import "./styles/base.css";

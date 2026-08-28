@@ -1,0 +1,161 @@
+/* Mobilläget. Inga literala färgvärden — allt kommer ur tokens.css. */
+
+.skarm {
+  display: grid;
+  grid-template-rows: 56px 1fr 72px 132px;
+  height: 100dvh;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* ---- statusremsan ---------------------------------------------------- */
+
+.status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline: var(--d-pad-x);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--text-sm);
+}
+
+.lage { color: var(--ink-muted); }
+.ko { color: var(--ink); font-variant-numeric: tabular-nums; }
+.ko.laddar { color: var(--accent); }
+
+/* ---- sökaren --------------------------------------------------------- */
+
+.sokare {
+  position: relative;
+  background: var(--sunken);
+  overflow: hidden;
+}
+
+.sokare video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* En hjälp, inte ett krav: ramen visar var kvittot får plats. */
+.ram {
+  position: absolute;
+  inset: 12% 14%;
+  border: 2px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* Text över video måste ha egen bakgrund — videon är inte en känd kontrast. */
+.kamerafel {
+  position: absolute;
+  inset-inline: var(--space-4);
+  bottom: var(--space-4);
+  margin: 0;
+  padding: var(--d-pad-y) var(--d-pad-x);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-sm);
+}
+
+/* ---- remsan ---------------------------------------------------------- */
+
+.remsa {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap-tight);
+  padding-inline: var(--d-pad-x);
+  overflow-x: auto;
+  border-block: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.ruta {
+  position: relative;
+  flex: 0 0 auto;
+  width: 56px;
+  height: 72px;
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  background: var(--sunken);
+}
+
+.ruta img { width: 100%; height: 100%; object-fit: cover; }
+
+.nummer {
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 4px;
+  padding-inline: 4px;
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-xs);
+}
+
+.remsa .tom {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: var(--text-sm);
+}
+
+/* ---- handzonen ------------------------------------------------------- */
+
+.handzon {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  justify-items: center;
+  gap: var(--d-gap);
+  padding-inline: var(--d-pad-x);
+  background: var(--surface);
+}
+
+.handzon button {
+  min-height: var(--tap-primary);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-base);
+}
+
+.handzon button:disabled { opacity: 0.4; }
+
+/* Störst och i mitten, där tummen vilar. Krav 7: den finns alltid. */
+.avtryckare {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border-width: 3px;
+  background: var(--accent);
+}
+
+.avsluta, .nasta { width: 100%; max-width: 140px; }
+.nasta { border-color: var(--accent); color: var(--accent); }
+
+/* ---- det enda blockerande felet -------------------------------------- */
+
+.sparfel {
+  position: fixed;
+  inset: auto var(--space-4) var(--space-4);
+  padding: var(--d-card-pad);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--bad, var(--line-strong));
+  background: var(--surface);
+  box-shadow: var(--shadow-2, none);
+}
+
+.sparfel p { margin-block-end: var(--space-3); font-size: var(--text-sm); }
+
+.sparfel button {
+  min-height: var(--tap-comfort);
+  width: 100%;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+}

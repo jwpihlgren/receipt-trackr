@@ -24,7 +24,8 @@ och `docs/DRIFT.md` säger vad man gör åt det.
 | Del | Var | Status |
 | --- | --- | --- |
 | Server (Fastify) | `server/` | Drift, kvittolagring och säkerhetskopiering |
-| Webb (Angular 19) | `web/` | En vy som visar arkivets status |
+| Webb (Angular 19) | `web/` | Mobilläget för fångst (`/fanga`) och en driftvy (`/drift`) |
+| Design | `docs/design/` | UX för båda ytorna och UI-systemet, med motiv till varje beslut |
 | OCR-spike | `spike/` | Klar. Mätningen som valde modellnivå och förbehandling |
 | Runbook | `docs/DRIFT.md` | Skriven för någon som inte minns hur systemet är byggt |
 

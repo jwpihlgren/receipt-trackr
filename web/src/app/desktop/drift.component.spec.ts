@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { AppComponent, type Health } from './app.component';
+import { DriftComponent, type Health } from './drift.component';
 
 const HEALTH: Health = {
   status: 'ok',
@@ -19,12 +19,12 @@ const HEALTH: Health = {
   backupDir: '/backup',
 };
 
-describe('AppComponent', () => {
+describe('Driftvyn', () => {
   let http: HttpTestingController;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AppComponent],
+      imports: [DriftComponent],
       providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
@@ -33,7 +33,7 @@ describe('AppComponent', () => {
   afterEach(() => http.verify());
 
   it('visar var arkivet ligger och hur mycket som är kvar', () => {
-    const fixture = TestBed.createComponent(AppComponent);
+    const fixture = TestBed.createComponent(DriftComponent);
     fixture.detectChanges();
     http.expectOne('/api/health').flush(HEALTH);
     fixture.detectChanges();
@@ -45,7 +45,7 @@ describe('AppComponent', () => {
   });
 
   it('visar 503-svaret i stället för att svälja det — det är läget vyn finns för', () => {
-    const fixture = TestBed.createComponent(AppComponent);
+    const fixture = TestBed.createComponent(DriftComponent);
     fixture.detectChanges();
     const degraded: Health = { ...HEALTH, status: 'degraded', data: { ...HEALTH.data, belowFloor: true } };
     http.expectOne('/api/health').flush(degraded, { status: 503, statusText: 'Service Unavailable' });
