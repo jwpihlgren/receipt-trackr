@@ -9,17 +9,18 @@ services:
     restart: unless-stopped
     environment:
       DATA_DIR: /data
-      BACKUP_DIR: /backup
       WEB_ROOT: /app/web/public
       PORT: "8080"
       # Golvet för ledigt utrymme. Under det vägrar servern starta — se docs/DRIFT.md.
       MIN_FREE_BYTES: 5G
       LOG_LEVEL: info
     volumes:
-      # $DATA_DIR pekar mot ZFS-poolen, aldrig mot kortets eMMC. Icke förhandlingsbart:
-      # en backloggkörning mot bootenheten fyller den och tar ner maskinen.
-      - ${ARCHIVE_DIR:?ARCHIVE_DIR måste peka på katalogen i ZFS-poolen}:/data
-      - ${BACKUP_DIR:-./backup}:/backup
+      # Enda monteringen. Pekar mot ZFS-poolen, aldrig mot kortets eMMC: en
+      # backloggkörning mot bootenheten fyller den och tar ner maskinen.
+      # Katalogen måste finnas innan containern startar — saknas den skapar Docker
+      # den åt sig med root som ägare, och servern kan då inte skriva.
+      - ${ARCHIVE_DIR:?ARCHIVE_DIR måste peka på en katalog i ZFS-poolen}:/data
+      # Säkerhetskopieringen och sin katalog kommer i M3.
     ports:
       # Bara loopback: TLS termineras av `tailscale serve` på värden, och ingenting
       # ska nå appen förbi den vägen. Porten på värden är därför godtycklig — krockar

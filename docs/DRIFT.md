@@ -16,7 +16,6 @@ billigt fel, en förlorad bild ett oåterkalleligt.
 | Vad | Var |
 | --- | --- |
 | Arkivet (sanningen) | `$ARCHIVE_DIR` på värden, monterad som `/data` i containern |
-| Säkerhetskopior | `$BACKUP_DIR`, monterad som `/backup` |
 | Beskrivning av arkivformatet | `/data/ARKIVFORMAT.md` — skrivs om av servern vid varje start |
 | Appen | en container, en port, `127.0.0.1:8080` på värden |
 | TLS och åtkomst utifrån | `tailscale serve` på värden, inte i containern |
@@ -35,9 +34,8 @@ Inställningarna som hör till den här maskinen ligger i `.env` bredvid
 cd ~/repos/receipt-trackr
 cp .env.example .env                      # fyll i ARCHIVE_DIR och en ledig HTTP_PORT
 
-# En gång, innan första starten: katalogerna måste finnas och ägas av dig.
-sudo mkdir -p /pool/kvitton backup
-sudo chown -R $(id -u):$(id -g) /pool/kvitton backup
+# En gång, innan första starten: katalogen måste finnas och ägas av dig.
+mkdir -p /media-pool/kvitton
 
 docker compose up -d
 docker compose logs -f app                # första raden säger var arkivet ligger

@@ -24,9 +24,10 @@ COPY web/package.json web/package.json
 RUN npm ci --omit=dev --workspace @receipt-trackr/server --include-workspace-root
 
 FROM --platform=linux/amd64 node:22-bookworm-slim AS runtime
+# BACKUP_DIR sätts medvetet inte: säkerhetskopieringen byggs i M3, och en katalog
+# som inte används ska inte kontrolleras vid start.
 ENV NODE_ENV=production \
     DATA_DIR=/data \
-    BACKUP_DIR=/backup \
     WEB_ROOT=/app/web/public \
     PORT=8080
 WORKDIR /app
