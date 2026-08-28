@@ -1,0 +1,26 @@
+# Uppgradering är hela vägen: `docker compose pull && docker compose up -d` (krav 53).
+# Tills ett register är valt byggs imagen lokalt med `docker compose build`.
+services:
+  app:
+    image: receipt-trackr:latest
+    build:
+      context: .
+      platforms: [linux/amd64]
+    restart: unless-stopped
+    environment:
+      DATA_DIR: /data
+      BACKUP_DIR: /backup
+      WEB_ROOT: /app/web/public
+      PORT: "8080"
+      # Golvet för ledigt utrymme. Under det vägrar servern starta — se docs/DRIFT.md.
+      MIN_FREE_BYTES: 5G
+      LOG_LEVEL: info
+    volumes:
+      # $DATA_DIR pekar mot ZFS-poolen, aldrig mot kortets eMMC. Icke förhandlingsbart:
+      # en backloggkörning mot bootenheten fyller den och tar ner maskinen.
+      - ${ARCHIVE_DIR:?ARCHIVE_DIR måste peka på katalogen i ZFS-poolen}:/data
+      - ${BACKUP_DIR:-./backup}:/backup
+    ports:
+      # Bara loopback: TLS termineras av `tailscale serve` på värden, och ingenting
+      # ska nå appen förbi den vägen.
+      - "127.0.0.1:8080:8080"

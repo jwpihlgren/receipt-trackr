@@ -1,0 +1,35 @@
+<main>
+  <h1>Kvittoarkiv</h1>
+
+  @if (error(); as message) {
+    <p class="fel">{{ message }}</p>
+  } @else {
+    <!-- `as`-alias går bara på @if, inte på @else if — därav den nästlade formen. -->
+    @if (health(); as h) {
+      <p class="status" [class.degraderad]="h.data.belowFloor">
+        {{ h.data.belowFloor ? 'För lite utrymme kvar' : 'Arkivet mår bra' }}
+      </p>
+      <dl>
+        <dt>Arkivet ligger på</dt>
+        <dd>{{ h.data.path }}</dd>
+        <dt>Monteringspunkt</dt>
+        <dd>{{ h.data.mount ?? 'okänd' }} ({{ h.data.filesystem ?? 'okänt filsystem' }})</dd>
+        <dt>Ledigt</dt>
+        <dd>{{ h.data.free }} av {{ h.data.total }}, golv {{ h.data.minFree }}</dd>
+        <dt>Säkerhetskopior</dt>
+        <dd>{{ h.backupDir ?? 'ingen katalog monterad' }}</dd>
+        <dt>Version</dt>
+        <dd>{{ h.version }}</dd>
+      </dl>
+    } @else {
+      <p>Läser status …</p>
+    }
+  }
+
+  <button type="button" (click)="refresh()">Uppdatera</button>
+
+  <p class="fotnot">
+    Inga kvitton lagras ännu — det kommer i nästa milstolpe. Den här vyn visar att servern,
+    webben och disken hänger ihop.
+  </p>
+</main>

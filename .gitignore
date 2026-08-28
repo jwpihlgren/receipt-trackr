@@ -7,3 +7,9 @@ spike/samples/*
 !spike/samples/.gitkeep
 spike/out*/
 data/
+
+# Angulars byggcache
+.angular/
+
+# Lokala kataloger vid utveckling
+backup/
