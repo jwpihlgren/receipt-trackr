@@ -37,36 +37,58 @@ export class CaptureComponent {
 
   /** ULID:ens tidsstämpel bestämmer katalogen på disk, så den myntas vid första bilden. */
   private receiptId: string | null = null;
-  private stream: MediaStream | null = null;
+  /**
+   * Signal, inte ett vanligt fält: strömmen kommer en stund efter att vyn ritats, och
+   * en effekt som bara läser vanliga fält körs aldrig om när de ändras. Då finns
+   * kameran men syns inte — och det ser ut som att rättigheten nekats fast den gavs.
+   */
+  private readonly stream = signal<MediaStream | null>(null);
 
   constructor() {
     this.queue.start();
     void this.openCamera();
     inject(DestroyRef).onDestroy(() => {
       this.queue.stop();
-      this.stream?.getTracks().forEach((t) => t.stop());
+      this.stream()?.getTracks().forEach((t) => t.stop());
       for (const shot of this.shots()) URL.revokeObjectURL(shot.url);
     });
-    // Strömmen kopplas när elementet finns; den stoppas aldrig mellan bilder — att
-    // starta om en kamera kostar hundratals millisekunder och äter trekundersbudgeten.
+    // Kopplas så snart både elementet och strömmen finns, i vilken ordning de än blir
+    // klara. Strömmen stoppas aldrig mellan bilder — att starta om en kamera kostar
+    // hundratals millisekunder och äter trekundersbudgeten.
     effect(() => {
       const element = this.video().nativeElement;
-      if (this.stream && element.srcObject !== this.stream) element.srcObject = this.stream;
+      const stream = this.stream();
+      if (!stream || element.srcObject === stream) return;
+      element.srcObject = stream;
+      // Safari och flera Android-webbläsare startar inte av `autoplay` ensamt när
+      // källan sätts efter att elementet ritats.
+      void element.play().catch(() => this.cameraError.set('Kameran startade inte. Ladda om sidan.'));
     });
   }
 
   private async openCamera(): Promise<void> {
     try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: false,
-      });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        // Nästan alltid osäker kontext: kameran finns bara över https eller localhost.
+        throw new Error('insecure');
+      }
+      this.stream.set(
+        await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: false,
+        }),
+      );
       this.cameraError.set(null);
     } catch (error) {
+      const name = (error as Error).name;
       this.cameraError.set(
-        (error as Error).name === 'NotAllowedError'
-          ? 'Kameran är inte tillåten. Ge sidan tillgång till kameran i webbläsarens inställningar.'
-          : 'Kameran går inte att starta. Är den upptagen av en annan app?',
+        (error as Error).message === 'insecure'
+          ? 'Kameran kräver en https-adress. Öppna sidan via tailnet-adressen, inte via IP.'
+          : name === 'NotAllowedError'
+            ? 'Kameran är inte tillåten. Ge sidan tillgång till kameran i webbläsarens inställningar.'
+            : name === 'NotReadableError'
+              ? 'Kameran är upptagen av en annan app. Stäng den och ladda om sidan.'
+              : `Kameran går inte att starta (${name}).`,
       );
     }
   }
