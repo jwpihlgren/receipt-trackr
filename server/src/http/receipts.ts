@@ -4,12 +4,28 @@
  */
 import type { FastifyError, FastifyInstance } from "fastify";
 import { createReadStream } from "node:fs";
+import { join } from "node:path";
 import { stat } from "node:fs/promises";
 import { Archive, ConflictError, ImageError } from "../store/archive.js";
 import { InvalidIdError, isSafeFileName } from "../store/paths.js";
-import { search } from "../store/index-db.js";
+import { ftsQuery, search } from "../store/index-db.js";
+import { thumbName } from "../store/paths.js";
 
 const CONTENT_TYPES: Record<string, string> = { ".jpg": "image/jpeg", ".webp": "image/webp" };
+
+/** Metadatan är klientens; den sparas som den kommer, men bara om den är ett objekt. */
+function parseCapture(field: unknown): Record<string, unknown> | undefined {
+  const value = (field as { value?: unknown } | undefined)?.value;
+  if (typeof value !== "string") return undefined;
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function registerReceipts(app: FastifyInstance, archive: Archive): void {
   // Fel översätts på ett ställe i stället för i varje rutt.
@@ -43,8 +59,28 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
       const file = await request.file();
       if (!file) return reply.code(400).send({ error: "missing_file", message: "Bilden ska skickas som multipart." });
       const bytes = await file.toBuffer();
-      const { segment, created } = await archive.addSegment(request.params.id, Number(request.params.index), bytes);
+      // Kamerans mätvärden vid fångst — texthöjd, skärpa, om avtryckaren var automatisk.
+      // De går inte att rekonstruera i efterhand, så de tas emot här och sparas som de
+      // kommer. Fältet måste ligga före filen i kroppen för att vara läst när filen är det.
+      const capture = parseCapture(file.fields["capture"]);
+      const { segment, created } = await archive.addSegment(
+        request.params.id,
+        Number(request.params.index),
+        bytes,
+        capture,
+      );
       return reply.code(created ? 201 : 200).send(segment);
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: { segments?: number } }>(
+    "/api/receipts/:id/complete",
+    async (request, reply) => {
+      const segments = request.body?.segments;
+      if (typeof segments !== "number") {
+        return reply.code(400).send({ error: "missing_segments", message: "Ange hur många segment kvittot har." });
+      }
+      return reply.send(await archive.complete(request.params.id, segments));
     },
   );
 
@@ -67,12 +103,26 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
       .send(createReadStream(path));
   });
 
+  app.get<{ Params: { id: string; index: string } }>(
+    "/api/receipts/:id/thumbs/:index",
+    async (request, reply) => {
+      const index = Number(request.params.index);
+      if (!Number.isInteger(index) || index < 1 || index > 99) return reply.code(400).send({ error: "invalid_index" });
+      const path = archive.fileIn(request.params.id, join("derived", thumbName(index)));
+      if (!(await stat(path).catch(() => null))?.isFile()) return reply.code(404).send({ error: "not_found" });
+      return reply
+        .type("image/webp")
+        .header("cache-control", "public, max-age=31536000, immutable")
+        .send(createReadStream(path));
+    },
+  );
+
   app.get<{ Querystring: { q?: string } }>("/api/search", async (request, reply) => {
     const q = request.query.q?.trim();
     if (!q) return reply.code(400).send({ error: "missing_query" });
-    // Frågan är användarens text, inte FTS5-syntax: den citeras så att en apostrof
-    // eller ett bindestreck inte blir ett syntaxfel i stället för en sökning.
-    return { hits: search(archive.db, `"${q.replace(/"/g, '""')}"`) };
+    const query = ftsQuery(q);
+    if (!query) return reply.code(400).send({ error: "missing_query" });
+    return { query, hits: search(archive.db, query) };
   });
 
   app.post("/api/reindex", async () => archive.reindex());

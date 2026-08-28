@@ -27,6 +27,14 @@ export type Receipt = {
   /** Gamla högen eller färskt kvitto — styr mätningen, se planens mätavsnitt. */
   backlog: boolean;
   segments: Segment[];
+  /**
+   * Hur många segment klienten säger att kvittot har, satt när användaren tryckt
+   * "Klart". Utan den siffran går ett tappat andra segment inte att skilja från ett
+   * kvitto som bara hade ett — och det är precis den tysta förlusten arkivet finns
+   * för att förhindra. `null` betyder att fångsten fortfarande pågår.
+   */
+  expectedSegments: number | null;
+  completedAt: string | null;
   fields: Record<string, unknown>;
   corrections: unknown[];
   review: { sampled: boolean };
@@ -43,6 +51,8 @@ export function newReceipt(id: string, capturedAt: string, backlog: boolean): Re
     capturedAt,
     backlog,
     segments: [],
+    expectedSegments: null,
+    completedAt: null,
     fields: {},
     corrections: [],
     review: { sampled: false },

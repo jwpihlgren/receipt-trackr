@@ -76,12 +76,36 @@ export function remove(db: ReceiptIndex, id: string): void {
   db.prepare("DELETE FROM receipts_fts WHERE id = ?").run(id);
 }
 
-export type SearchHit = { id: string; capturedAt: string; segments: number; snippet: string };
+export type SearchHit = {
+  id: string;
+  capturedAt: string;
+  segments: number;
+  store: string | null;
+  date: string | null;
+  total: number | null;
+  currency: string | null;
+  snippet: string;
+};
+
+/**
+ * Användarens text är inte FTS5-syntax. Varje ord citeras för sig och binds ihop med
+ * AND — inte hela frågan som en fras, för då kräver "kakel badrum" att orden står
+ * intill varandra, och kravställningens eget slutprov är just "vad kostade allt kakel
+ * till badrummet". Vill man ha en fras skriver man citattecken, och då bevaras den.
+ */
+export function ftsQuery(raw: string): string {
+  const phrases = [...raw.matchAll(/"([^"]+)"/g)].map((m) => m[1]!);
+  const rest = raw.replace(/"[^"]*"/g, " ");
+  const words = rest.split(/[\s,.;:!?()[\]{}]+/).filter(Boolean);
+  const terms = [...phrases, ...words].map((t) => `"${t.replace(/"/g, '""')}"`);
+  return terms.join(" AND ");
+}
 
 export function search(db: ReceiptIndex, query: string, limit = 50): SearchHit[] {
   return db
     .prepare(
       `SELECT r.id AS id, r.captured_at AS capturedAt, r.segments AS segments,
+              r.store AS store, r.date AS date, r.total AS total, r.currency AS currency,
               snippet(receipts_fts, 0, '[', ']', '…', 12) AS snippet
        FROM receipts_fts f JOIN receipts r ON r.id = f.id
        WHERE receipts_fts MATCH ?

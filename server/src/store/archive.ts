@@ -83,6 +83,31 @@ export class Archive {
     return { receipt, segment, created: true };
   }
 
+  /**
+   * Klienten säger att kvittot är färdigfångat och hur många segment det har. Först
+   * då vet servern om något saknas — och först då får textutläsningen starta, för ett
+   * kvitto vars sista segment bär totalbeloppet får inte tolkas halvt.
+   */
+  async complete(id: string, segments: number): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte.`);
+    if (!Number.isInteger(segments) || segments < 1 || segments > 99) {
+      throw new ConflictError(`Antalet segment ska vara 1–99, inte ${segments}.`);
+    }
+    // Idempotent som allt annat: samma besked igen är en tystnad, ett annat är ett fel.
+    if (receipt.expectedSegments !== null && receipt.expectedSegments !== segments) {
+      throw new ConflictError(
+        `Kvittot är redan avslutat med ${receipt.expectedSegments} segment, inte ${segments}.`,
+      );
+    }
+    if (receipt.expectedSegments === segments) return receipt;
+
+    receipt.expectedSegments = segments;
+    receipt.completedAt = new Date().toISOString();
+    await this.persist(receipt);
+    return receipt;
+  }
+
   /** Sidecar först, atomiskt. Indexet efteråt, och bara om sidecaren gick igenom. */
   private async persist(receipt: Receipt): Promise<void> {
     await writeSidecar(this.dataDir, receipt);

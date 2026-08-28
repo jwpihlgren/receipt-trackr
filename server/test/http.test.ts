@@ -73,8 +73,11 @@ describe("kvitto-API:t", () => {
     expect(image.headers["content-type"]).toBe("image/jpeg");
     expect(Buffer.from(image.rawPayload).equals(bytes)).toBe(true);
 
-    const thumb = await app.inject({ method: "GET", url: `/api/receipts/${id}/files/thumb-01.webp` });
-    expect(thumb.statusCode).toBe(404); // tumnageln ligger i derived/, inte bland originalen
+    // Tumnageln ligger i derived/ och hämtas via sin egen rutt — filnamnsregeln
+    // tillåter inga snedstreck, och ska inte göra det.
+    const thumb = await app.inject({ method: "GET", url: `/api/receipts/${id}/thumbs/1` });
+    expect(thumb.statusCode).toBe(200);
+    expect(thumb.headers["content-type"]).toBe("image/webp");
   });
 
   it("409 när samma segmentnummer kommer med ett annat innehåll", async () => {
@@ -111,5 +114,73 @@ describe("kvitto-API:t", () => {
 
   it("404 för ett kvitto som inte finns", async () => {
     expect((await app.inject({ method: "GET", url: `/api/receipts/${ulid()}` })).statusCode).toBe(404);
+  });
+
+  it("sparar kamerans mätvärden — de går inte att rekonstruera i efterhand", async () => {
+    const id = ulid();
+    await app.inject({ method: "POST", url: "/api/receipts", payload: { id } });
+    const bytes = await jpeg();
+    const boundary = "----receipttrackrtest";
+    const payload = Buffer.concat([
+      Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="capture"\r\n\r\n` +
+          `{"textHeightPx":21,"autoShutter":true}\r\n` +
+          `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="s.jpg"\r\n` +
+          `Content-Type: image/jpeg\r\n\r\n`,
+      ),
+      bytes,
+      Buffer.from(`\r\n--${boundary}--\r\n`),
+    ]);
+    await app.inject({
+      method: "POST",
+      url: `/api/receipts/${id}/segments/1`,
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+      payload,
+    });
+
+    const receipt = await app.inject({ method: "GET", url: `/api/receipts/${id}` });
+    expect(receipt.json().segments[0].capture).toEqual({ textHeightPx: 21, autoShutter: true });
+  });
+
+  it("avslutar kvittot med antal segment, idempotent, och vägrar ett annat antal", async () => {
+    const id = ulid();
+    await app.inject({ method: "POST", url: "/api/receipts", payload: { id } });
+    await app.inject({ method: "POST", url: `/api/receipts/${id}/segments/1`, ...multipart("file", "a.jpg", await jpeg()) });
+
+    const done = await app.inject({ method: "POST", url: `/api/receipts/${id}/complete`, payload: { segments: 1 } });
+    expect(done.statusCode).toBe(200);
+    expect(done.json()).toMatchObject({ expectedSegments: 1 });
+    expect(done.json().completedAt).toBeTruthy();
+
+    const again = await app.inject({ method: "POST", url: `/api/receipts/${id}/complete`, payload: { segments: 1 } });
+    expect(again.statusCode).toBe(200);
+
+    // Ett annat antal är inte ett omtag utan en motsägelse, och ska synas.
+    const other = await app.inject({ method: "POST", url: `/api/receipts/${id}/complete`, payload: { segments: 2 } });
+    expect(other.statusCode).toBe(409);
+  });
+
+  it("söker på flera ord utan att kräva att de står intill varandra", async () => {
+    const id = ulid();
+    await app.inject({ method: "POST", url: "/api/receipts", payload: { id } });
+    const { Archive } = await import("../src/store/archive.js");
+    const { upsert } = await import("../src/store/index-db.js");
+    const archive = Archive.open(dir);
+    try {
+      const receipt = (await archive.get(id))!;
+      upsert(archive.db, { ...receipt, text: "BAUHAUS\nKAKEL VIT 20x25\nFOG TILL BADRUM\nATT BETALA 1240,00" });
+    } finally {
+      archive.close();
+    }
+
+    // Kravställningens eget slutprov: orden står inte intill varandra på kvittot.
+    const hit = await app.inject({ method: "GET", url: "/api/search?q=kakel badrum" });
+    expect(hit.statusCode).toBe(200);
+    expect(hit.json().hits).toHaveLength(1);
+    expect(hit.json().hits[0]).toMatchObject({ id });
+
+    // En citerad fras ska däremot fortsätta vara en fras.
+    const phrase = await app.inject({ method: "GET", url: '/api/search?q="kakel badrum"' });
+    expect(phrase.json().hits).toHaveLength(0);
   });
 });
