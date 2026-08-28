@@ -67,6 +67,15 @@ det direkt. De två som förekommer:
 **"DATA_DIR saknas."** Miljövariabeln `ARCHIVE_DIR` var inte satt när compose kördes.
 Sätt den och starta om.
 
+**"Bind for … 8080 failed: port is already allocated."** Något annat på värden lyssnar
+redan där. Porten utåt är godtycklig — `tailscale serve` står framför ändå — så flytta
+appen i stället för grannen:
+
+```sh
+sudo ss -ltnp | grep :8080          # vem är det?
+HTTP_PORT=8081 docker compose up -d # eller lägg HTTP_PORT i din profil
+```
+
 **"För lite ledigt utrymme … Servern startar inte."** Det här är avsiktligt, inte ett
 haveri. Servern vägrar starta hellre än att låta en körning fylla disken. Tre möjliga
 åtgärder, i den ordningen:

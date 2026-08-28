@@ -22,5 +22,6 @@ services:
       - ${BACKUP_DIR:-./backup}:/backup
     ports:
       # Bara loopback: TLS termineras av `tailscale serve` på värden, och ingenting
-      # ska nå appen förbi den vägen.
-      - "127.0.0.1:8080:8080"
+      # ska nå appen förbi den vägen. Porten på värden är därför godtycklig — krockar
+      # den med något annat, sätt HTTP_PORT i stället för att flytta den andra tjänsten.
+      - "127.0.0.1:${HTTP_PORT:-8080}:8080"
