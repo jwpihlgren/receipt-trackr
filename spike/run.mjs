@@ -68,6 +68,10 @@ const orientWidths = (args.orientwidth ? String(args.orientwidth).split(",").map
 // gav så lite. Standard är `full` tills remsan mätts mot den på riktigt material.
 const orientProbe = args.orientprobe ?? "full";
 if (!["full", "strip"].includes(orientProbe)) throw new Error("--orientprobe tar full eller strip.");
+// Marginalen mellan hållen under detta räknas som obeslutsamt. En remsa kan råka hamna
+// på ett par svaga rader, och då är det billigare att betala för hela sidan på just den
+// bilden än att singla slant om åt vilket håll den ska läsas.
+const orientMargin = Number(args.orientmargin ?? 0.05);
 // Enbart kalibreringen, ingen mätmatris — diagnosen att köra först på ett nytt urval.
 const orientOnly = Boolean(args["orient-only"]);
 /** Bild → vald vridning. Fylls av calibrateOrientation() när `auto` är påslaget. */
@@ -187,6 +191,23 @@ async function makeService(tier) {
  * ned: detektionen behåller sin träffsäkerhet, det är bara läsningen som kortas.
  */
 const PROBE_LINES = 6;
+const margin = (scores) => Math.abs(scores[0].confidence - scores[1].confidence);
+
+/** Läser samma bild åt båda hållen och svarar med medelkonfidensen för vardera. */
+async function probeDirection(service, source) {
+  const scores = [];
+  for (const candidate of [90, 270]) {
+    const input = await sharp(source).rotate(candidate).jpeg({ quality: 95 }).toBuffer();
+    const res = await service.recognize(toArrayBuffer(input), { flatten: true, noCache: true });
+    const confs = (res.results ?? [])
+      .filter((r) => r.text.trim().length > 0)
+      .map((r) => r.confidence)
+      .filter((c) => Number.isFinite(c));
+    scores.push({ candidate, confidence: confs.length ? confs.reduce((a, b) => a + b, 0) / confs.length : 0 });
+  }
+  return scores;
+}
+
 async function extractProbeStrip(input, boxes, meta) {
   const tall = boxes.filter((b) => b.height > b.width).sort((a, b) => a.x - b.x);
   if (tall.length <= PROBE_LINES) return null;
@@ -225,23 +246,18 @@ async function calibrateOrientation(samples, width, probe = orientProbe) {
       };
       if (tallShare > 0.5) {
         const strip = probe === "strip" ? await extractProbeStrip(upright, det.boxes, await sharp(upright).metadata()) : null;
-        const source = strip ?? upright;
         entry.probe = strip ? "strip" : "full";
-        const scores = [];
-        for (const candidate of [90, 270]) {
-          const input = await sharp(source).rotate(candidate).jpeg({ quality: 95 }).toBuffer();
-          const res = await service.recognize(toArrayBuffer(input), { flatten: true, noCache: true });
-          const confs = (res.results ?? [])
-            .filter((r) => r.text.trim().length > 0)
-            .map((r) => r.confidence)
-            .filter((c) => Number.isFinite(c));
-          scores.push({ candidate, confidence: confs.length ? confs.reduce((a, b) => a + b, 0) / confs.length : 0 });
+        let scores = await probeDirection(service, strip ?? upright);
+        if (strip && margin(scores) < orientMargin) {
+          scores = await probeDirection(service, upright);
+          entry.probe = "full";
+          entry.escalated = true;
         }
         const best = scores.reduce((a, b) => (a.confidence >= b.confidence ? a : b));
         entry.rotation = best.candidate;
         entry.confidence = +best.confidence.toFixed(3);
         entry.candidates = Object.fromEntries(scores.map((c) => [c.candidate, +c.confidence.toFixed(3)]));
-        entry.margin = +Math.abs(scores[0].confidence - scores[1].confidence).toFixed(3);
+        entry.margin = +margin(scores).toFixed(3);
         // Två svaga kandidater betyder att valet inte vilar på någonting. Bilden är
         // då inte automatiskt uppräteligt, och det ska synas i stället för döljas.
         entry.uncertain = best.confidence < 0.5;
@@ -626,8 +642,10 @@ if (orientOnly) {
   }
   const reference = runs[0];
   const l = [`# M0 — orienteringsdiagnos\n`, `${samples.length} bilder · urval: ${SAMPLES}\n`];
-  l.push("| Bredd | Provläsning | ms/bild (median) | ms p90 | Vrids | Osäkra | Minsta marginal | Samma val som referensen |");
-  l.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
+  l.push(
+    "| Bredd | Provläsning | ms/bild (median) | ms p90 | Vrids | Eskalerade | Osäkra | Minsta marginal | Samma val som referensen |",
+  );
+  l.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const run of runs) {
     const rows = [...run.calibration.values()];
     const cost = stats(rows.map((r) => r.ms));
@@ -638,12 +656,17 @@ if (orientOnly) {
         : `${[...run.calibration].filter(([n, e]) => reference.calibration.get(n).rotation === e.rotation).length}/${samples.length}`;
     l.push(
       `| ${run.width} | ${run.probe} | ${cost.median} | ${cost.p90} | ${rows.filter((r) => r.rotation).length} | ` +
-        `${rows.filter((r) => r.uncertain).length} | ${margins.length ? Math.min(...margins) : "—"} | ${agree} |`,
+        `${rows.filter((r) => r.escalated).length} | ${rows.filter((r) => r.uncertain).length} | ` +
+        `${margins.length ? Math.min(...margins) : "—"} | ${agree} |`,
     );
   }
   if (runs.length > 1) {
     l.push(
-      `\nEn billigare inställning duger om den väljer samma håll som referensen på **alla** bilder. ` +
+      `\nEskalerade bilder är de där remsan gav en marginal under ${orientMargin} och därför lästes om ` +
+        `i sin helhet. De kostar full provläsning, men bara de.\n`,
+    );
+    l.push(
+      `En billigare inställning duger om den väljer samma håll som referensen på **alla** bilder. ` +
         `Kolumnen *vrids* är lika viktig: väljer den färre bilder att vrida har den missat att sidan ` +
         `ligger ned, vilket är samma fel som att välja fel håll. Gör den varken eller är skillnaden i ` +
         `kostnad ren vinst, en gång per uppladdning.`,

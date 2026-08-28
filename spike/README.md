@@ -97,12 +97,17 @@ inställningen: bredaste provläsningen över hela sidan): bredden på bilden so
 kolumnen *vrids* om den ens upptäcker att sidan ligger ned — att missa det är samma fel
 som att välja fel håll.
 
-Två saker är redan mätta på 35 kvitton och sparar dig försöken. **Nedskalning hjälper
-föga**: 480 px kostade bara hälften av 1600 px men missade sju av trettiotre vridna
-bilder, och 800 px var 40 % billigare med ett avvikande val. Kostnaden i igenkänningen
-växer nämligen med **antalet rader**, inte med bildytan — därför är `--orientprobe=strip`,
-som läser en remsa på ett par hela rader i stället för hela sidan, den knapp som faktiskt
-biter. Standard är `full` tills remsan är mätt mot riktigt material.
+Detta är redan mätt på 35 kvitton och sparar dig försöken. **Nedskalning hjälper föga**:
+480 px kostade bara hälften av 1600 px men missade sju av trettiotre vridna bilder, och
+800 px var 40 % billigare med ett avvikande val. Kostnaden i igenkänningen växer nämligen
+med **antalet rader**, inte med bildytan. **Remsan biter**: `--orientprobe=strip` på
+1600 px valde samma håll som hela sidan på alla 35 bilder, upptäckte lika många liggande,
+och halverade tiden (1345 mot 2798 ms per bild).
+
+Priset är att marginalen mellan hållen blir tunnare — remsan kan råka hamna på ett par
+svaga rader. Därför läses en bild om i sin helhet när remsans marginal understiger
+`--orientmargin` (0,05 som standard). De bilderna räknas som *eskalerade* i tabellen och
+kostar full provläsning, men bara de.
 
 Sökvägarna i flaggorna är relativa till `/repo/spike` inne i containern, alltså till
 repot — inte till katalogen du står i på värden.
