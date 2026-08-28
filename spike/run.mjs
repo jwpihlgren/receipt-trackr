@@ -65,8 +65,9 @@ const orientWidths = (args.orientwidth ? String(args.orientwidth).split(",").map
 ];
 // `strip` provläser en remsa på ett par rader i stället för hela sidan. Kostnaden i
 // igenkänningen växer med antalet rader, inte med bildytan — det är därför nedskalning
-// gav så lite. Standard är `full` tills remsan mätts mot den på riktigt material.
-const orientProbe = args.orientprobe ?? "full";
+// gav så lite. Mätt mot 35 kvitton väljer remsan samma håll som hela sidan på alla, till
+// halva tiden, och är därför standard. `full` finns kvar som referens att mäta emot.
+const orientProbe = args.orientprobe ?? "strip";
 if (!["full", "strip"].includes(orientProbe)) throw new Error("--orientprobe tar full eller strip.");
 // Marginalen mellan hållen under detta räknas som obeslutsamt. En remsa kan råka hamna
 // på ett par svaga rader, och då är det billigare att betala för hela sidan på just den

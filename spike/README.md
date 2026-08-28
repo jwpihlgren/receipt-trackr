@@ -102,12 +102,12 @@ Detta är redan mätt på 35 kvitton och sparar dig försöken. **Nedskalning hj
 800 px var 40 % billigare med ett avvikande val. Kostnaden i igenkänningen växer nämligen
 med **antalet rader**, inte med bildytan. **Remsan biter**: `--orientprobe=strip` på
 1600 px valde samma håll som hela sidan på alla 35 bilder, upptäckte lika många liggande,
-och halverade tiden (1345 mot 2798 ms per bild).
+och mer än halverade tiden — 1225 mot 2842 ms per bild. Den är därför standard.
 
-Priset är att marginalen mellan hållen blir tunnare — remsan kan råka hamna på ett par
-svaga rader. Därför läses en bild om i sin helhet när remsans marginal understiger
-`--orientmargin` (0,05 som standard). De bilderna räknas som *eskalerade* i tabellen och
-kostar full provläsning, men bara de.
+Priset är att marginalen mellan hållen kan bli tunnare, eftersom remsan kan råka hamna på
+ett par svaga rader. Därför läses en bild om i sin helhet när remsans marginal understiger
+`--orientmargin` (0,05 som standard). Det slog till på en bild av 35 och lyfte den svagaste
+marginalen i hela urvalet från 0,02 till 0,106, alltså samma nivå som full provläsning.
 
 Sökvägarna i flaggorna är relativa till `/repo/spike` inne i containern, alltså till
 repot — inte till katalogen du står i på värden.
@@ -233,7 +233,10 @@ Uppräting är inte en spikedetalj utan ett krav på servern, och hör därför 
    andelen textrutor som är högre än breda avgör *om* sidan ligger ned (tröskel 0,5, mätt
    till 0,86 på liggande bilder och 0 på stående), och en provläsning åt båda hållen avgör
    *åt vilket håll* — 90° och 270° går inte att skilja på formen, bara på medelkonfidensen
-   (0,95 mot 0,58 på samma hög). `calibrateOrientation()` i `run.mjs` är den regeln.
+   (0,95 mot 0,58 på samma hög). Provläsningen behöver bara en remsa på ett par hela rader,
+   inte hela sidan, men marginalen mellan hållen måste kontrolleras: understiger den 0,05
+   läses sidan om i sin helhet. Mätt kostar regeln 1,2 s per uppladdning.
+   `calibrateOrientation()` i `run.mjs` är den regeln.
 3. **Vridningen avgörs per bild, aldrig för hela högen.** Två bilder av 35 står redan upp;
    en generell vridning räddar 33 och förstör 2.
 4. **Felet ska synas.** En bild som lästes ett tecken i taget får inte sparas som ett kvitto
@@ -271,7 +274,8 @@ innan M6, för frågan är om det är veck som äter datumraden eller datumforma
 inte täcker.
 
 Orienteringen: 33 av 35 bilder behövde vridas, 91 % ett kvarts varv medurs, 3 % moturs,
-6 % stod redan upp. Beslutet kostar 1345 ms per bild med `--orientprobe=strip`.
+6 % stod redan upp. Beslutet kostar 1225 ms per bild i median, och den svagaste marginalen
+mellan hållen i hela urvalet är 0,106.
 
 **Två frågor lämnas öppna med flit.** Teckennivån är inte avgjord: fälttabellen ser att
 åäö *förekommer*, inte att de är *rätt*, så fyndet nedan om `tiny` och diakriter är varken
