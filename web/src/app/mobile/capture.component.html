@@ -24,27 +24,36 @@
   <!-- Remsan ska ses i ögonvrån, inte studeras. -->
   <div class="remsa" role="list" aria-label="Tagna bilder">
     @for (shot of shots(); track shot.sha) {
-      <div class="ruta" role="listitem">
+      <div class="ruta" role="listitem" [class.ersatt]="shot.replaced">
         <img [src]="shot.url" [alt]="'Bild ' + shot.index" />
         <span class="nummer">{{ shot.index }}</span>
+        @if (shot.replaced) { <span class="ersatt-markor" aria-label="ersatt">omtagen</span> }
       </div>
     } @empty {
-      <p class="tom">Ta första bilden på kvittot.</p>
+      <p class="tom">Rikta mot kvittot och tryck på den stora knappen.</p>
     }
   </div>
 
   <div class="handzon">
-    <button type="button" class="avsluta" [disabled]="!hasShots()" (click)="done()">
-      @if (hasShots()) { Klart · {{ shots().length }} {{ shots().length === 1 ? 'bild' : 'bilder' }} }
-      @else { Klart }
+    <!-- Vänster: avslutet. Ligger längst från vilotummen, för en felträff här
+         skickar iväg ett kvitto med en bild för lite. -->
+    <button type="button" class="sido" [disabled]="!hasShots()" (click)="done()">
+      <span class="ikon" aria-hidden="true">✓</span>
+      <span class="etikett">
+        @if (hasShots()) { Klart · {{ shots().length }} } @else { Klart }
+      </span>
     </button>
 
+    <!-- Mitten: den enda knapp som tar en bild. Störst, märkt, alltid på samma plats. -->
     <button type="button" class="avtryckare" [disabled]="busy() || !!cameraError()" (click)="capture()">
-      <span class="sr-only">Ta bild</span>
+      <span class="ring" aria-hidden="true"></span>
+      <span class="etikett">{{ hasShots() ? 'Nästa bild' : 'Ta bild' }}</span>
     </button>
 
-    <button type="button" class="nasta" [disabled]="busy() || !!cameraError()" (click)="capture()">
-      Nästa bild
+    <!-- Höger: ta om den senaste. Ny bild, nytt nummer — den gamla kastas aldrig. -->
+    <button type="button" class="sido" [disabled]="!hasShots() || busy()" (click)="retake()">
+      <span class="ikon" aria-hidden="true">↺</span>
+      <span class="etikett">Ta om</span>
     </button>
   </div>
 

@@ -3,7 +3,7 @@ import { QueueService } from './queue.service';
 import { ulid } from '../shared/ulid';
 import { sha256 } from '../shared/sha256';
 
-type Shot = { index: number; url: string; sha: string };
+type Shot = { index: number; url: string; sha: string; replaced: boolean };
 
 /**
  * Mobilläget (krav 1, 2, 3, 5, 7, 42, 43). Ett syfte: få in kvittot, stående, med en
@@ -123,7 +123,7 @@ export class CaptureComponent {
         takenAt: new Date().toISOString(),
       });
 
-      this.shots.update((s) => [...s, { index, url: URL.createObjectURL(blob), sha }]);
+      this.shots.update((s) => [...s, { index, url: URL.createObjectURL(blob), sha, replaced: false }]);
       this.saveError.set(null);
       navigator.vibrate?.(20);
     } catch (error) {
@@ -135,6 +135,23 @@ export class CaptureComponent {
       navigator.vibrate?.([40, 60, 40]);
     } finally {
       this.busy.set(false);
+    }
+  }
+
+  /**
+   * "Ta om" tar en **ny** bild med ett nytt nummer och märker den förra som ersatt.
+   * Den gamla laddas upp ändå: bilderna är oåterkalleliga, och en bild som användaren
+   * ångrat är inte samma sak som en bild som aldrig fanns. Vilken som gäller avgörs
+   * vid datorn, där man ser båda.
+   */
+  async retake(): Promise<void> {
+    const last = this.shots().at(-1);
+    if (!last || this.busy()) return;
+    await this.capture();
+    // Bara om den nya bilden faktiskt kom i hamn — annars stod användaren kvar utan
+    // användbar bild och med den gamla struken.
+    if (this.shots().length > 1 && this.shots().at(-1)!.index !== last.index) {
+      this.shots.update((s) => s.map((shot) => (shot.index === last.index ? { ...shot, replaced: true } : shot)));
     }
   }
 

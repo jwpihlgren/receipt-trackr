@@ -96,6 +96,21 @@
   font-size: var(--text-xs);
 }
 
+/* En omtagen bild stryks inte — den laddas upp ändå. Remsan säger bara vilken
+   som var användarens andra försök. */
+.ruta.ersatt img { opacity: 0.45; }
+
+.ruta .ersatt-markor {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline: 0;
+  padding-block: 1px;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
 .remsa .tom {
   margin: 0;
   color: var(--ink-faint);
@@ -112,30 +127,62 @@
   gap: var(--d-gap);
   padding-inline: var(--d-pad-x);
   background: var(--surface);
+  border-top: 1px solid var(--line);
 }
 
+/* Varje knapp har text. En omärkt cirkel är inte en avtryckare, den är en fläck —
+   och användaren trycker då på det enda som ser tryckbart ut. */
 .handzon button {
-  min-height: var(--tap-primary);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: none;
+  border: none;
   color: var(--ink);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
 }
 
-.handzon button:disabled { opacity: 0.4; }
+.handzon button:disabled { opacity: 0.35; }
+.handzon .etikett { line-height: 1.2; }
 
-/* Störst och i mitten, där tummen vilar. Krav 7: den finns alltid. */
+/* Sidoknapparna: fyrkantiga träffytor, tydligt underordnade avtryckaren. */
+.sido {
+  min-width: var(--tap-comfort);
+  min-height: var(--tap-comfort);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm) !important;
+}
+
+.sido .ikon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  font-size: var(--text-lg);
+}
+
+/* Störst, i mitten, där tummen vilar. Krav 7: den finns alltid. */
 .avtryckare {
+  min-width: 96px;
+  min-height: 96px;
+}
+
+.avtryckare .ring {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  border-width: 3px;
   background: var(--accent);
+  box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--accent);
 }
 
-.avsluta, .nasta { width: 100%; max-width: 140px; }
-.nasta { border-color: var(--accent); color: var(--accent); }
+.avtryckare .etikett {
+  font-weight: var(--weight-bold);
+  color: var(--accent);
+}
 
 /* ---- det enda blockerande felet -------------------------------------- */
 
