@@ -245,6 +245,41 @@ Skälet till att det måste stå som krav och inte bara implementeras: felet är
 ena ledet. Webbläsaren läser Orientation-taggen och visar bilden upprätt, servern läser
 filen som den ligger. Samma bild ser alltså rätt ut i granskningsvyn och läses fel av OCR:en.
 
+## Vad mätningen gav (2026-08-28)
+
+Första giltiga serien: 35 kvitton i `samples/gamla`, `--rotations=auto`, hela
+standardmatrisen. Alla åtta inställningar läser materialet — noll bilder utan textrutor,
+noll utan text, noll knappt lästa.
+
+| | tecken/bild | ms/bild | radkonfidens median | p10 |
+| --- | --- | --- | --- | --- |
+| tiny / raw / 1600 | 834 | 1297 | 0,952 | 0,747 |
+| tiny / raw / full | 835 | 1611 | 0,956 | 0,772 |
+| small / raw / 1600 | 707 | 3590 | 0,944 | 0,475 |
+
+**`tiny` läser mer än `small`, på under en tredjedel av tiden**, och är stabilare i botten
+av konfidensfördelningen. Att den större modellen läser mindre är rimligt på fotograferat
+papper: den är känsligare för att beskärningarna inte är rena.
+
+**Full upplösning är inte värd 24 % mer tid** — 835 tecken mot 834. **`clahe` ger
+ingenting** på det här materialet (801 mot 834 vid 1600 px), vilket är väntat på opåverkat
+papper och skälet till att den stannar som flagga och inte blir standard.
+
+Fältutvinningen har något att arbeta med: belopp på 100 % av bilderna, totalord 94 %,
+belopp nära totalord 91 %, åäö 94 %. **Datum är svagast, 74 %** — värt en titt i `text/`
+innan M6, för frågan är om det är veck som äter datumraden eller datumformat som regexen
+inte täcker.
+
+Orienteringen: 33 av 35 bilder behövde vridas, 91 % ett kvarts varv medurs, 3 % moturs,
+6 % stod redan upp. Beslutet kostar 1345 ms per bild med `--orientprobe=strip`.
+
+**Två frågor lämnas öppna med flit.** Teckennivån är inte avgjord: fälttabellen ser att
+åäö *förekommer*, inte att de är *rätt*, så fyndet nedan om `tiny` och diakriter är varken
+bekräftat eller motbevisat på riktigt papper. Det avgörs bara för hand, genom att jämföra
+`tiny__*` mot `small__*` i `text/`. Uthållighetstestet är medvetet inte kört, vilket
+betyder att 1297 ms per bild är mätt på ett kallt kort — en importkörning av tiotusen
+kvitton kan gå långsammare, och det är i så fall en överraskning som kommer i drift.
+
 ## Vad som redan är känt
 
 Mätt mot en syntetisk kvittobild — alltså ren, renderad text, inte riktigt papper.
