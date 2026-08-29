@@ -263,7 +263,7 @@ Detta är dokumentets viktigaste avsnitt. Se avsnitt 6.
 | **Tolkning misslyckades** | "Tolkningen misslyckades: `<felmeddelande>`." + **Kör om**. Bild och råtext (om någon) visas ändå. |
 | **Fält saknas** | Fältet visas med `—` och texten "Kunde inte läsas ur bilden." Knappen är **Skriv in** (inte "Bekräfta" — det finns inget att bekräfta). |
 | **Bilden går inte att visa** | "Bilden kunde inte hämtas från servern." + **Försök igen** + sökvägen i arkivet som text, så att den går att leta upp för hand. Fältpanelens bekräftelseknappar **låses** — se regel 4 i avsnitt 6. |
-| **Segment saknas** | "1 av 3 bilder har kommit fram. Kontrollera telefonens kö innan papperet slängs." Röd, överst, inte i en flik. |
+| **Segment saknas** | "1 av 3 bilder har kommit fram. Kontrollera i telefonens kvittolista innan papperet slängs." Röd, överst, inte i en flik. |
 | **Sparande misslyckas** | Rättningen ligger kvar i fältet, gult: "Rättningen kunde inte sparas. Den ligger kvar här tills den gått igenom." + **Försök igen**. Aldrig tyst rensad. |
 | **Redigerad någon annanstans** | SSE säger att kvittot ändrats medan man skriver: "Kvittot ändrades i ett annat fönster." + **Läs om** / **Behåll min text**. Två personer i hushållet, ett arkiv — det kan hända. |
 
