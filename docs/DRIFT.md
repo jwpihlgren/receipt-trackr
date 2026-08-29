@@ -198,3 +198,40 @@ ledigt. Läs den varje gång du startar om.
 Mobilläge, textutläsning, datorvy och säkerhetskopiering. Servern tar emot och lagrar
 kvitton, men ingenting läser dem ännu — `fields` och `text` i sidecaren står tomma.
 Ordningen är avsiktlig, se milstolparna i planen.
+
+## Inloggning (M4b)
+
+Servern startar inte utan en lösenordsfras. Sätt den i `.env` bredvid `ARCHIVE_DIR`:
+
+    AUTH_PASSWORD="tre ord som ni båda minns"
+
+Frasen är gemensam för hushållet — det finns inget användarnamn och ingen
+återställning. Har ni glömt den läser ni den i `.env` på burken.
+
+Sessionen signeras med en hemlighet som ligger i `.session-secret` i arkivkatalogen.
+Den skapas vid första start och ska ligga kvar: raderas den loggas båda telefonerna
+ut. Filen är lika känslig som frasen — den som har den kan förfalska en session.
+
+Vill ni köra utan inloggning måste ni säga det uttryckligen:
+
+    AUTH_DISABLED=true
+
+Gör det bara om något annat står framför appen och gör samma jobb.
+
+## Var appen lyssnar
+
+Sedan M4b publiceras porten på hela hemnätet, inte bara på loopback:
+
+    ports:
+      - "${BIND_ADDR:-0.0.0.0}:${HTTP_PORT:-8080}:8080"
+
+Skälet är att kameran inte längre kräver https. Telefonens egen kameraapp tar bilden,
+så det finns inget secure context-krav kvar — och då behövs varken Tailscale-klient
+eller certifikat för att nå appen hemifrån.
+
+Vill ni stänga in den igen, sätt `BIND_ADDR=127.0.0.1` i `.env`. Då krävs
+`tailscale serve` eller en annan terminator framför, som tidigare.
+
+Trafiken går okrypterad över hemnätet. Lösenordsfrasen skickas alltså i klartext till
+den som redan sitter på ert wifi. Det är samma tillitsnivå som en NAS-utdelning, och
+ett medvetet val — men det ska vara sagt.

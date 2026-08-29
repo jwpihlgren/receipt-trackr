@@ -121,14 +121,15 @@ export class CaptureFlowService {
   /** "Spara kvittot": antalet bilder blir känt och fångsten är över. */
   async save(): Promise<string | null> {
     const id = this.receiptId;
-    const count = this.shots().filter((s) => !s.replaced).length || this.shots().length;
-    if (!id || this.shots().length === 0) return null;
+    // Antalet är alla bilder, inte bara de som inte tagits om: en omtagen bild laddas
+    // upp ändå och har ett eget nummer. Räknar vi bort den letar servern efter ett
+    // segment som aldrig kommer, och kvittot ser oavslutat ut för alltid.
     const total = this.shots().length;
+    if (!id || total === 0) return null;
     this.reset(false);
     navigator.vibrate?.([20, 40, 20]);
     // Efter nollställningen: användaren väntar inte på skrivningen.
     await this.queue.completeReceipt(id, total);
-    void count;
     return id;
   }
 
