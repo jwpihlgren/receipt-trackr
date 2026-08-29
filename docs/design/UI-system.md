@@ -1076,30 +1076,41 @@ När butik saknas (OCR inte kört, eller fältet tomt) visar kortet `capturedAt`
 
 ### 3.4 Arbetslisterad med framdrift
 
-Tre tillstånd, som servern (`captured` → `interpreting` → `interpreted` / `needs_review`).
+Raderna visar **spår 2, läsningen** (§6.2). Orden och tecknen kommer därifrån — den här
+komponenten hittar inga egna.
 
 ```
-väntar
+inte läst än
 ┌──────────────────────────────────────────────────────────┐
-│ ○  01K5F8…  18:22   2 segment                     väntar │
+│ ○  Ica Maxi  ·  11 apr  ·  2 bilder          inte läst än │
 └──────────────────────────────────────────────────────────┘
 
-bearbetas  — spåret ligger i radens underkant, raden växer inte
+läses nu  — spåret ligger i radens underkant, raden växer inte
 ┌──────────────────────────────────────────────────────────┐
-│ ◐  01K5F8…  18:22   segment 2 av 2                       │
+│ ◐  Ica Maxi  ·  11 apr  ·  bild 2 av 2          Läses · 4 s│
 └──▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░─┘
 
-kräver åtgärd
+saknar en uppgift — fältet namnges, aldrig "kräver åtgärd"
 ┌──────────────────────────────────────────────────────────┐
-│ ▲  01K5F8…  18:22   totalbelopp saknas       [Öppna]     │
+│ ▲  Ica Maxi  ·  11 apr  ·  saknar datum        [Öppna]   │
 └──────────────────────────────────────────────────────────┘
 
 Listfot (krav 47):
-  14 väntar · 1 bearbetas · 3 kräver åtgärd
-  Genomströmning senaste timmen: 132 kvitton · 2,4 s per bild
+  14 olästa · 1 läses · 3 saknar en uppgift
+  132 kvitton senaste timmen · 2,4 s per bild
 
 Radhöjd: 36 px i datorläget (tätt), 56 px luftigt. Se §2.6 och räkningen i §2.6.4.
 ```
+
+Tre saker i skissen är resultat av §6 och inte fria val:
+
+- **Raden börjar med butik och datum, inte med en ULID.** `01K5F8…` är systemets namn på
+  kvittot, inte människans. Saknas butiken än (den läses ju just nu) står fångsttiden där.
+- **`saknar datum`, inte `kräver åtgärd`.** Sidecaren vet vilket fält som fattas. Att skriva ut
+  det gör raden till en instruktion i stället för en kategori, och kostar ingenting.
+- **`Läses · 4 s`.** Sekundräknaren är den enda framdrift som finns när systemet inte vet hur
+  långt in i en bild det har kommit. Se §6.8 — regeln är att ingen animation får stå utan ett
+  tal bredvid sig.
 
 ```css
 /* work-item.component.css */
@@ -1120,9 +1131,21 @@ Radhöjd: 36 px i datorläget (tätt), 56 px luftigt. Se §2.6 och räkningen i 
 
 .state-dot { inline-size: 10px; block-size: 10px; border-radius: var(--radius-full);
              justify-self: center; }
-:host([data-state="waiting"])   .state-dot { border: 2px solid var(--line-strong); }
-:host([data-state="running"])   .state-dot { background: var(--accent); }
-:host([data-state="attention"]) .state-dot { background: var(--warn); }
+/* Teckengrammatiken i §6.3, i CSS. Fyllnadsgrad = hur långt kvittot kommit;
+   triangeln är det enda tecken som betyder "en människa behövs". */
+:host([data-state="unread"])  .state-dot { border: 2px solid var(--line-strong); }
+:host([data-state="reading"]) .state-dot {
+  border: 2px solid var(--accent);
+  background: linear-gradient(to right, var(--accent) 50%, transparent 50%);
+}
+:host([data-state="read"])    .state-dot { background: var(--ink-muted);
+                                           border: 2px solid var(--ink-muted); }
+:host([data-state="missing"]) .state-dot {
+  /* Triangel, inte prick: formen bär betydelsen även i gråskala. */
+  inline-size: 0; block-size: 0; border-radius: 0;
+  border-inline: 6px solid transparent;
+  border-block-end: 10px solid var(--warn);
+}
 
 /* REVIDERAT efter täthetsbeslutet. Spåret låg tidigare i en egen rutnätsrad,
    vilket lade 5 px på *varje* rad i listan — nära tre rader mindre per skärm i
@@ -1146,25 +1169,30 @@ Radhöjd: 36 px i datorläget (tätt), 56 px luftigt. Se §2.6 och räkningen i 
   transition: inline-size var(--dur-base) var(--ease-out);
 }
 
-/* Kön vet hur många segment som återstår, men inte hur långt in i ett segment
-   OCR:en har kommit. Under ett segment blir stapeln obestämd. */
+/* REVIDERAT efter §6.8. Den obestämda stapeln svepte tidigare från vänster till
+   höger — vilket är en snurra i stapelform: ett svep färdas mot ett slut och
+   antyder därmed en framdrift som systemet inte känner till. Nu pulserar den i
+   stället: "lever, avstånd okänt", vilket är sant. Informationen bärs av
+   sekundräknaren bredvid, inte av animationen. */
 :host([data-progress="indeterminate"]) .progress__fill {
-  inline-size: 35%;
-  animation: indet 1400ms var(--ease-both) infinite;
+  inline-size: 100%;
+  animation: puls 1800ms var(--ease-both) infinite;
 }
-@keyframes indet {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(285%); }
+@keyframes puls {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 0.60; }
 }
+/* Under reduced motion försvinner animationen helt utan att något går förlorat —
+   det är följdvinsten av att talet, inte rörelsen, bär informationen. */
 @media (prefers-reduced-motion: reduce) {
-  :host([data-progress="indeterminate"]) .progress__fill { inline-size: 100%; opacity: 0.4; }
+  :host([data-progress="indeterminate"]) .progress__fill { animation: none; opacity: 0.35; }
 }
 ```
 
-Ordning i listan: **kräver åtgärd överst, sedan bearbetas, sedan väntar**, och inom varje grupp
-äldst först. Backloggen är tiotusen rader i "väntar" och får aldrig trycka undan de tre rader
-som faktiskt vill ha en människa. Gruppen "väntar" visas hopfälld med en räknare
-(`14 233 väntar — visa`) tills någon ber om den.
+Ordning i listan: **saknar en uppgift överst, sedan läses nu, sedan olästa**, och inom varje
+grupp äldst först. Backloggen är tiotusen olästa rader och får aldrig trycka undan de tre som
+faktiskt vill ha en människa. Gruppen olästa visas hopfälld med en räknare
+(`14 233 olästa — visa`) tills någon ber om den.
 
 Statuspolling: SSE enligt planen (krav 45). Under en backloggkörning fylls listan snabbare än
 den kan läsas — därför uppdateras **räknarna** i realtid men **radlistan** högst var femte
@@ -1265,21 +1293,22 @@ Arkivet är tomt (första start)          Sökning utan träff
 │  Öppna mobilläget på       │          │                            │
 │  telefonen för att fånga   │          │  Söker i all maskinläst    │
 │  det första.               │          │  text. 412 av 10 233       │
-│                            │          │  kvitton är ännu inte      │
-│      [ Visa QR-kod ]       │          │  tolkade.                  │
+│                            │          │  kvitton är inte lästa än. │
+│      [ Visa QR-kod ]       │          │                            │
 └────────────────────────────┘          └────────────────────────────┘
 
-Arbetslistan tom (bra nyhet)            Kvitto utan OCR ännu
+Arbetslistan tom (bra nyhet)            Kvitto som inte lästs än
 ┌────────────────────────────┐          ┌────────────────────────────┐
-│  Inget väntar.             │          │  Bilderna finns.           │
-│  Senast tolkat 14:02.      │          │  Tolkningen ligger i kön,  │
-└────────────────────────────┘          │  plats 43 av 212.          │
-                                        └────────────────────────────┘
+│  Ingenting behöver dig nu. │          │  I arkivet, inte läst än.  │
+│  Senast läst 14:02.        │          │  Plats 43 av 212 i kön.    │
+└────────────────────────────┘          └────────────────────────────┘
 ```
 
 Regeln: **ett tomt tillstånd säger vad läget beror på och vad man gör åt det.** Det tredje ovan
 är en positiv utsaga, inte ett tomrum. Det fjärde är avgörande — utan det ser ett nyfångat
-kvitto ut som ett trasigt kvitto i flera timmar under backloggkörningen.
+kvitto ut som ett trasigt kvitto i flera timmar under backloggkörningen. Notera att det säger
+**var kvittot är** ("I arkivet") innan det säger vad som inte hänt ännu: det är ordningen i §6.1,
+och det är den ordningen som gör att man kan släppa papperet.
 
 ```css
 .empty {
@@ -1525,25 +1554,61 @@ Två regler ur kravställningen som formen måste bära:
 }
 .seg__remove::after { content: ""; position: absolute; inset: -8px; }
 
-/* Segment som ännu inte kvitterats av servern. Se §3.10 — samma språk. */
-.seg[data-pending="true"] img { opacity: 0.55; }
+/* Var segmentet är. Tecknet kommer ur grammatiken i §6.3 och ligger i nedre
+   vänstra hörnet, mittemot numret. Dämpningen ensam räcker inte — den läses som
+   "laddar bild", inte som "finns bara i telefonen". */
+.seg[data-place="phone"]   img { opacity: 0.55; }
+.seg[data-place="sending"] img { opacity: 0.75; }
+.seg__place {
+  position: absolute; inset-block-end: 2px; inset-inline-start: 2px;
+  inline-size: 14px; block-size: 14px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--scrim-strong); color: var(--on-scrim);
+  font-size: 9px; line-height: 1;
+}
 ```
 
 Ett borttaget segment tas bort **lokalt före uppladdning**, aldrig efteråt: planen säger att
 bilderna är oåterkalleliga och att ingenting gallras automatiskt (krav 36). Har segmentet redan
 nått servern är krysset borta och miniatyren låst.
 
-### 3.10 Köräknare
+### 3.10 Räknaren i mobillägets topprad
 
-Krav 3: en räknare visar vad som väntar tills servern kvitterat. Den bor i mobillägets topprad
-och nämns här för att den delar språk med §3.9.
+> **Underkänd i sin första form.** Den sa `4 väntar` och `Allt är uppladdat` — kösystemets
+> tillstånd i kösystemets språk, till någon som står med ett papper i handen. Hela resonemanget
+> och den nya vokabulären står i §6; här är formen.
+
+Krav 3 kräver en räknare som står kvar tills servern kvitterat. Kravet uppfylls, men i
+**platsspråk**: räknaren säger var kvittona *är*, inte hur djup kön är.
 
 ```
-   ↑ 4 väntar          (bricka, --warn-soft, sitter i toppraden)
-   ✓ allt uppe         (två sekunder, sedan borta)
+   ◌  3 kvitton ligger kvar i telefonen      inget nät just nu
+   ◐  1 kvitto skickas                       transient, någon sekund
+      (ingenting alls)                       allt är i arkivet
 ```
 
-Den försvinner när kön är tom. En permanent "0 väntar" är brus.
+Tre regler:
+
+1. **Noll visas inte.** `Allt är uppladdat` och `0 väntar` är samma sak: en upplysning om att
+   ingenting har hänt. Frånvaron av räknare är den upplysningen, gratis och tystare.
+2. **"Ligger kvar i telefonen", inte "väntar".** *Väntar* är något kön gör. *Ligger i telefonen*
+   är något kvittot gör, och det är också exakt det som avgör om papperet får slängas.
+3. **Räknaren svarar aldrig på frågan "kom mitt kvitto fram?"** Den är ett aggregat, och den
+   frågan gäller ett enskilt kvitto. Svaret hör hemma på kvittot självt — §6.4.
+
+```css
+/* queue-badge.component.css */
+:host { display: inline-flex; align-items: center; gap: var(--d-gap-tight);
+        min-block-size: var(--tap-min);
+        padding-inline: var(--d-pad-x);
+        font-size: var(--text-sm); }
+/* Ingen färgvarning. Att tre kvitton ligger i telefonen är ett normalt läge på
+   dålig täckning, inte ett fel — och en gul bricka i toppraden vid varje
+   butiksbesök blir tapet inom en vecka (samma resonemang som §5.3). */
+:host { color: var(--ink-muted); }
+:host([hidden]) { display: none; }
+```
 
 ---
 
@@ -2020,7 +2085,7 @@ export class FieldRowComponent {
   readonly spokenState = computed(() => {
     const c = this.confidence();
     switch (this.state()) {
-      case 'missing':   return 'saknas i tolkningen';
+      case 'missing':   return 'gick inte att läsa ur bilderna';
       case 'confirmed': return 'bekräftat av en människa';
       case 'machine':   return c === undefined
         ? 'maskinläst, ännu inte bekräftat'
@@ -2078,12 +2143,241 @@ och som annars bara samlas i det slumpmässiga granskningsurvalet.
 
 ---
 
-## 6. Ordning att bygga i
+## 6. Statusspråk
+
+### 6.1 Vad som var fel, och vad metaforen är
+
+Statusremsan sa **"Allt är uppladdat"** och **"1 kvitto väntar"**. Båda är sanna och båda är
+oanvändbara, av samma skäl: de beskriver **kösystemets** tillstånd med **kösystemets** ord, till
+någon som håller ett papper i handen och ska bestämma om han vågar lägga ned det.
+
+*Väntar* är något en kö gör. *Uppladdad* är något en fil är. Ingendera är något ett kvitto är.
+Och "allt" är ett aggregat — frågan i handen gäller ett enda kvitto, det som just fotograferades.
+
+**Metaforen är en plats, inte en process.** Kvittot är på väg från handen till arkivet, och
+statusen svarar på *var det är just nu*:
+
+```
+   i handen   →   i telefonen   →   i arkivet
+   (papper)       (kan tappas)      (ligger säkert)
+```
+
+Tre platser. En människa vet redan vad det betyder att något *är någonstans*; ingen behöver lära
+sig vad en kö är. Och platsen är dessutom exakt det som avgör den enda fråga som spelar roll när
+man står vid pappershögen: **kan jag släppa det här papperet?**
+
+### 6.2 Två spår, inte en kedja
+
+Planens bärande asymmetri är att **bilderna är oåterkalleliga, tolkningen är det inte.** Den
+asymmetrin måste finnas i språket, annars konkurrerar en sak som aldrig kan bli fel om
+uppmärksamheten med en sak som kan bli katastrofalt fel.
+
+| | **Spår 1 — Förvaring** | **Spår 2 — Läsning** |
+| --- | --- | --- |
+| Handlar om | var bilderna finns | vad som står på dem |
+| Går fel | oåterkalleligt | aldrig — kan köras om mot lagrade bilder |
+| Brådskar | ja, papperet ligger i handen | nej, timmar eller dagar spelar ingen roll |
+| Ton | den enda yta som får vara högljudd | tyst |
+| Visas i | mobilläget **och** datorläget | **bara** datorläget |
+
+**Följd: mobilläget visar aldrig spår 2.** Att en bild "tolkas" eller "är utläst" är brus vid
+köksbordet med högen framför sig — det är information för den som sitter vid datorn och rättar.
+Mobillägets enda jobb är att svara på om kvittot är framme.
+
+#### Spår 1 — Förvaring
+
+| Tillstånd | Tecken | Rad (några ord) | Mening (egen vy) |
+| --- | --- | --- | --- |
+| Bara i telefonen | `○` | **Bara i telefonen** | "Bilderna finns bara här i telefonen. Behåll papperet." |
+| Skickas nu | `◐` | **Skickas** | "Skickar bild 2 av 3 till arkivet." |
+| Ligger kvar, inget nät | `◌` | **Väntar på nät** | "Ingen kontakt med arkivet just nu. Kvittot ligger kvar i telefonen och skickas av sig självt när nätet kommer tillbaka." |
+| **I arkivet** | `●` | **I arkivet** | "Kvittot ligger i arkivet, med 2 bilder." |
+| Kom inte fram | `▲` | **Kom inte fram** | "Servern nekade bild 2 — det finns redan en annan bild med det numret. Kvittot ligger kvar i telefonen." |
+
+Den sista raden är serverns `409 conflict` (`server/src/http/receipts.ts`) översatt en gång, på
+ett ställe. Notera att den, liksom "Väntar på nät", **avslutas med var bilderna är**. En
+felmening som lämnar tvivel om det får någon att fotografera om ett kvitto som redan är slängt.
+
+#### Spår 2 — Läsning
+
+| Tillstånd | Tecken | Rad | Mening |
+| --- | --- | --- | --- |
+| Inte läst än | `○` | **Inte läst än** | "Bilderna ligger i arkivet. Läsningen görs i bakgrunden — plats 43 av 212 i kön." |
+| Läses nu | `◐` | **Läses · 4 s** | "Läser bild 2 av 3." |
+| Läst | `●` | **Läst** | "Butik, datum och belopp är utlästa ur bilderna. Ingenting är bekräftat av en människa än." |
+| Saknar en uppgift | `▲` | **Saknar datum** | "Datum gick inte att läsa ur bilderna. Butik och belopp finns." |
+| Gick inte att läsa | `⊘` | **Gick inte att läsa** | "Läsningen misslyckades tre gånger. Bilderna är oskadda och läsningen kan köras om." |
+
+**`Saknar datum`, aldrig `kräver åtgärd`.** Sidecaren vet vilket fält som fattas. Att skriva ut
+namnet gör raden till en instruktion i stället för en kategori och kostar ingenting — och det är
+skillnaden mellan en lista man betar av och en lista man öppnar rad för rad för att ta reda på
+vad den menar.
+
+#### Spår 3 — Bekräftelse (redan specificerat i §5)
+
+Fältnivå, inte kvittonivå: **maskinläst** / **bekräftat** / **saknas**.
+
+Verbfamiljen håller ihop de tre spåren och är värd att skriva ut, för den är hela
+vokabulärens ryggrad:
+
+> **Läsa är maskinens verb. Bekräfta är människans verb. Ligga är kvittots verb.**
+
+Därför heter det aldrig "tolka", "bearbeta" eller "processa" (maskinord utan innebörd för en
+människa), och aldrig "synka" (mot vad?).
+
+### 6.3 Teckengrammatiken
+
+Ett enda teckenspråk i hela systemet — samma sex tecken i remsan, i listan och i fältstämpeln
+(§5.4). Fyllnadsgraden är hur långt kvittot kommit; formen bryts bara när en människa behövs.
+
+| Tecken | Betyder | Används av |
+| --- | --- | --- |
+| `○` tom ring | har inte hänt än | Bara i telefonen · Inte läst än · maskinläst fält |
+| `◌` streckad ring | pausat, systemet försöker igen självt | Väntar på nät |
+| `◐` halvfylld ring | pågår just nu | Skickas · Läses nu |
+| `●` fylld ring | klart | I arkivet · Läst · bekräftat fält |
+| `▲` triangel | **en människa behövs** | Saknar datum · Kom inte fram |
+| `⊘` överstruken ring | finns inte / gick inte | fält som saknas · Gick inte att läsa |
+
+Två regler som gör grammatiken hållbar:
+
+1. **Triangeln är reserverad.** Den är det enda tecken som betyder "gör något", och den får
+   därför aldrig användas för att markera att systemet arbetar. Sätts den på något som löser sig
+   självt slutar den betyda något inom en vecka.
+2. **Formen bär betydelsen, inte färgen.** Alla sex går att skilja åt i gråskala och vid 7 px.
+   Färg tillförs först ovanpå, och bara på triangeln.
+
+### 6.4 Tröskeln: "I arkivet"
+
+Av alla tillstånd ovan är **exakt ett** värt att vara högljudd om: övergången till *I arkivet*.
+Det är där ansvaret flyttar från telefonen till arkivet, och det är den enda gräns bakom vilken
+ett tappat, stulet eller vattenskadat telefonliv inte längre kostar ett kvitto.
+
+Tre följder för formen:
+
+- **Kvitteringen sitter på kvittot, inte på en räknare.** Den ska svara på "kom *det här* fram?".
+  En aggregerad siffra i toppraden svarar aldrig på det (§3.10, regel 3).
+- **Den använder systemets enda tillåtna blink** — `arrive`-nyckelbildrutan i §3.3, en gång,
+  `--dur-slow`. Ingen animation som upprepas: den ska ses en gång per kvitto, inte pulsa.
+- **Ordet är detsamma som knappen.** Om avslutsknappen i kameran heter *Lägg i arkivet* och
+  kvitteringen heter *I arkivet* sluter språket cirkeln utan att någon behöver läsa. Knappordet
+  ägs av UX-designern och flödet — förslaget härifrån är att inte kalla den "Klart", eftersom
+  *klar* är tvetydigt i ett system med två spår.
+
+**Om papperet.** Frestelsen är att skriva ut slutsatsen: *"Papperet kan slängas."* Den meningen
+får inte stå där ännu. Planens M3-grind är att inget papper slängs förrän en riktig
+återställningsövning är gjord, och ett gränssnitt som ger klartecken före den övningen upphäver
+grinden i just det ögonblick den är svagast — när fångsten fungerar och högen ligger på bordet.
+
+Förslaget är därför att meningen är **villkorad på en verifierad återställning**, inte på
+uppladdningen:
+
+```
+före övningen:   "Kvittot ligger i arkivet, med 2 bilder."
+efter övningen:  "Kvittot ligger i arkivet, med 2 bilder. Papperet kan slängas."
+```
+
+Det kräver att servern rapporterar när en återställning senast verifierades — rimligen ett fält
+i `/api/health` bredvid `backupDir`. Det är ett serverbeslut och fattas inte här; noterat som
+följdkrav om formuleringen ska användas.
+
+### 6.5 Ord som inte får förekomma
+
+| Förbjuden sträng | Varför | Ersätts av |
+| --- | --- | --- |
+| `Allt är uppladdat` | Beskriver kön. Och en upplysning om att ingenting har hänt är inte information. | *ingenting alls* |
+| `N väntar` | Kön väntar; kvittot *ligger* någonstans. | `N kvitton ligger kvar i telefonen` |
+| `0 väntar` | Se ovan. | *ingenting alls* |
+| `Synkar` / `Synkroniserar` | Maskinord. Mot vad, och åt vilket håll? | `Skickas` |
+| `Klar` / `Klart` / `OK` som **status** | Klar med vad? Systemet har två spår. (Som **knapptext** är "klart" en åtgärd, inte en status — men se §6.4.) | `I arkivet` eller `Läst` |
+| `Uppladdning misslyckades` | Låter som att bilden är borta. Den är kvar i telefonen. | `Väntar på nät. Kvittot ligger kvar i telefonen.` |
+| `Bearbetas` / `Tolkas` / `Processas` | Maskinens verb om sig själv. | `Läses nu` |
+| `Kräver åtgärd` | Vilken åtgärd? | `Saknar datum` |
+| `Fel` utan objekt | Vad gick fel, och vad hände med bilden? | mening ur §6.2 |
+
+Listan är avsedd att gå att söka efter i koden när M4 och M7 är byggda.
+
+### 6.6 Krav 3, uppfyllt i platsspråk
+
+Kravet lyder att en räknare visar vad som väntar tills servern kvitterat. Det uppfylls fullt ut —
+räknaren finns, står kvar tills kvittensen kommit, och försvinner då. Det som ändras är att den
+räknar **kvitton på en plats** i stället för **poster i en kö**: `3 kvitton ligger kvar i
+telefonen`. Samma tal, samma livslängd, ett ord som betyder något för den som läser det.
+
+---
+
+### 6.7 Framdrift: regeln
+
+> **Ingen animation utan ett tal bredvid sig.**
+
+En snurra ljuger genom att se likadan ut vid en sekund och vid fyra minuter. På den här burken är
+det inte ett teoretiskt problem: planen budgeterar ~1,2 s uppräting + ~1,3 s läsning per bild,
+men skriver också ut att **uthållighetstestet över en timme aldrig kördes och att strypningen vid
+passiv kylning är omätt**. En snurra döljer exakt det symptom som skulle avslöja det.
+
+Och den andra halvan av regeln:
+
+> **Framdrift räknas i något användaren kan räkna själv: bilder och kvitton. Aldrig i byte,
+> aldrig i procent, aldrig i tid.**
+
+*Bild 2 av 3* går att kontrollera mot remsan. *67 %* går inte att kontrollera mot någonting.
+
+### 6.8 Tre former, efter vad systemet faktiskt vet
+
+| Vad systemet vet | Form | Text |
+| --- | --- | --- |
+| Position i ett känt antal | bestämd stapel + siffra | `Bild 2 av 3` |
+| Att det pågår, men inte hur långt | **pulserande** stapel + **stigande sekundräknare** | `Läses · 6 s` |
+| Att inget pågår | ingenting | |
+
+Mittenraden är den som brukar bli fel. Två åtgärder, båda billiga:
+
+**Sekundräknaren kan inte ljuga.** Den är en observation, inte en förutsägelse. Och den gör
+gränssnittet till ett instrument: när `Läses · 41 s` står på ett jobb som budgeterats till 2,5 s
+är det strypningslarmet planen saknar, utan att någon byggt ett larm.
+
+**Pulsen, inte svepet.** Ett svep färdas från vänster till höger och antyder därmed en riktning
+mot ett slut som systemet inte känner till — det är en snurra i stapelform. En puls säger "lever,
+avstånd okänt", vilket är sant. CSS:en står i §3.4 och är markerad som reviderad där.
+
+Följdvinsten: eftersom **talet** bär informationen och inte rörelsen, kan animationen tas bort
+helt under `prefers-reduced-motion` utan att något går förlorat.
+
+### 6.9 Backloggen — framdrift över timmar
+
+Tiotusen kvitton är ~14 timmar enligt planens kalla budget. Där är enheten kvitton, och skattningen
+måste vila på **mätt** genomströmning (krav 47), inte på en budget:
+
+```
+Backloggen
+▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░░░░░░░░  1 412 av 10 233 lästa
+132 kvitton senaste timmen · 2,4 s per bild
+Ungefär 15 timmar kvar i den här takten
+```
+
+Tre regler för skattningen:
+
+1. **Frasen "i den här takten" är obligatorisk.** Det är den som gör siffran ärlig när kortet
+   stryper sig — och strypningen är omätt.
+2. **Den visas inte förrän genomströmning mätts i minst femton minuter.** En skattning ur tre
+   kvitton är en gissning med falsk auktoritet.
+3. **Den räknar inte ned jämnt.** Den beräknas om ur mätningen och får hoppa. **En skattning som
+   hoppar är ärlig; en som tickar mjukt är påhittad.**
+
+Detta är också den enda vyn där siffrorna får uppdateras i realtid under en backloggkörning —
+radlistan gör det inte (§3.4).
+
+---
+
+## 7. Ordning att bygga i
 
 1. `styles/tokens.css` (färg, mått **och täthet**) + `base.css` + `utilities.css`, och
    `AppComponent` omgjord till skal med statusremsa (§1.7) och `data-density="compact"` på
    värdelementet. Ingen ny funktion — bara att kedjan färgas och tätheten får en ägare.
 2. Knapp, felruta, tomt tillstånd (§3.1, §3.7, §3.6). Tre komponenter, alla behövs av allt annat.
+   Statusvokabulären (§6.2) läggs samtidigt som **en fil med de faktiska strängarna** — inte som
+   text spridd i mallarna. Det är den enda formen som gör §6.5 sökbar, och som håller när samma
+   tillstånd ska visas som ett tecken, några ord och en mening.
 3. Kameraöverlägg + segmentremsa + köräknare (§3.8–3.10) → **M4**.
 4. Fältrad + konfidens + kvittokort (§3.2, §5, §3.3) → **M6/M7**. Fältpanelen får sitt lokala
    `data-density="comfortable"` här, inte senare (§2.6.3).
@@ -2092,3 +2386,67 @@ och som annars bara samlas i det slumpmässiga granskningsurvalet.
 
 Punkt 4 är den enda som bör läsas om i sin helhet innan den byggs, och den enda där ett
 gränssnittsbeslut kan låsa fast ett produktbeslut som planen med flit lämnat öppet.
+
+---
+
+## 8. Fyra frågor till beställaren
+
+Följande är valda åt dig i det här dokumentet utan att någon frågat. Vart och ett av svaren
+nedan **ändrar designen** — de går inte att härleda ur planen eller koden, och de är därför inte
+mina att avgöra. Frågorna är rangordnade efter hur mycket som hänger på svaret.
+
+### Fråga 1 — Hur ser en backloggsession ut, och när slängs papperet?
+
+Fotograferar du fyrtio kvitton i rad vid bordet och slänger bunten efteråt, eller ett i taget med
+papperet direkt i soporna?
+
+- **Bunt efteråt:** kvitteringen per kvitto blir en liten perifer markering i remsan, och
+  tyngdpunkten flyttas till en **avstämning i slutet** — "40 fångade, 40 i arkivet" — som blir
+  den enda högljudda ytan i mobilläget. Efter fyrtio upprepningar är en tydlig kvittering per
+  kvitto inte trygghet, den är plåga.
+- **Ett i taget, papperet direkt i soporna:** kvitteringen måste vara omöjlig att missa **per
+  kvitto**, och kameran får inte laddas om för nästa innan servern svarat — annars hinner du
+  slänga ett papper vars bild ligger kvar i telefonen. Det gör krav 1:s tre sekunder till en
+  hårdare gräns än planen räknat med, eftersom nätet då ligger inne i den mätta vägen.
+
+Detta är den fråga som styr mest i hela §6.
+
+### Fråga 2 — Tittar du på skärmen när du trycker av?
+
+Med en hand, stående, papperet i den andra — är blicken på papperet eller på telefonen i det
+ögonblick bilden tas och kvitteringen kommer?
+
+- **På papperet:** den visuella kvitteringen når dig inte, och den ska då vara liten. Den riktiga
+  kanalen är **vibration** — en kort stöt när bilden är tagen, en annan när kvittot är i arkivet.
+  `navigator.vibrate()` fungerar på en S25. Då designas kvitteringen om från grunden: ljud och
+  känsel primärt, syn sekundärt.
+- **På skärmen:** den visuella kvitteringen bär ensam, och den måste ligga där blicken redan är —
+  vid avtryckaren, inte i toppraden där jag placerat räknaren.
+
+### Fråga 3 — Rättar du fält på telefonen, eller alltid vid datorn?
+
+När ett belopp blir fel — vill du kunna rätta det direkt efter fotot, medan papperet fortfarande
+är i handen, eller är rättning alltid ett datorjobb?
+
+- **Alltid vid datorn:** allt i §6.2 står kvar. Mobilläget visar bara spår 1 och blir så enkelt
+  som det är designat.
+- **På telefonen också:** då bryts en av dokumentets bärande gränser, och två saker följer. Dels
+  behöver mobilläget en fältvy, alltså spår 2 (§3.2 på en 48 px-yta med tumtangentbord). Dels
+  måste det just fångade kvittot **läsas inom sekunder**, inte ligga bakom tiotusen backloggposter
+  i kön — det kräver en förtursfil i jobbkön, vilket är ett serverbeslut i M5. Papperet i handen
+  är den enda gången sanningen finns tillgänglig, så argumentet för det är starkt; priset är
+  också det.
+
+### Fråga 4 — Vill du se maskinen jobba, eller ska den vara osynlig?
+
+Du är ensam byggare och underhållare i åratal, och den passiva kylningen är omätt. Ska burkens
+arbetsläge — genomströmning, kölängd, sekunder per bild — synas på den skärm du använder varje
+dag, eller bara när du går och letar efter det?
+
+- **Synligt:** statusremsan (§1.7) bär genomströmning bredvid diskutrymmet, och §6.9 blir en
+  permanent yta. Sekundräknaren i §6.8 blir då ditt tidigaste strypningslarm utan extra bygge.
+- **Osynligt:** backloggen lyfts ur arbetslistan helt — inte hopfälld som i §3.4, utan till en
+  egen vy — och statusremsan säger ingenting om den. Arbetslistan innehåller då bara det som
+  faktiskt vill ha en människa, vilket är tre rader i stället för tiotusen.
+
+Skillnaden syns knappt i kod och styr vad du ser varje dag i två år.
