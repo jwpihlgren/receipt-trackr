@@ -238,13 +238,21 @@ Vill ni stänga in den igen, sätt `BIND_ADDR=127.0.0.1` i `.env`. Då krävs
 
 ### Vad som hör hemma i .env
 
-Bara `AUTH_PASSWORD` och `ARCHIVE_DIR`. Den första därför att `docker-compose.yml`
-ligger i git och är pushad — ett lösenord i historiken är läckt för alltid, även om
-nästa commit tar bort det. Den andra därför att den pekar ut en katalog som bara finns
-på den här maskinen, och compose vägrar starta utan den.
+Bara `AUTH_PASSWORD`. `docker-compose.yml` ligger i git och är pushad — ett lösenord i
+historiken är läckt för alltid, även om nästa commit tar bort det.
 
-Allt annat (`HTTP_PORT`, `BIND_ADDR`, `PUID`, `PGID`, `BACKUP_DIR`) har ett
-standardvärde i compose och behöver bara sättas om ni vill något annat.
+Allt annat (`ARCHIVE_DIR`, `HTTP_PORT`, `BIND_ADDR`, `PUID`, `PGID`, `BACKUP_DIR`) har
+ett standardvärde i compose och behöver bara sättas om ni vill något annat.
+
+`ARCHIVE_DIR` förtjänar en varning. Den var tidigare obligatorisk just för att en
+felstavning skulle stoppa starten i stället för att tyst lägga arkivet på kortets
+eMMC — där en backloggkörning fyller bootenheten och tar ner maskinen. Nu står
+sökvägen i compose, och det skyddet är borta. Kvar finns startkontrollen, som läser
+filsystemet och varnar när monteringen inte är ZFS:
+
+    docker compose logs app | grep -i "inte på ZFS"
+
+Får du träff där ligger arkivet fel. Stoppa och rätta innan ni fångar fler kvitton.
 
 Trafiken går okrypterad över hemnätet. Lösenordsfrasen skickas alltså i klartext till
 den som redan sitter på ert wifi. Det är samma tillitsnivå som en NAS-utdelning, och

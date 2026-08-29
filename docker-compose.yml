@@ -32,7 +32,13 @@ services:
     volumes:
       # Enda monteringen. Pekar mot ZFS-poolen, aldrig mot kortets eMMC: en
       # backloggkörning mot bootenheten fyller den och tar ner maskinen.
-      - ${ARCHIVE_DIR:?ARCHIVE_DIR måste peka på en katalog i ZFS-poolen}:/data
+      #
+      # Sökvägen står här i stället för att krävas ur miljön, därför att det finns en
+      # maskin och den är bevisat rätt. Priset är att en felstavning inte längre stoppar
+      # starten — Docker skapar då katalogen tom och arkivet växer på fel disk. Det som
+      # fångar det i stället är startkontrollen, som läser filsystemet och varnar högt
+      # när monteringen inte är ZFS. Läs den varningen om du någonsin ändrar raden.
+      - ${ARCHIVE_DIR:-/mnt/media-pool/kvitton}:/data
       # Säkerhetskopior. Ska ligga på en annan disk än arkivet — en kopia på samma
       # disk skyddar mot misstag men inte mot att disken går sönder.
       - ${BACKUP_DIR:-./backup}:/backup
