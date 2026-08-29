@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    a { color: #1d5a7a; text-decoration: none; } a:hover { color: #164a66; }
+  </style>
+</helmet>
+<div style="width: 390px; height: 844px; background: #f6f4f1; color: #1b1917; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="height: 56px; display: flex; align-items: center; padding: 0 16px; background: #ffffff; border-bottom: 1px solid #dcd7d0; flex-shrink: 0;">
+    <span style="font-size: 18px; font-weight: 600;">Kvitton</span>
+  </div>
+
+  <div style="flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 0 32px;">
+    <div style="width: 64px; height: 64px; border-radius: 999px; background: #e4eef4; display: flex; align-items: center; justify-content: center;">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1d5a7a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z"/><circle cx="12" cy="13" r="3.5"/></svg>
+    </div>
+    <span style="font-size: 22px; font-weight: 600; text-align: center;">Kameran är öppen</span>
+    <p style="font-size: 16px; color: #57514a; line-height: 1.55; text-align: center; margin: 0;">Fotografera kvittot i telefonens vanliga kamera. Bilden kommer tillbaka hit av sig själv.</p>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px 16px 24px; background: #ffffff; border-top: 1px solid #dcd7d0; flex-shrink: 0;">
+    <button style="height: 56px; border: 1px solid #847b72; border-radius: 6px; background: #ffffff; color: #1b1917; font-size: 16px;">Avbryt</button>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

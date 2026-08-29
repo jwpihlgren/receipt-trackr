@@ -68,3 +68,26 @@ export function warnIfSuspiciousMount(report: StartupReport): string | null {
     `Planen säger att arkivet hör hemma på poolen, inte på kortets eMMC — kontrollera att det är avsiktligt.`
   );
 }
+
+/**
+ * Vägrar starta utan lösenordsfras. Samma regel som diskgolvet: ett fel i miljön ska
+ * stoppa servern med ett begripligt meddelande, inte visa sig som ett konstigt
+ * beteende senare — och här är det konstiga beteendet ett skrivbart arkiv öppet för
+ * hela hemnätet.
+ */
+export function assertAuthConfigured(config: Config): void {
+  if (config.authPassword) return;
+  if (config.authDisabled) {
+    console.warn(
+      "AUTH_DISABLED=true — servern startar utan inloggning. Allt som når porten kan " +
+        "läsa och skriva i arkivet.",
+    );
+    return;
+  }
+  throw new StartupError(
+    "AUTH_PASSWORD saknas. Sätt en lösenordsfras för hushållet i .env, till exempel\n" +
+      '  AUTH_PASSWORD="tre ord som ni båda minns"\n' +
+      "Servern publiceras på hemnätet och har inget annat skydd. Vill du ändå köra utan " +
+      "inloggning, sätt AUTH_DISABLED=true och mena det.",
+  );
+}

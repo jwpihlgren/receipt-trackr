@@ -9,6 +9,8 @@ import fastifyMultipart from "@fastify/multipart";
 import { stat } from "node:fs/promises";
 import type { Config } from "./config.js";
 import { registerHealth } from "./http/health.js";
+import { registerAuth, registerOpenSession } from "./http/auth.js";
+import { openAuth } from "./auth.js";
 import { registerReceipts } from "./http/receipts.js";
 import { registerBackup } from "./http/backup.js";
 import { BackupJob } from "./backup/job.js";
@@ -25,6 +27,17 @@ export async function buildApp(config: Config, options: FastifyServerOptions = {
   app.addHook("onClose", () => archive.close());
 
   registerHealth(app, config);
+
+  // Grinden registreras före rutterna den skyddar. Utan lösenordsfras finns ingen
+  // grind: index.ts vägrar starta i det läget, så hit når bara testerna och en
+  // uttrycklig AUTH_DISABLED.
+  if (config.authPassword) {
+    registerAuth(app, await openAuth(config.dataDir, config.authPassword));
+  } else {
+    app.log.warn("Ingen AUTH_PASSWORD satt — API:t är öppet för alla som når porten.");
+    registerOpenSession(app);
+  }
+
   registerReceipts(app, archive);
   // Utan monterad katalog finns ingen säkerhetskopiering — rutterna svarar då 503
   // med ett begripligt skäl i stället för att saknas.

@@ -3,7 +3,7 @@
  * och en sopare — men i M1 bara den första, plus startkontrollerna.
  */
 import { humanBytes, loadConfig, ConfigError } from "./config.js";
-import { checkStorage, warnIfSuspiciousMount, StartupError } from "./startup.js";
+import { assertAuthConfigured, checkStorage, warnIfSuspiciousMount, StartupError } from "./startup.js";
 import { writeArkivformat } from "./arkivformat.js";
 import { buildApp } from "./app.js";
 import { VERSION } from "./version.js";
@@ -14,6 +14,9 @@ async function main(): Promise<void> {
   // Ordningen är avsiktlig: disken kontrolleras före allt annat, och en server som
   // inte får plats startar inte alls. Bilderna är oåterkalleliga; nedtid är inte det.
   const report = await checkStorage(config);
+  // Sedan grinden. Att starta utan den vore att publicera ett skrivbart arkiv på
+  // hemnätet, och det felet upptäcks inte av den som gjorde det.
+  assertAuthConfigured(config);
   const app = await buildApp(config);
   app.log.info(
     {

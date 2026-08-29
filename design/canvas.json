@@ -1,0 +1,266 @@
+{
+  "pages": [
+    {
+      "id": "page-1",
+      "name": "Fångstflödet"
+    },
+    {
+      "id": "page-2",
+      "name": "Övriga ytor"
+    },
+    {
+      "id": "page-3",
+      "name": "Skrivbordet"
+    }
+  ],
+  "artboards": [
+    {
+      "file": "Main.dc.html",
+      "page": "page-1",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "1 · Kvitton (hem)"
+    },
+    {
+      "file": "Vantlage.dc.html",
+      "page": "page-1",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "2 · Kameran är öppen"
+    },
+    {
+      "file": "OSKamera.dc.html",
+      "page": "page-1",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "3 · Telefonens kamera"
+    },
+    {
+      "file": "Granska.dc.html",
+      "page": "page-1",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "4 · Granska bild 1"
+    },
+    {
+      "file": "BorjaHar.dc.html",
+      "page": "page-1",
+      "x": 470,
+      "y": 1020,
+      "w": 390,
+      "h": 844,
+      "title": "5 · Börja här"
+    },
+    {
+      "file": "GranskaFler.dc.html",
+      "page": "page-1",
+      "x": 940,
+      "y": 1020,
+      "w": 390,
+      "h": 844,
+      "title": "6 · Granska bild 2"
+    },
+    {
+      "file": "Sparat.dc.html",
+      "page": "page-1",
+      "x": 1410,
+      "y": 1020,
+      "w": 390,
+      "h": 844,
+      "title": "7 · Sparat"
+    },
+    {
+      "file": "Tomt.dc.html",
+      "page": "page-2",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Tom lista"
+    },
+    {
+      "file": "Aterupptag.dc.html",
+      "page": "page-2",
+      "x": 470,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Påbörjat kvitto"
+    },
+    {
+      "file": "Uppladdning.dc.html",
+      "page": "page-2",
+      "x": 940,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "På väg till arkivet"
+    },
+    {
+      "file": "Meny.dc.html",
+      "page": "page-2",
+      "x": 1410,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Meny"
+    },
+    {
+      "file": "LoggaIn.dc.html",
+      "page": "page-2",
+      "x": 1880,
+      "y": 0,
+      "w": 390,
+      "h": 844,
+      "title": "Logga in"
+    },
+    {
+      "file": "SkrivbordArkiv.dc.html",
+      "page": "page-3",
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Arkivet"
+    },
+    {
+      "file": "SkrivbordSok.dc.html",
+      "page": "page-3",
+      "x": 1560,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Sökträffar"
+    },
+    {
+      "file": "SkrivbordKvitto.dc.html",
+      "page": "page-3",
+      "x": 0,
+      "y": 1080,
+      "w": 1440,
+      "h": 900,
+      "title": "Ett kvitto"
+    },
+    {
+      "file": "SkrivbordText.dc.html",
+      "page": "page-3",
+      "x": 1560,
+      "y": 1080,
+      "w": 1600,
+      "h": 900,
+      "title": "Med råtexten"
+    },
+    {
+      "file": "SkrivbordPass.dc.html",
+      "page": "page-3",
+      "x": 0,
+      "y": 2160,
+      "w": 1440,
+      "h": 900,
+      "title": "Rättningspass"
+    },
+    {
+      "file": "SkrivbordDrift.dc.html",
+      "page": "page-3",
+      "x": 1560,
+      "y": 2160,
+      "w": 1440,
+      "h": 900,
+      "title": "Utrymme och drift"
+    }
+  ],
+  "annotations": [
+    {
+      "id": "start",
+      "page": "page-1",
+      "x": 0,
+      "y": -180,
+      "w": 860,
+      "text": "Skärm 1 → 2 är ETT tryck: knappen öppnar telefonens kamera direkt.\nSkärm 2 är vad du lämnar bakom dig — den svarar på frågan \"när tar jag kvittot\" på den plats där frågan uppstår."
+    },
+    {
+      "id": "osruta",
+      "page": "page-1",
+      "x": 940,
+      "y": -180,
+      "w": 860,
+      "text": "Skärm 3 ägs av operativsystemet. Två av flödets tre tryck ligger där, och ingen av dem kan vi ändra, mäta eller lägga något ovanpå.\nSkärm 4 är återkomsten: första gången appen ser bilden."
+    },
+    {
+      "id": "langt",
+      "page": "page-1",
+      "x": 470,
+      "y": 884,
+      "w": 860,
+      "text": "Långa kvitton. \"Kvittot fortsätter\" på skärm 4 leder till skärm 5, inte rakt till kameran.\nSkuggremsan är död som sikte när vi inte äger sökaren — dess funktion flyttar till FÖRE avfärden, som ett minne du bär med dig in i kameraappen. Efteråt kontrolleras överlappet på skärm 6."
+    },
+    {
+      "id": "slut",
+      "page": "page-1",
+      "x": 1410,
+      "y": 884,
+      "w": 390,
+      "text": "Två utgångar, inga fler: nästa kvitto, eller färdig."
+    },
+    {
+      "id": "ovrigt",
+      "page": "page-2",
+      "x": 0,
+      "y": -180,
+      "w": 860,
+      "text": "Tillstånd som flödet inte visar, men som inträffar på riktigt.\nPåbörjat kvitto är iOS-fallet: fliken vräks ur minnet medan kameran ligger i förgrunden. Bilderna finns kvar på disk — det som saknas är beskedet att de gör det."
+    },
+    {
+      "id": "galleri",
+      "page": "page-2",
+      "x": 940,
+      "y": -180,
+      "w": 860,
+      "text": "Galleriimporten är nedgraderad till reparation: den bild som togs när fliken vräktes, och kvittot någon annan fotograferat.\nDen finns på tre ställen — tomma listan, återupptagningsrutan och menyn. Aldrig bredvid kameraknappen."
+    },
+    {
+      "id": "skrivbord",
+      "page": "page-3",
+      "x": 0,
+      "y": -220,
+      "w": 1440,
+      "text": "Skrivbordet är två lägen, inte tre paneler.\nArkivet är en centrerad kolumn på 1152px. Arbetslistan finns bara under ett rättningspass — en permanent vänsterspalt förutsätter en kö som aldrig sinar, och er är tom nio dagar av tio.\nPaperless-ngx valde bort samma sak och ersatte den med Spara och nästa."
+    },
+    {
+      "id": "provenens",
+      "page": "page-3",
+      "x": 0,
+      "y": 940,
+      "w": 1440,
+      "text": "Prickad understrykning = maskinläst. Bekräftat värde saknar markör — det tysta är det säkra.\nKonfidenssiffran står bredvid, aldrig som färg: tokens.css säger uttryckligen att semantiska färger aldrig får bära konfidensgrad. Immich gör samma val och ritar aldrig ut sitt konfidensfält.\n\"Även läst som\" är OCR:ens övriga kandidater. Datamodellen bär dem redan."
+    },
+    {
+      "id": "text",
+      "page": "page-3",
+      "x": 1560,
+      "y": 940,
+      "w": 1600,
+      "text": "Råtexten som egen spalt kräver 1600px. Under 1400 byter den ut bilden i stället för att klämma den.\nIngen undersökt produkt gör det här — Paperless har texten som en redigerbar textarea i en flik, Evernote kan strukturellt inte visa den alls. Texten är bevis och ska inte gå att redigera bort."
+    },
+    {
+      "id": "pass",
+      "page": "page-3",
+      "x": 0,
+      "y": 3100,
+      "w": 1440,
+      "text": "Passet är det enda läget med tre spalter, och man går in i det med avsikt.\nEnter sparar och faller vidare. Ingen tyst autospar vid blur — det är just gränsen mellan maskinläst och människorättat som suddas då, och den gränsen är hela poängen."
+    }
+  ],
+  "launch": {
+    "view": "canvas",
+    "page": "page-1"
+  }
+}

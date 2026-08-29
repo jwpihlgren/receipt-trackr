@@ -14,6 +14,16 @@ export type Config = {
   minFreeBytes: number;
   /** Statiska filer från webbygget. Saknas de körs servern som rent API. */
   webRoot: string | null;
+  /**
+   * Lösenordsfrasen för hushållet. `null` betyder att ingen är satt — och det är
+   * `assertAuthConfigured` i startup.ts som vägrar starta på det, inte den här
+   * funktionen. Skälet är detsamma som för diskkontrollen: att läsa konfiguration
+   * och att vägra starta är två olika saker, och testerna behöver den första utan
+   * den andra.
+   */
+  authPassword: string | null;
+  /** Uttryckligt medgivande till att köra utan inloggning. Aldrig ett default. */
+  authDisabled: boolean;
 };
 
 const GIB = 1024 ** 3;
@@ -58,11 +68,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   return {
     dataDir: resolve(requireEnv(env, "DATA_DIR")),
     backupDir: backup ? resolve(backup) : null,
-    // 0.0.0.0 i containern; TLS termineras utanför av `tailscale serve`.
+    // 0.0.0.0 i containern. Vad som faktiskt exponeras avgörs av `ports:` i compose,
+    // och sedan appen har inloggning publiceras den på hemnätet i stället för loopback.
     host: env.HOST?.trim() || "0.0.0.0",
     port: parsePort(env.PORT?.trim() || "8080"),
     minFreeBytes: minFree ? parseBytes(minFree, "MIN_FREE_BYTES") : DEFAULT_MIN_FREE_BYTES,
     webRoot: web ? resolve(web) : null,
+    authPassword: env.AUTH_PASSWORD?.trim() || null,
+    authDisabled: env.AUTH_DISABLED?.trim().toLowerCase() === "true",
   };
 }
 
