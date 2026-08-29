@@ -325,3 +325,27 @@ kalibrerat. Det avgörs först av granskningsurvalet.
 **Tidssiffror från utvecklingsmaskinen är inte svaret på fråga 1 eller 3.** De togs på en
 12-kärnig maskin med 2 ONNX-trådar: tiny ~260 ms/bild, small ~740 ms/bild. Kör om på
 ZimaBoarden, med `--sustained=60`, innan modellnivån bestäms.
+
+## M5a: samma mätning, i webbläsaren
+
+Siffrorna ovan är mätta i Node på x86. De säger ingenting om WebAssembly i en
+telefonwebbläsare, och det är den frågan som avgör var textutläsningen får bo.
+
+Mätsidan ligger i appen på `/matning`. Den kör samma pipeline — `tiny`, obehandlad,
+skalad till 1600 px — på bilder man väljer själv, och lämnar en textfil med samma tal
+som tabellen ovan: tecken per bild, ms per bild, radkonfidensens median och p10.
+
+Kör den på **både telefonen och datorn**, med samma bilder ur `samples/gamla`, och lägg
+filerna bredvid varandra. Tre utfall, med olika följder för M5:
+
+- **Telefonen är i samma härad som Node** — då tolkar telefonen sina egna kvitton, och
+  datorn behövs bara för backloggen.
+- **Telefonen är flera gånger långsammare men under tio sekunder per bild** — då
+  fungerar det ändå, eftersom tolkningen sker i bakgrunden medan appen är öppen.
+- **Telefonen orkar inte** — då är hela tanken om tolkning på telefonen död, och
+  jobbet går till datorn. Det är ett riktigt svar, inte ett misslyckande.
+
+Två saker att skriva upp i samma veva: om sidan var cross-origin isolated (annars kör
+WASM entrådat och siffrorna är sämre än de behöver vara), och hur lång uppvärmningen
+var. Modellen laddas en gång per nivå och den kostnaden ska inte blandas in i
+tiden per bild. Båda står överst i mätfilen.

@@ -1,0 +1,87 @@
+<div class="yta">
+  <header class="topp">
+    <h1>Mätning · M5a</h1>
+    <span class="tyst">Kör OCR i den här webbläsaren och jämför mot M0:s siffror.</span>
+  </header>
+
+  <main class="kolumn">
+    @if (!isolerad()) {
+      <div class="notis varning">
+        <strong>Sidan är inte cross-origin isolated</strong>
+        <span>
+          WASM kör då entrådat och siffrorna blir sämre än de behöver vara. Kontrollera att
+          servern skickar <code>Cross-Origin-Opener-Policy</code> och
+          <code>Cross-Origin-Embedder-Policy</code> — mät gärna ändå, men skriv upp att det
+          var av.
+        </span>
+      </div>
+    }
+
+    <div class="val">
+      <span class="etikett">MODELLNIVÅ</span>
+      <div class="knappar">
+        <button type="button" [class.vald]="nivaer().includes('tiny')" (click)="vaxla('tiny')">
+          tiny <span class="tyst">6 MB</span>
+        </button>
+        <button type="button" [class.vald]="nivaer().includes('small')" (click)="vaxla('small')">
+          small <span class="tyst">30 MB</span>
+        </button>
+      </div>
+      <span class="tyst">
+        M0 valde tiny: den läste fler tecken än small på under en tredjedel av tiden.
+        Kryssa i båda för att pröva om det gäller här också.
+      </span>
+    </div>
+
+    <div class="val">
+      <span class="etikett">BILDER</span>
+      <label class="knapp primar" [class.av]="!!korande()">
+        Välj kvittobilder
+        <input type="file" accept="image/*" multiple [disabled]="!!korande()" (change)="onFiler($event)" />
+      </label>
+      <span class="tyst">
+        Samma bilder som i <code>spike/samples/gamla</code> ger tal som går att jämföra rakt av.
+        Filerna lämnar aldrig telefonen — allt körs här.
+      </span>
+    </div>
+
+    @if (korande(); as status) {
+      <p class="korande" role="status">{{ status }}</p>
+    }
+
+    @if (sammanfattning().length) {
+      <div class="tabell">
+        <div class="rad huvud">
+          <span>nivå</span><span>bilder</span><span>tecken</span><span>ms</span>
+          <span>tolkning</span><span>median</span><span>p10</span>
+        </div>
+        @for (s of sammanfattning(); track s.niva) {
+          <div class="rad">
+            <span>{{ s.niva }}</span>
+            <span class="num">{{ s.bilder }}</span>
+            <span class="num">{{ s.tecken }}</span>
+            <span class="num">{{ s.ms }}</span>
+            <span class="num">{{ s.tolkMs }}</span>
+            <span class="num">{{ s.median }}</span>
+            <span class="num">{{ s.p10 }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="jamforelse">
+        <span class="etikett">M0 MÄTTE, I NODE PÅ X86</span>
+        <span class="tyst">tiny · 834 tecken · 1297 ms · median 0,952 · p10 0,747</span>
+        <span class="tyst">small · 707 tecken · 3590 ms · median 0,944 · p10 0,475</span>
+      </div>
+
+      <button type="button" class="knapp kontur" (click)="laddaNer()">Ladda ner mätfilen</button>
+    }
+
+    @if (fel().length) {
+      <div class="notis farlig">
+        <strong>{{ fel().length }} {{ fel().length === 1 ? 'bild gick inte att läsa' : 'bilder gick inte att läsa' }}</strong>
+        @for (f of fel(); track f) { <span>{{ f }}</span> }
+      </div>
+    }
+  </main>
+</div>

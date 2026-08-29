@@ -13,6 +13,9 @@ COPY server/package.json server/package.json
 COPY web/package.json web/package.json
 RUN npm ci
 COPY . .
+# Modellerna hämtas här, i bygget, och följer med i imagen. I drift finns inget
+# nätverksberoende kvar: burken tolkar kvitton även när internet är nere.
+RUN node scripts/hamta-modeller.mjs
 RUN npm run build
 
 # Egen fas för driftberoenden, så att inget byggverktyg följer med in i imagen.

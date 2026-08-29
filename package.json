@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Privat kvittoarkiv — Steg 1",
+  "description": "Privat kvittoarkiv \u2014 Steg 1",
   "workspaces": [
     "server",
     "web"
@@ -15,6 +15,7 @@
     "build": "npm run build --workspace @receipt-trackr/server && npm run build --workspace web",
     "dev": "npm run dev --workspace @receipt-trackr/server",
     "test": "npm run test --workspace @receipt-trackr/server && npm run test --workspace web",
-    "typecheck": "npm run typecheck --workspace @receipt-trackr/server"
+    "typecheck": "npm run typecheck --workspace @receipt-trackr/server",
+    "modeller": "node scripts/hamta-modeller.mjs"
   }
 }

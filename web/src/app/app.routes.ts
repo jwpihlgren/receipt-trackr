@@ -40,6 +40,11 @@ export const routes: Routes = [
     loadComponent: () => import('./desktop/kvitto.component').then((m) => m.KvittoComponent),
   },
   {
+    path: 'matning',
+    title: 'Mätning',
+    loadComponent: () => import('./ocr/matning.component').then((m) => m.MatningComponent),
+  },
+  {
     path: 'drift',
     title: 'Utrymme och drift',
     loadComponent: () => import('./desktop/drift.component').then((m) => m.DriftComponent),
