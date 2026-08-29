@@ -6,6 +6,9 @@ import { sha256 } from '../shared/sha256';
 
 type Shot = { index: number; url: string; sha: string; replaced: boolean };
 
+/** Hur stor del av föregående bilds nederkant som visas som skuggremsa. */
+const OVERLAP = 0.2;
+
 /**
  * Mobilläget (krav 1, 2, 3, 5, 7, 42, 43). Ett syfte: få in kvittot, stående, med en
  * hand, och släppa det.
@@ -45,6 +48,17 @@ export class CaptureComponent {
 
   /** Blicken är på skärmen när avtryckaren trycks — kvittensen hör hemma där, inte i toppen. */
   readonly flash = signal(false);
+
+  /**
+   * Skuggremsan: nedersta femtedelen av förra bilden, fastnaglad i förhandsvisningens
+   * överkant. Klipppunkten på ett långt kvitto blir därmed ingen fråga utan en
+   * handrörelse — man skjuter papperet tills raderna syns igen. Poängen är i första
+   * hand att göra ett hoppat mellanrum synligt för människan.
+   */
+  readonly ghost = signal<string | null>(null);
+
+  /** Sömvyn: segmenten staplade, för att se efter att inget hoppats över. */
+  readonly seam = signal(false);
 
   /**
    * Var är det avslutade kvittot? Frågan gäller ett kvitto, inte en kös djup, och
@@ -171,6 +185,7 @@ export class CaptureComponent {
       });
 
       this.shots.update((s) => [...s, { index, url: URL.createObjectURL(blob), sha, replaced: false }]);
+      this.setGhost(canvas);
       this.saveError.set(null);
       // Nästa bild avfärdar kortet — inget extra tryck för den som betar av en hög.
       this.dismissCard();
@@ -216,6 +231,9 @@ export class CaptureComponent {
     this.finished.set({ id, shots: this.shots() });
     this.shots.set([]);
     this.receiptId = null;
+    // Nytt kvitto, ny början: skuggremsan hör till det förra papperet.
+    this.ghost.set(null);
+    this.seam.set(false);
     navigator.vibrate?.([20, 40, 20]);
 
     // Efter nollställningen: användaren väntar inte på skrivningen.
@@ -224,6 +242,21 @@ export class CaptureComponent {
 
   dismissSaveError(): void {
     this.saveError.set(null);
+  }
+
+  /** Klipper ut nederkanten ur den bild som just tagits och sparar den som skuggremsa. */
+  private setGhost(source: HTMLCanvasElement): void {
+    const height = Math.round(source.height * OVERLAP);
+    const strip = document.createElement('canvas');
+    strip.width = source.width;
+    strip.height = height;
+    strip.getContext('2d')!.drawImage(source, 0, source.height - height, source.width, height, 0, 0, source.width, height);
+    // Data-URL, inte objekt-URL: remsan är liten och ska inte behöva städas.
+    this.ghost.set(strip.toDataURL('image/jpeg', 0.7));
+  }
+
+  toggleSeam(): void {
+    this.seam.update((open) => !open);
   }
 
   dismissCard(): void {

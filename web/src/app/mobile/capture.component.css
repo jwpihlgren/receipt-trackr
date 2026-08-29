@@ -48,6 +48,31 @@
   pointer-events: none;
 }
 
+/* Skuggremsan ligger fastnaglad i överkanten, dämpad så att den inte förväxlas med
+   det kameran ser just nu. Linjen under är skarven man ska sikta mot. */
+.skuggremsa {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  max-height: 22%;
+  overflow: hidden;
+  border-bottom: 2px dashed var(--surface);
+  pointer-events: none;
+}
+
+.skuggremsa img { width: 100%; opacity: 0.55; }
+
+.skuggtext {
+  position: absolute;
+  inset-block-end: 2px;
+  inset-inline-start: 6px;
+  padding-inline: 4px;
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: var(--text-xs);
+}
+
 /* Text över video måste ha egen bakgrund — videon är inte en känd kontrast. */
 .kamerafel {
   position: absolute;
@@ -109,6 +134,42 @@
   color: var(--ink-muted);
   font-size: var(--text-xs);
   text-align: center;
+}
+
+.somknapp {
+  flex: 0 0 auto;
+  min-height: var(--tap-min);
+  margin-inline-start: auto;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+
+/* Sömvyn tar hela skärmen: den ska studeras, till skillnad från remsan. */
+.somvy {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  gap: var(--d-gap);
+  padding: var(--d-card-pad);
+  background: var(--bg);
+}
+
+.somrulle { overflow-y: auto; background: var(--sunken); border-radius: var(--radius-sm); }
+.somrulle img { width: 100%; display: block; }
+.somtext { margin: 0; color: var(--ink-muted); font-size: var(--text-sm); text-align: center; }
+
+.somvy > button {
+  min-height: var(--tap-primary);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
 }
 
 .remsa .tom {

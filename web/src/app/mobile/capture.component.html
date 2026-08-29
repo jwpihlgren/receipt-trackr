@@ -11,6 +11,13 @@
       <p class="kamerafel" role="alert">{{ message }}</p>
     } @else {
       <div class="ram" aria-hidden="true"></div>
+      <!-- Skuggremsan: skjut papperet tills raderna nedan syns igen i kameran. -->
+      @if (ghost(); as strip) {
+        <div class="skuggremsa" aria-hidden="true">
+          <img [src]="strip" alt="" />
+          <span class="skuggtext">Förra bildens slut</span>
+        </div>
+      }
     }
   </div>
 
@@ -30,7 +37,23 @@
     } @empty {
       <p class="tom">Rikta mot kvittot och tryck på den stora knappen.</p>
     }
+    @if (shots().length > 1) {
+      <button type="button" class="somknapp" (click)="toggleSeam()">Kontrollera skarvar</button>
+    }
   </div>
+
+  <!-- Sömvyn: bilderna staplade i ordning, så att ett hoppat mellanrum syns. -->
+  @if (seam()) {
+    <div class="somvy" role="dialog" aria-label="Kontrollera skarvar">
+      <div class="somrulle">
+        @for (shot of shots(); track shot.sha) {
+          <img [src]="shot.url" [alt]="'Bild ' + shot.index" />
+        }
+      </div>
+      <p class="somtext">Följ texten över varje skarv. Saknas en bit, ta om den bilden.</p>
+      <button type="button" (click)="toggleSeam()">Tillbaka till kameran</button>
+    </div>
+  }
 
   <!-- Kvittokortet: flödets fjärde skede. Ett band, inte en grind — kameran lever
        ovanför och nästa bild avfärdar kortet av sig självt. -->
