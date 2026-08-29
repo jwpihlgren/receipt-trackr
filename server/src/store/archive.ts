@@ -94,10 +94,13 @@ export class Archive {
     if (!Number.isInteger(segments) || segments < 1 || segments > 99) {
       throw new ConflictError(`Antalet segment ska vara 1–99, inte ${segments}.`);
     }
-    // Idempotent som allt annat: samma besked igen är en tystnad, ett annat är ett fel.
-    if (receipt.expectedSegments !== null && receipt.expectedSegments !== segments) {
+    // Ett högre antal är "jag glömde sista biten" och måste gå igenom — det är
+    // flödets vanligaste misstag och det kostar totalbeloppet. Ett lägre antal är
+    // motsatsen: ett sätt att få ett halvt kvitto att se komplett ut, och avvisas.
+    if (receipt.expectedSegments !== null && segments < receipt.expectedSegments) {
       throw new ConflictError(
-        `Kvittot är redan avslutat med ${receipt.expectedSegments} segment, inte ${segments}.`,
+        `Kvittot är avslutat med ${receipt.expectedSegments} bilder och kan inte minskas till ${segments}. ` +
+          `Ett kvitto som redan sagts vara helt får inte bli mindre.`,
       );
     }
     if (receipt.expectedSegments === segments) return receipt;

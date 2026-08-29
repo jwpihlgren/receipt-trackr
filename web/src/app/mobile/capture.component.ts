@@ -36,8 +36,43 @@ export class CaptureComponent {
   readonly queueState = this.queue.snapshot;
   readonly hasShots = computed(() => this.shots().length > 0);
 
-  /** Kvittensen efter "Klart" — det som gör att flödet har ett slut och inte bara tar slut. */
-  readonly justFinished = signal<{ segments: number } | null>(null);
+  /**
+   * Kvittokortet: det kvitto som just avslutades. Flödets fjärde skede — att landa.
+   * Kortet är ett band och inte en grind: kameran lever ovanför, och nästa bild
+   * avfärdar det av sig självt, så den som betar av en hög aldrig trycker extra.
+   */
+  readonly finished = signal<{ id: string; shots: Shot[] } | null>(null);
+
+  /** Blicken är på skärmen när avtryckaren trycks — kvittensen hör hemma där, inte i toppen. */
+  readonly flash = signal(false);
+
+  /**
+   * Var är det avslutade kvittot? Frågan gäller ett kvitto, inte en kös djup, och
+   * bocken sätts först när varje bild kvitterats med rätt sha256 **och**
+   * kompletteringen tagits emot — annars kan ett halvt kvitto se helt ut.
+   */
+  readonly finishedStatus = computed<{ text: string; done: boolean; bad: boolean }>(() => {
+    const card = this.finished();
+    const state = this.queueState();
+    if (!card) return { text: '', done: false, bad: false };
+    if (state.stuck.includes(card.id)) return { text: 'Kom inte fram — ta upp det vid datorn', done: false, bad: true };
+    if (!state.receipts.includes(card.id)) return { text: 'I arkivet', done: true, bad: false };
+    const kvar = state.pending.filter((k) => k.startsWith(`${card.id}:`)).length;
+    const total = card.shots.length;
+    if (state.offline) return { text: `Sparat i telefonen · väntar på nät`, done: false, bad: false };
+    if (kvar === 0) return { text: 'På väg till arkivet', done: false, bad: false };
+    return { text: `Skickar bild ${total - kvar + 1} av ${total}`, done: false, bad: false };
+  });
+
+  /** Arkivraden svarar på en fråga i taget, den viktigaste först. */
+  readonly archiveLine = computed<{ text: string; bad: boolean }>(() => {
+    const s = this.queueState();
+    if (s.stuck.length) return { text: `${s.stuck.length} kom inte fram`, bad: true };
+    if (s.offline && s.waiting) return { text: `${s.waiting} väntar på nät`, bad: false };
+    if (s.waiting) return { text: `${s.waiting} på väg till arkivet`, bad: false };
+    if (s.archivedToday) return { text: `Allt i arkivet · ${s.archivedToday} i dag`, bad: false };
+    return { text: 'Inget fångat än', bad: false };
+  });
 
   /**
    * Har servern kvitterat den här bilden? Kön raderar posten först när samma sha256
@@ -137,6 +172,10 @@ export class CaptureComponent {
 
       this.shots.update((s) => [...s, { index, url: URL.createObjectURL(blob), sha, replaced: false }]);
       this.saveError.set(null);
+      // Nästa bild avfärdar kortet — inget extra tryck för den som betar av en hög.
+      this.dismissCard();
+      this.flash.set(true);
+      setTimeout(() => this.flash.set(false), 450);
       navigator.vibrate?.(20);
     } catch (error) {
       // Det enda blockerande felet i hela mobilläget: bilden kunde inte sparas lokalt.
@@ -173,11 +212,10 @@ export class CaptureComponent {
     const count = this.shots().length;
     if (!id || count === 0) return;
 
-    for (const shot of this.shots()) URL.revokeObjectURL(shot.url);
+    // Bilderna behålls i kortet, alltså revokeras de inte här utan när kortet släpps.
+    this.finished.set({ id, shots: this.shots() });
     this.shots.set([]);
     this.receiptId = null;
-    this.justFinished.set({ segments: count });
-    setTimeout(() => this.justFinished.set(null), 4000);
     navigator.vibrate?.([20, 40, 20]);
 
     // Efter nollställningen: användaren väntar inte på skrivningen.
@@ -186,5 +224,25 @@ export class CaptureComponent {
 
   dismissSaveError(): void {
     this.saveError.set(null);
+  }
+
+  dismissCard(): void {
+    const card = this.finished();
+    if (!card) return;
+    for (const shot of card.shots) URL.revokeObjectURL(shot.url);
+    this.finished.set(null);
+  }
+
+  /**
+   * "Lägg till bild" räddar flödets vanligaste misstag: "Klart" tryckt innan sista
+   * biten fotograferats. Utan den är felet osynligt och kostar totalbeloppet, som
+   * nästan alltid står på sista biten.
+   */
+  reopen(): void {
+    const card = this.finished();
+    if (!card) return;
+    this.receiptId = card.id;
+    this.shots.set(card.shots);
+    this.finished.set(null);
   }
 }

@@ -27,7 +27,30 @@ export type QueueState = {
    * också svaret på "har bilden kommit fram?", och inte bara "har vi försökt?".
    */
   pending: string[];
+  /** Kvitton som ännu ligger kvar lokalt. Tomt = allt är i arkivet. */
+  receipts: string[];
+  /** Antal kvitton som nått arkivet i dag. Överlever omladdning, nollas vid midnatt. */
+  archivedToday: number;
 };
+
+const TODAY_KEY = 'receipt-trackr:arkiverade';
+
+function readToday(): number {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TODAY_KEY) ?? '{}') as { date?: string; n?: number };
+    return raw.date === new Date().toDateString() ? (raw.n ?? 0) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeToday(n: number): void {
+  try {
+    localStorage.setItem(TODAY_KEY, JSON.stringify({ date: new Date().toDateString(), n }));
+  } catch {
+    // Räknaren är en trevlighet. Går den inte att spara är det ingenting att larma om.
+  }
+}
 
 const RETRY_MS = 15_000;
 
@@ -40,6 +63,8 @@ export class QueueService {
     offline: !navigator.onLine,
     stuck: [],
     pending: [],
+    receipts: [],
+    archivedToday: readToday(),
   });
 
   readonly snapshot = this.state.asReadonly();
@@ -112,6 +137,7 @@ export class QueueService {
       waiting: receipts.length,
       pendingSegments: segments.length,
       pending: segments.map((seg) => seg.key),
+      receipts: receipts.map((r) => r.id),
       offline: !navigator.onLine,
     }));
   }
@@ -186,7 +212,12 @@ export class QueueService {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ segments: receipt.segments }),
         });
-        if (done.ok) await deleteReceipt(receipt.id);
+        if (done.ok) {
+          await deleteReceipt(receipt.id);
+          const n = readToday() + 1;
+          writeToday(n);
+          this.state.update((s) => ({ ...s, archivedToday: n }));
+        }
       }
       return true;
     } catch {

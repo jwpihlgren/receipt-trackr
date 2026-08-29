@@ -21,8 +21,8 @@
 }
 
 .lage { color: var(--accent); text-decoration: none; display: grid; align-items: center; min-height: var(--tap-min); }
-.ko { color: var(--ink); font-variant-numeric: tabular-nums; }
-.ko.laddar { color: var(--accent); }
+.arkivrad { color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+.arkivrad.illa { color: var(--bad, var(--ink)); font-weight: var(--weight-bold); }
 
 /* ---- sökaren --------------------------------------------------------- */
 
@@ -134,18 +134,46 @@
 
 .kvittens.klar { color: var(--accent); }
 
-/* Flödet ska ha ett slut, inte bara ta slut. */
-.klartkvittens {
+/* Kvittokortet ligger som ett band över sökarens nederkant: kameran syns, men det
+   senaste kvittot har en egen plats att svara från. */
+.kvittokort {
   position: fixed;
-  inset-inline: var(--space-4);
-  inset-block-end: 148px;
-  margin: 0;
+  inset-inline: var(--space-3);
+  inset-block-end: 216px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--d-gap);
   padding: var(--d-pad-y) var(--d-pad-x);
   border-radius: var(--radius-md);
-  background: var(--accent-soft);
-  color: var(--ink);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.kvittokort.illa { border-color: var(--bad, var(--line-strong)); }
+
+.kortbilder { display: flex; gap: 2px; }
+.kortbilder img {
+  width: 28px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: var(--radius-xs);
+  background: var(--sunken);
+}
+
+.korttext { display: grid; min-width: 0; }
+.kortstatus { color: var(--ink); font-size: var(--text-sm); }
+.kvittokort.illa .kortstatus { color: var(--bad, var(--ink)); }
+.kortmeta { color: var(--ink-faint); font-size: var(--text-xs); }
+
+.lagg-till {
+  min-height: var(--tap-min);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--accent);
   font-size: var(--text-sm);
-  text-align: center;
 }
 
 /* ---- handzonen ------------------------------------------------------- */
@@ -208,6 +236,15 @@
   border-radius: 50%;
   background: var(--accent);
   box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--accent);
+}
+
+/* Blicken är på skärmen när avtryckaren trycks, alltså hör kvittensen hemma här. */
+.avtryckare.sparad .ring {
+  box-shadow: 0 0 0 4px var(--surface), 0 0 0 10px var(--accent-soft);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .avtryckare .ring { transition: box-shadow 180ms ease-out; }
 }
 
 .avtryckare .etikett {

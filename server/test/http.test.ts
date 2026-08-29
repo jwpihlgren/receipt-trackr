@@ -155,9 +155,15 @@ describe("kvitto-API:t", () => {
     const again = await app.inject({ method: "POST", url: `/api/receipts/${id}/complete`, payload: { segments: 1 } });
     expect(again.statusCode).toBe(200);
 
-    // Ett annat antal är inte ett omtag utan en motsägelse, och ska synas.
-    const other = await app.inject({ method: "POST", url: `/api/receipts/${id}/complete`, payload: { segments: 2 } });
-    expect(other.statusCode).toBe(409);
+    // Fler bilder är "jag glömde sista biten" — flödets vanligaste misstag, och det
+    // kostar totalbeloppet. Det måste gå igenom.
+    const more = await app.inject({ method: "POST", url: `/api/receipts/${id}/complete`, payload: { segments: 3 } });
+    expect(more.statusCode).toBe(200);
+    expect(more.json()).toMatchObject({ expectedSegments: 3 });
+
+    // Färre är motsatsen: ett sätt att få ett halvt kvitto att se komplett ut.
+    const fewer = await app.inject({ method: "POST", url: `/api/receipts/${id}/complete`, payload: { segments: 1 } });
+    expect(fewer.statusCode).toBe(409);
   });
 
   it("söker på flera ord utan att kräva att de står intill varandra", async () => {

@@ -1,15 +1,8 @@
 <div class="skarm">
   <header class="status">
     <a class="lage" routerLink="/kvitton">Kvitton →</a>
-    <span class="ko" [class.laddar]="queueState().uploading">
-      @if (queueState().offline) {
-        Ingen anslutning · {{ queueState().waiting }} väntar
-      } @else if (queueState().waiting > 0) {
-        {{ queueState().waiting }} {{ queueState().waiting === 1 ? 'kvitto väntar' : 'kvitton väntar' }}
-      } @else {
-        Allt är uppladdat
-      }
-    </span>
+    <!-- Arkivraden svarar för alla kvitton utom det senaste; kortet svarar för det. -->
+    <span class="arkivrad" [class.illa]="archiveLine().bad">{{ archiveLine().text }}</span>
   </header>
 
   <div class="sokare">
@@ -39,18 +32,47 @@
     }
   </div>
 
+  <!-- Kvittokortet: flödets fjärde skede. Ett band, inte en grind — kameran lever
+       ovanför och nästa bild avfärdar kortet av sig självt. -->
+  @if (finished(); as card) {
+    <div class="kvittokort" [class.illa]="finishedStatus().bad" role="status">
+      <div class="kortbilder">
+        @for (shot of card.shots; track shot.sha) {
+          <img [src]="shot.url" [alt]="'Bild ' + shot.index" />
+        }
+      </div>
+      <div class="korttext">
+        <span class="kortstatus">
+          @if (finishedStatus().done) { ✓ }
+          {{ finishedStatus().text }}
+        </span>
+        <span class="kortmeta">{{ card.shots.length }} {{ card.shots.length === 1 ? 'bild' : 'bilder' }}</span>
+      </div>
+      <button type="button" class="lagg-till" (click)="reopen()">Lägg till bild</button>
+    </div>
+  }
+
   <div class="handzon">
     <!-- Vänster: avslutet. Ligger längst från vilotummen, för en felträff här
          skickar iväg ett kvitto med en bild för lite. -->
-    <button type="button" class="sido" [disabled]="!hasShots()" (click)="done()">
-      <span class="ikon" aria-hidden="true">✓</span>
-      <span class="etikett">
-        @if (hasShots()) { Klart · {{ shots().length }} } @else { Klart }
-      </span>
-    </button>
+    <!-- "Nästa kvitto" ligger i exakt samma position som "Klart", så att rytmen blir
+         tryck-tryck utan att handen flyttas. -->
+    @if (finished()) {
+      <button type="button" class="sido" (click)="dismissCard()">
+        <span class="ikon" aria-hidden="true">→</span>
+        <span class="etikett">Nästa kvitto</span>
+      </button>
+    } @else {
+      <button type="button" class="sido" [disabled]="!hasShots()" (click)="done()">
+        <span class="ikon" aria-hidden="true">✓</span>
+        <span class="etikett">
+          @if (hasShots()) { Klart · {{ shots().length }} } @else { Klart }
+        </span>
+      </button>
+    }
 
     <!-- Mitten: den enda knapp som tar en bild. Störst, märkt, alltid på samma plats. -->
-    <button type="button" class="avtryckare" [disabled]="busy() || !!cameraError()" (click)="capture()">
+    <button type="button" class="avtryckare" [class.sparad]="flash()" [disabled]="busy() || !!cameraError()" (click)="capture()">
       <span class="ring" aria-hidden="true"></span>
       <span class="etikett">{{ hasShots() ? 'Nästa bild' : 'Ta bild' }}</span>
     </button>
@@ -62,12 +84,6 @@
     </button>
   </div>
 
-  @if (justFinished(); as done) {
-    <p class="klartkvittens" role="status">
-      Kvitto sparat · {{ done.segments }} {{ done.segments === 1 ? 'bild' : 'bilder' }} · laddas upp
-    </p>
-  }
-
   @if (saveError(); as message) {
     <div class="sparfel" role="alert">
       <p>{{ message }}</p>
@@ -77,5 +93,5 @@
 </div>
 
 <p class="sr-only" aria-live="polite">
-  {{ shots().length }} bilder tagna. {{ queueState().waiting }} kvitton väntar på servern.
+  {{ shots().length }} bilder tagna. {{ archiveLine().text }}.
 </p>
