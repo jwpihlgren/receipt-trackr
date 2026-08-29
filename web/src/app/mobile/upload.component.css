@@ -1,51 +1,60 @@
-:host { display: grid; grid-template-rows: 56px auto 1fr auto; min-height: 100dvh; background: var(--bg); }
+.skarm { display: flex; flex-direction: column; height: 100dvh; background: var(--bg); overflow: hidden; }
 
 .topp {
   display: flex;
   align-items: center;
-  gap: var(--d-gap);
-  padding-inline: var(--d-pad-x);
-  border-bottom: 1px solid var(--line);
+  gap: var(--d-gap-tight);
+  min-height: 56px;
+  padding-inline-end: var(--d-pad-x);
   background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
 }
 
-.topp h1 { font-size: var(--text-base); }
-.tillbaka { color: var(--accent); text-decoration: none; min-height: var(--tap-min); display: grid; align-items: center; }
+.tillbaka { display: grid; place-items: center; width: var(--tap-comfort); height: var(--tap-comfort); }
+.tillbaka svg { width: 22px; height: 22px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.topp h1 { font-size: var(--text-lg); }
 
-.rubrik {
-  margin: 0;
-  padding: var(--space-5) var(--d-pad-x) var(--space-3);
-  font-size: var(--text-lg);
-  font-weight: var(--weight-bold);
+.innehall { flex: 1 1 auto; display: grid; align-content: start; gap: var(--d-gap); padding: var(--d-card-pad); overflow-y: auto; }
+.ingress { margin: 0; color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
+
+.kort { padding: var(--d-pad-y) var(--d-pad-x); border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.kort.illa { border-color: var(--danger); background: var(--danger-soft); }
+
+.kortrad { display: flex; align-items: center; gap: var(--d-gap); }
+
+.tumnagel {
+  width: var(--d-thumb-w);
+  height: var(--d-thumb-h);
+  object-fit: cover;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
+  background: var(--sunken);
+  flex: 0 0 auto;
 }
 
-.rubrik.illa { color: var(--bad, var(--ink)); }
+.korttext { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 auto; }
+.tid { font-size: var(--text-base); }
+.lage { color: var(--ink-muted); font-size: var(--text-base); }
+.lage.vantar { color: var(--warn); }
+.lage.farlig { color: var(--danger); }
 
-.lista { list-style: none; margin: 0; padding: 0; }
+.snurra { width: 20px; height: 20px; fill: none; stroke: var(--ink-faint); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
 
-.lista li {
+.tomt { display: grid; gap: var(--space-3); place-items: center; padding: var(--space-8) var(--space-6); text-align: center; }
+.tomt-ikon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: var(--radius-full); background: var(--ok-soft); }
+.tomt-ikon svg { width: 28px; height: 28px; fill: none; stroke: var(--ok); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tomt h2 { font-size: var(--text-xl); }
+.tomt p { color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
+
+.handzon {
   display: grid;
-  gap: 2px;
-  padding: var(--d-pad-y) var(--d-pad-x);
-  border-bottom: 1px solid var(--line);
+  gap: var(--d-gap);
+  padding: var(--d-card-pad) var(--d-card-pad) var(--space-5);
   background: var(--surface);
+  border-top: 1px solid var(--line);
+  flex: 0 0 auto;
 }
 
-.lista li.illa .status { color: var(--bad, var(--ink)); }
-.namn { color: var(--ink); }
-.status { color: var(--ink-muted); font-size: var(--text-sm); }
-
-.klar, .hjalp { padding: var(--space-4) var(--d-pad-x); margin: 0; color: var(--ink-muted); font-size: var(--text-sm); }
-
-.knappar { display: grid; gap: var(--d-gap); padding: var(--d-card-pad); }
-
-.knappar button {
-  min-height: var(--tap-primary);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: var(--text-base);
-}
-
-.knappar .primar { border-color: var(--accent); color: var(--accent); font-weight: var(--weight-bold); }
+.knapp { display: flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); font-size: var(--text-base); }
+.primar { min-height: var(--tap-primary); border: none; background: var(--accent); color: var(--on-accent); font-weight: var(--weight-bold); }

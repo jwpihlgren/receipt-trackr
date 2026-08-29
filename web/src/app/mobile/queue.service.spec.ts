@@ -92,6 +92,56 @@ describe('Kön i telefonen', () => {
     expect(await allSegments()).toHaveSize(1);
   });
 
+  it('fastnar på 415 i stället för att skicka en oläsbar bild i evighet', async () => {
+    const id = ulid();
+    await queue.enqueueSegment(id, 1, bytes(6), 's1', {});
+    fetchSpy.and.callFake((url: string) =>
+      url.includes('/segments/') ? svar({ error: 'not_an_image' }, 415) : svar({ id }),
+    );
+
+    await queue.drain();
+    // Utan den här regeln försöker kön om var femtonde sekund för alltid, tyst.
+    expect(queue.snapshot().stuck).toContain(id);
+    expect(await allSegments()).toHaveSize(1);
+  });
+
+  it('försöker igen vid 500 — en server som stryper sig löser sig själv', async () => {
+    const id = ulid();
+    await queue.enqueueSegment(id, 1, bytes(7), 's1', {});
+    fetchSpy.and.callFake((url: string) =>
+      url.includes('/segments/') ? svar({ error: 'internal' }, 500) : svar({ id }),
+    );
+
+    await queue.drain();
+    expect(queue.snapshot().stuck).not.toContain(id);
+    expect(await allSegments()).toHaveSize(1);
+  });
+
+  it('märker inte kvittot som fastnat när sessionen gått ut — kvittot är oskyldigt', async () => {
+    const id = ulid();
+    await queue.enqueueSegment(id, 1, bytes(8), 's1', {});
+    fetchSpy.and.returnValue(svar({ error: 'unauthorized' }, 401));
+
+    await queue.drain();
+    expect(queue.snapshot().stuck).toEqual([]);
+    expect(await allSegments()).toHaveSize(1);
+  });
+
+  it('släpper fastnat-märkningen när användaren ber om ett nytt försök', async () => {
+    const id = ulid();
+    await queue.enqueueSegment(id, 1, bytes(9), 's1', {});
+    fetchSpy.and.callFake((url: string) =>
+      url.includes('/segments/') ? svar({ error: 'conflict' }, 409) : svar({ id }),
+    );
+    await queue.drain();
+    expect(queue.snapshot().stuck).toContain(id);
+
+    fetchSpy.and.callFake((url: string) => (url.includes('/segments/') ? svar({ sha256: 's1' }) : svar({ id })));
+    await queue.retryStuck();
+    expect(queue.snapshot().stuck).toEqual([]);
+    expect(await allSegments()).toHaveSize(0);
+  });
+
   it('rör inte kön när nätverket fallerar', async () => {
     const id = ulid();
     await queue.enqueueSegment(id, 1, bytes(5), 's1', {});

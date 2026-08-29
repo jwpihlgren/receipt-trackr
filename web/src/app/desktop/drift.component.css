@@ -1,54 +1,43 @@
-main {
-  max-width: 40rem;
-  margin: 4rem auto;
-  padding: 0 1.5rem;
-  font: 16px/1.6 system-ui, sans-serif;
+.yta { min-height: 100dvh; background: var(--bg); }
+
+.topp {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 56px;
+  padding-inline: var(--space-5);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
 }
 
-h1 {
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-}
+.tillbaka { display: flex; align-items: center; gap: var(--d-gap-tight); min-height: var(--tap-comfort); color: var(--accent); font-size: var(--text-base); text-decoration: none; }
+.tillbaka svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.topp h1 { font-size: var(--text-lg); }
 
-.status {
-  font-weight: 600;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  background: #e8f5e9;
-}
+.kolumn { width: 100%; max-width: 50rem; margin-inline: auto; padding: var(--space-6) var(--space-5) var(--space-8); display: grid; gap: var(--space-5); }
 
-.status.degraderad,
-.fel {
-  background: #fdecea;
-}
+.lage { display: flex; align-items: center; gap: var(--d-gap); padding: var(--d-card-pad); border: 1px solid var(--ok); border-radius: var(--radius-md); background: var(--ok-soft); font-size: var(--text-base); }
+.lage.illa { border-color: var(--danger); background: var(--danger-soft); color: var(--danger); }
+.lage svg { width: 20px; height: 20px; fill: none; stroke: var(--ok); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.lage.illa svg { stroke: var(--danger); }
 
-dl {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.35rem 1.5rem;
-  margin: 1.5rem 0;
-}
+.tabell { display: grid; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
+.tabell > div { display: flex; gap: var(--space-4); padding: var(--d-pad-y) var(--d-pad-x); }
+.tabell > div + div { border-top: 1px solid var(--line); }
+.tabell dt { width: 15rem; flex: 0 0 auto; color: var(--ink-muted); font-size: var(--text-base); }
+.tabell dd { margin: 0; font-size: var(--text-base); overflow-wrap: anywhere; }
+.tyst { color: var(--ink-faint); }
 
-dt {
-  color: #555;
-}
-
-dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-button {
-  font: inherit;
-  padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
-  border: 1px solid #bbb;
-  background: #fff;
+.atgarder { display: flex; gap: var(--d-gap); }
+.atgarder button {
+  min-height: var(--tap-comfort);
+  padding-inline: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-base);
   cursor: pointer;
 }
 
-.fotnot {
-  margin-top: 2rem;
-  color: #666;
-  font-size: 0.9rem;
-}
+.fel { color: var(--danger); font-size: var(--text-base); }

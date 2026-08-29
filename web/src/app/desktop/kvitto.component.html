@@ -1,0 +1,93 @@
+<div class="yta">
+  <header class="topp">
+    <a class="tillbaka" routerLink="/arkiv">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+      Kvitton
+    </a>
+
+    @if (receipt(); as r) {
+      <h1>{{ datum(r.capturedAt) }} · {{ klocka(r.capturedAt) }}</h1>
+      <span class="tyst">{{ r.segments.length }} {{ r.segments.length === 1 ? 'bild' : 'bilder' }}</span>
+      @if (harText()) {
+        <button type="button" class="knapp" [class.aktiv]="visaText()" (click)="toggleText()">Visa texten</button>
+      }
+    }
+  </header>
+
+  @if (error(); as message) {
+    <p class="fel" role="alert">{{ message }} <button type="button" (click)="load()">Försök igen</button></p>
+  } @else {
+    <!-- `as`-alias går bara på @if, inte på @else if — därav den nästlade formen. -->
+    @if (receipt(); as r) {
+
+    <div class="kropp">
+      <div class="bildbadd">
+        <div class="papper">
+          @for (segment of r.segments; track segment.sha256) {
+            <img [src]="bild(segment.file)" [alt]="'Bild ' + ($index + 1)" loading="lazy" />
+          }
+          @if (saknade() > 0) {
+            <p class="lucka">
+              {{ saknade() }} {{ saknade() === 1 ? 'bild' : 'bilder' }} kom aldrig fram.
+              Kvittot är ofullständigt — leta upp originalet innan du kastar det.
+            </p>
+          }
+        </div>
+      </div>
+
+      @if (visaText() && harText()) {
+        <div class="textspalt">
+          <div class="spalthuvud">
+            <span class="etikett">RÅTEXTEN</span>
+            <span class="tyst">Så här läste maskinen kvittot. Den går inte att ändra här.</span>
+          </div>
+          <pre class="ocr-text">{{ r.text }}</pre>
+        </div>
+      }
+
+      <aside class="faltpanel">
+        @if (oavslutat()) {
+          <div class="notis varning">
+            <strong>Fångsten är inte avslutad</strong>
+            <span>Telefonen hann aldrig säga hur många bilder kvittot har. Kontrollera att alla delar finns.</span>
+          </div>
+        }
+
+        <div class="falt">
+          <span class="etikett">BUTIK</span>
+          <span class="tomt">Inte tolkat än</span>
+        </div>
+        <div class="falt">
+          <span class="etikett">DATUM</span>
+          <span class="tomt">Inte tolkat än</span>
+        </div>
+        <div class="falt">
+          <span class="etikett">BELOPP</span>
+          <span class="tomt">Inte tolkat än</span>
+        </div>
+
+        <div class="avdelare"></div>
+
+        <div class="falt">
+          <span class="etikett">FÅNGAT</span>
+          <span>{{ datum(r.capturedAt) }} · {{ klocka(r.capturedAt) }}</span>
+        </div>
+        <div class="falt">
+          <span class="etikett">BILDER</span>
+          <span>
+            {{ r.segments.length }}@if (r.expectedSegments !== null) { av {{ r.expectedSegments }} }
+          </span>
+        </div>
+
+        <p class="fotnot">
+          Textutläsningen körs på klienten och är inte byggd än. Fram till dess finns bilden och
+          summan av den — inte fälten. En tom kolumn är ärligare än en gissning.
+        </p>
+      </aside>
+    </div>
+
+    } @else {
+      <p class="tyst laddar">Hämtar …</p>
+    }
+  }
+</div>

@@ -1,120 +1,153 @@
 <div class="skarm">
-  <header class="status">
-    <a class="lage" routerLink="/kvitton">Kvitton →</a>
-    <!-- Arkivraden svarar för alla kvitton utom det senaste; kortet svarar för det. -->
-    <span class="arkivrad" [class.illa]="archiveLine().bad">{{ archiveLine().text }}</span>
-  </header>
 
-  <div class="sokare">
-    <video #video autoplay playsinline muted aria-label="Kameravy"></video>
-    @if (cameraError(); as message) {
-      <p class="kamerafel" role="alert">{{ message }}</p>
-    } @else {
-      <div class="ram" aria-hidden="true"></div>
-      <!-- Skuggremsan: skjut papperet tills raderna nedan syns igen i kameran. -->
-      @if (ghost(); as strip) {
-        <div class="skuggremsa" aria-hidden="true">
-          <img [src]="strip" alt="" />
-          <span class="skuggtext">Förra bildens slut</span>
+  @if (steg() === 'sparat') {
+
+    <header class="topp">
+      <h1>Kvittot är sparat</h1>
+    </header>
+
+    <div class="innehall">
+      <div class="kort" [class.illa]="sparatStatus().illa">
+        <div class="kortbilder">
+          @for (bild of sparadeBilder(); track bild.index) {
+            <img [src]="bild.url" [alt]="'Bild ' + bild.index" />
+          }
         </div>
+        <div class="korttext">
+          <strong>
+            @if (sparatStatus().klar) { ✓ }
+            {{ sparatStatus().text }}
+          </strong>
+          <span>{{ sparadeBilder().length }} {{ sparadeBilder().length === 1 ? 'bild' : 'bilder' }}</span>
+        </div>
+      </div>
+      <p class="lugn">
+        Kvittot ligger kvar i telefonen tills servern kvitterat varje bild. Du behöver inte vänta.
+      </p>
+    </div>
+
+    <div class="handzon">
+      <label class="knapp primar" (click)="nastaKvitto()">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z" />
+          <circle cx="12" cy="13" r="3.5" />
+        </svg>
+        Fotografera nästa kvitto
+        <input type="file" accept="image/*" capture="environment" (change)="onFile($event)" />
+      </label>
+      <button type="button" class="knapp kontur" (click)="fardig()">Jag är färdig</button>
+    </div>
+
+  } @else if (steg() === 'borjahar') {
+
+    <header class="topp">
+      <h1>Bild {{ antal() + 1 }}</h1>
+      <button type="button" class="lank" (click)="avbryt()">Avbryt</button>
+    </header>
+
+    <div class="ledtext">
+      <h2>Börja här</h2>
+      <p>Lägg papperet så att de här raderna syns överst i nästa bild. Då vet du att ingenting hoppades över.</p>
+    </div>
+
+    <div class="bildbadd">
+      @if (flow.ghost(); as remsa) {
+        <div class="remsa">
+          <img [src]="remsa" alt="Slutet på förra bilden" />
+          <span class="remsetikett">SLUTET PÅ BILD {{ antal() }}</span>
+        </div>
+      } @else {
+        <p class="ingenremsa">Förra bildens nederkant gick inte att visa. Lägg papperet där du slutade förra gången.</p>
       }
-    }
-  </div>
+    </div>
 
-  <!-- Remsan ska ses i ögonvrån, inte studeras. -->
-  <div class="remsa" role="list" aria-label="Tagna bilder">
-    @for (shot of shots(); track shot.sha) {
-      <div class="ruta" role="listitem" [class.ersatt]="shot.replaced">
-        <img [src]="shot.url" [alt]="'Bild ' + shot.index" />
-        <span class="nummer">{{ shot.index }}</span>
-        <!-- Sparad lokalt är inte samma sak som framme hos servern. Remsan visar båda. -->
-        <span class="kvittens" [class.klar]="isConfirmed(shot.index)">
-          {{ isConfirmed(shot.index) ? '✓' : '↑' }}
-          <span class="sr-only">{{ isConfirmed(shot.index) ? 'uppladdad' : 'väntar på servern' }}</span>
-        </span>
-        @if (shot.replaced) { <span class="ersatt-markor" aria-label="ersatt">omtagen</span> }
-      </div>
-    } @empty {
-      <p class="tom">Rikta mot kvittot och tryck på den stora knappen.</p>
-    }
-    @if (shots().length > 1) {
-      <button type="button" class="somknapp" (click)="toggleSeam()">Kontrollera skarvar</button>
-    }
-  </div>
+    <div class="handzon">
+      <label class="knapp primar" (click)="openCamera()">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z" />
+          <circle cx="12" cy="13" r="3.5" />
+        </svg>
+        Öppna kameran för del {{ antal() + 1 }}
+        <input type="file" accept="image/*" capture="environment" (change)="onFile($event)" />
+      </label>
+      <button type="button" class="knapp kontur" (click)="spara()">
+        Ändå klart · spara {{ antal() }} {{ antal() === 1 ? 'bild' : 'bilder' }}
+      </button>
+    </div>
 
-  <!-- Sömvyn: bilderna staplade i ordning, så att ett hoppat mellanrum syns. -->
-  @if (seam()) {
-    <div class="somvy" role="dialog" aria-label="Kontrollera skarvar">
-      <div class="somrulle">
+  } @else {
+
+    <header class="topp">
+      <h1>Bild {{ antal() }}</h1>
+      <button type="button" class="lank" (click)="avbryt()">Avbryt</button>
+    </header>
+
+    @if (antal() > 1) {
+      <div class="filmremsa" role="list" aria-label="Tagna bilder">
         @for (shot of shots(); track shot.sha) {
-          <img [src]="shot.url" [alt]="'Bild ' + shot.index" />
+          <div class="ruta" role="listitem" [class.ersatt]="shot.replaced" [class.aktuell]="shot.index === antal()">
+            <img [src]="shot.url" [alt]="'Bild ' + shot.index" />
+            @if (isConfirmed(shot.index)) { <span class="bock" aria-label="i arkivet">✓</span> }
+          </div>
         }
+        <span class="antal">{{ antal() }} bilder</span>
       </div>
-      <p class="somtext">Följ texten över varje skarv. Saknas en bit, ta om den bilden.</p>
-      <button type="button" (click)="toggleSeam()">Tillbaka till kameran</button>
-    </div>
-  }
-
-  <!-- Kvittokortet: flödets fjärde skede. Ett band, inte en grind — kameran lever
-       ovanför och nästa bild avfärdar kortet av sig självt. -->
-  @if (finished(); as card) {
-    <div class="kvittokort" [class.illa]="finishedStatus().bad" role="status">
-      <div class="kortbilder">
-        @for (shot of card.shots; track shot.sha) {
-          <img [src]="shot.url" [alt]="'Bild ' + shot.index" />
-        }
-      </div>
-      <div class="korttext">
-        <span class="kortstatus">
-          @if (finishedStatus().done) { ✓ }
-          {{ finishedStatus().text }}
-        </span>
-        <span class="kortmeta">{{ card.shots.length }} {{ card.shots.length === 1 ? 'bild' : 'bilder' }}</span>
-      </div>
-      <div class="kortval">
-        <button type="button" (click)="reopen()">Lägg till bild</button>
-        <a routerLink="/uppladdning">Ladda upp</a>
-      </div>
-    </div>
-  }
-
-  <div class="handzon">
-    <!-- Vänster: sällan använt. Att ta om en bild är undantaget, inte rytmen. -->
-    <button type="button" class="sido" [disabled]="!hasShots() || busy()" (click)="retake()">
-      <span class="ikon" aria-hidden="true">↺</span>
-      <span class="etikett">Ta om</span>
-    </button>
-
-    <!-- Mitten: den enda knapp som tar en bild. Störst, märkt, alltid samma plats. -->
-    <button type="button" class="avtryckare" [class.sparad]="flash()" [disabled]="busy() || !!cameraError()" (click)="capture()">
-      <span class="ring" aria-hidden="true"></span>
-      <span class="etikett">{{ hasShots() ? 'Nästa bild' : 'Ta bild' }}</span>
-    </button>
-
-    <!-- Höger: under tummen, för det är här rytmen slutar. Ett kvitto per tryck. -->
-    @if (finished()) {
-      <button type="button" class="sido primar" (click)="dismissCard()">
-        <span class="ikon" aria-hidden="true">→</span>
-        <span class="etikett">Nästa kvitto</span>
-      </button>
-    } @else {
-      <button type="button" class="sido primar" [disabled]="!hasShots()" (click)="done()">
-        <span class="ikon" aria-hidden="true">✓</span>
-        <span class="etikett">
-          @if (hasShots()) { Klart · {{ shots().length }} } @else { Klart }
-        </span>
-      </button>
     }
-  </div>
 
-  @if (saveError(); as message) {
+    <div class="ledtext">
+      @if (antal() > 1) {
+        <p>Känner du igen raderna du la på minnet? Gör du inte det saknas en bit — ta om den här bilden.</p>
+      } @else {
+        <p>Bilden kom från telefonens kamera. Kan du läsa beloppet längst ner här, är chansen god att det går att tolka.</p>
+      }
+    </div>
+
+    <div class="bildbadd">
+      @if (sista(); as shot) {
+        <img class="foto" [src]="shot.url" [alt]="'Bild ' + shot.index" />
+      }
+    </div>
+
+    @if (flow.previewWarning(); as varning) {
+      <p class="varning" role="status">{{ varning }}</p>
+    }
+
+    <div class="handzon">
+      <button type="button" class="knapp primar" [disabled]="flow.busy()" (click)="spara()">
+        Spara kvittot@if (antal() > 1) { · {{ antal() }} bilder }
+      </button>
+      <div class="par">
+        <button type="button" class="knapp kontur" (click)="fortsatt()">
+          Kvittot fortsätter
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></svg>
+        </button>
+        <label class="knapp kontur" (click)="openCamera()">
+          Ta om bilden
+          <input type="file" accept="image/*" capture="environment" (change)="onFile($event, true)" />
+        </label>
+      </div>
+    </div>
+
+  }
+
+  @if (flow.awaiting()) {
+    <div class="vantar" role="status">
+      <div class="vantar-ikon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z" />
+          <circle cx="12" cy="13" r="3.5" />
+        </svg>
+      </div>
+      <h2>Kameran är öppen</h2>
+      <p>Fotografera kvittot i telefonens vanliga kamera. Bilden kommer tillbaka hit av sig själv.</p>
+      <button type="button" class="knapp kontur" (click)="flow.cancelAwaiting()">Avbryt</button>
+    </div>
+  }
+
+  @if (flow.saveError(); as message) {
     <div class="sparfel" role="alert">
       <p>{{ message }}</p>
-      <button type="button" (click)="dismissSaveError()">Jag har läst</button>
+      <button type="button" class="knapp kontur" (click)="flow.dismissSaveError()">Jag har läst</button>
     </div>
   }
 </div>
-
-<p class="sr-only" aria-live="polite">
-  {{ shots().length }} bilder tagna. {{ archiveLine().text }}.
-</p>

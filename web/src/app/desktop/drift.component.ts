@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
 
 /** Svaret från `/api/health` — samma form som servern lovar i http/health.ts. */
 export type Health = {
@@ -26,7 +27,8 @@ export type Health = {
  */
 @Component({
   selector: 'app-drift',
-  imports: [],
+  host: { 'data-density': 'comfortable' },
+  imports: [RouterLink],
   templateUrl: './drift.component.html',
   styleUrl: './drift.component.css',
 })

@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { DriftComponent, type Health } from './drift.component';
@@ -25,7 +26,8 @@ describe('Driftvyn', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [DriftComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      // Vyn länkar tillbaka till arkivet sedan skrivbordet fick fler ytor än en.
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     }).compileComponents();
     http = TestBed.inject(HttpTestingController);
   });

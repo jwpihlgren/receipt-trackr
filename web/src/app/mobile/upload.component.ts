@@ -1,15 +1,15 @@
 import { Component, computed, inject } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { QueueService } from './queue.service';
 
 /**
- * Uppladdningsvyn. En egen sida, dit man går när man är klar med en omgång kvitton
- * och vill se att de kommit fram.
+ * Sidan visar bara det som **inte** är i arkivet. Är allt framme står här ingenting
+ * att göra, och det är rätt: en lista över det som redan är klart är en lista ingen
+ * behöver läsa.
  *
- * Uppladdningen startar av sig själv så fort en bild lagts i kön — den väntar aldrig
- * på ett knapptryck. Skälet är att en telefon som tappas i golvet mellan fotografering
- * och uppladdning tar papperet med sig, och papperet finns inte kvar. Den här vyn är
- * alltså inte startknappen, den är fönstret in i något som redan pågår.
+ * Uppladdningen startar av sig själv så fort en bild lagts i kön. Sidan är alltså
+ * fönstret in i något som redan pågår, inte startknappen — och det står utskrivet,
+ * så att ingen står och väntar på att trycka.
  */
 @Component({
   selector: 'app-upload',
@@ -20,34 +20,45 @@ import { QueueService } from './queue.service';
 })
 export class UploadComponent {
   private readonly queue = inject(QueueService);
-  private readonly router = inject(Router);
-
   readonly state = this.queue.snapshot;
 
-  /** Ett kvitto i taget, med hur många av dess bilder som är kvar att skicka. */
-  readonly rows = computed(() =>
+  readonly rader = computed(() =>
     this.state().receipts.map((id) => ({
       id,
       kvar: this.state().pending.filter((key) => key.startsWith(`${id}:`)).length,
-      stuck: this.state().stuck.includes(id),
+      fast: this.state().stuck.includes(id),
+      tid: tidUrUlid(id),
     })),
   );
 
-  readonly done = computed(() => this.rows().length === 0);
-
-  readonly heading = computed(() => {
-    const s = this.state();
-    if (s.stuck.length) return `${s.stuck.length} kom inte fram`;
-    if (this.done()) return s.archivedToday ? `Allt i arkivet · ${s.archivedToday} i dag` : 'Inget att ladda upp';
-    if (s.offline) return `${s.receipts.length} väntar på nät`;
-    return `${s.receipts.length} på väg till arkivet`;
+  readonly sammanfattning = computed(() => {
+    const n = this.state().receipts.length;
+    if (n === 0) return null;
+    return `${n} ${n === 1 ? 'kvitto är' : 'kvitton är'} inte i arkivet än. Uppladdningen sköter sig själv så länge appen är öppen.`;
   });
 
-  retry(): void {
-    void this.queue.drain();
+  readonly harFast = computed(() => this.state().stuck.length > 0);
+
+  constructor() {
+    this.queue.start();
   }
 
-  back(): void {
-    void this.router.navigate(['/fanga']);
+  retry(): Promise<void> {
+    return this.queue.retryStuck();
   }
+}
+
+/** ULID:ens första 48 bitar är millisekunder sedan epoken — tiden finns i id:t. */
+function tidUrUlid(id: string): string {
+  const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  let ms = 0;
+  for (const char of id.slice(0, 10)) {
+    const value = ALPHABET.indexOf(char);
+    if (value < 0) return '';
+    ms = ms * 32 + value;
+  }
+  const d = new Date(ms);
+  const idag = new Date().toDateString() === d.toDateString();
+  const klocka = d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+  return idag ? `I dag ${klocka}` : `${d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })} ${klocka}`;
 }

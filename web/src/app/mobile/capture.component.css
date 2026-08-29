@@ -1,347 +1,223 @@
-/* Mobilläget. Inga literala färgvärden — allt kommer ur tokens.css. */
+/* Granskningen. Inga literala färgvärden — allt kommer ur tokens.css. */
 
 .skarm {
-  display: grid;
-  grid-template-rows: 56px 1fr 72px 132px;
+  display: flex;
+  flex-direction: column;
   height: 100dvh;
   background: var(--bg);
   overflow: hidden;
 }
 
-/* ---- statusremsan ---------------------------------------------------- */
+/* ---- toppen ---------------------------------------------------------- */
 
-.status {
+.topp {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: 56px;
   padding-inline: var(--d-pad-x);
+  background: var(--surface);
   border-bottom: 1px solid var(--line);
-  background: var(--surface);
-  font-size: var(--text-sm);
+  flex: 0 0 auto;
 }
 
-.lage { color: var(--accent); text-decoration: none; display: grid; align-items: center; min-height: var(--tap-min); }
-.arkivrad { color: var(--ink-muted); font-variant-numeric: tabular-nums; }
-.arkivrad.illa { color: var(--bad, var(--ink)); font-weight: var(--weight-bold); }
+.topp h1 { font-size: var(--text-lg); }
 
-/* ---- sökaren --------------------------------------------------------- */
-
-.sokare {
-  position: relative;
-  background: var(--sunken);
-  overflow: hidden;
+.lank {
+  min-height: var(--tap-min);
+  padding-inline: var(--space-2);
+  margin-inline-end: calc(var(--space-2) * -1);
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: var(--text-base);
 }
 
-.sokare video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
+/* ---- filmremsan ------------------------------------------------------ */
 
-/* En hjälp, inte ett krav: ramen visar var kvittot får plats. */
-.ram {
-  position: absolute;
-  inset: 12% 14%;
-  border: 2px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-/* Skuggremsan ligger fastnaglad i överkanten, dämpad så att den inte förväxlas med
-   det kameran ser just nu. Linjen under är skarven man ska sikta mot. */
-.skuggremsa {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline: 0;
-  max-height: 22%;
-  overflow: hidden;
-  border-bottom: 2px dashed var(--surface);
-  pointer-events: none;
-}
-
-.skuggremsa img { width: 100%; opacity: 0.55; }
-
-.skuggtext {
-  position: absolute;
-  inset-block-end: 2px;
-  inset-inline-start: 6px;
-  padding-inline: 4px;
-  border-radius: var(--radius-xs);
-  background: var(--surface);
-  color: var(--ink-muted);
-  font-size: var(--text-xs);
-}
-
-/* Text över video måste ha egen bakgrund — videon är inte en känd kontrast. */
-.kamerafel {
-  position: absolute;
-  inset-inline: var(--space-4);
-  bottom: var(--space-4);
-  margin: 0;
-  padding: var(--d-pad-y) var(--d-pad-x);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: var(--text-sm);
-}
-
-/* ---- remsan ---------------------------------------------------------- */
-
-.remsa {
+.filmremsa {
   display: flex;
   align-items: center;
   gap: var(--d-gap-tight);
-  padding-inline: var(--d-pad-x);
-  overflow-x: auto;
-  border-block: 1px solid var(--line);
+  padding: var(--d-pad-y) var(--d-pad-x);
   background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  flex: 0 0 auto;
 }
 
 .ruta {
   position: relative;
   flex: 0 0 auto;
-  width: 56px;
-  height: 72px;
+  width: 48px;
+  height: 64px;
+  border: 1px solid var(--line);
   border-radius: var(--radius-xs);
   overflow: hidden;
   background: var(--sunken);
 }
 
-.ruta img { width: 100%; height: 100%; object-fit: cover; }
-
-.nummer {
-  position: absolute;
-  inset-block-start: 2px;
-  inset-inline-start: 4px;
-  padding-inline: 4px;
-  border-radius: var(--radius-xs);
-  background: var(--surface);
-  color: var(--ink);
-  font-size: var(--text-xs);
-}
-
+.ruta.aktuell { border: 2px solid var(--accent); }
 /* En omtagen bild stryks inte — den laddas upp ändå. Remsan säger bara vilken
    som var användarens andra försök. */
 .ruta.ersatt img { opacity: 0.45; }
+.ruta img { width: 100%; height: 100%; object-fit: cover; }
 
-.ruta .ersatt-markor {
-  position: absolute;
-  inset-block-end: 0;
-  inset-inline: 0;
-  padding-block: 1px;
-  background: var(--surface);
-  color: var(--ink-muted);
-  font-size: var(--text-xs);
-  text-align: center;
-}
-
-.somknapp {
-  flex: 0 0 auto;
-  min-height: var(--tap-min);
-  margin-inline-start: auto;
-  padding-inline: var(--space-3);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--accent);
-  font-size: var(--text-sm);
-}
-
-/* Sömvyn tar hela skärmen: den ska studeras, till skillnad från remsan. */
-.somvy {
-  position: fixed;
-  inset: 0;
-  z-index: 2;
-  display: grid;
-  grid-template-rows: 1fr auto auto;
-  gap: var(--d-gap);
-  padding: var(--d-card-pad);
-  background: var(--bg);
-}
-
-.somrulle { overflow-y: auto; background: var(--sunken); border-radius: var(--radius-sm); }
-.somrulle img { width: 100%; display: block; }
-.somtext { margin: 0; color: var(--ink-muted); font-size: var(--text-sm); text-align: center; }
-
-.somvy > button {
-  min-height: var(--tap-primary);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--ink);
-}
-
-.remsa .tom {
-  margin: 0;
-  color: var(--ink-faint);
-  font-size: var(--text-sm);
-}
-
-/* Kvittensen sitter på bilden: uppåtpil medan den väntar, bock när servern
-   svarat med samma sha256. Det är skillnaden mellan "sparad" och "i säkerhet". */
-.kvittens {
+.bock {
   position: absolute;
   inset-block-start: 2px;
-  inset-inline-end: 3px;
-  min-width: 14px;
-  padding-inline: 2px;
+  inset-inline-end: 2px;
+  padding-inline: 3px;
   border-radius: var(--radius-xs);
   background: var(--surface);
+  color: var(--ok);
+  font-size: var(--text-xs);
+}
+
+.filmremsa .antal { margin-inline-start: auto; color: var(--ink-faint); font-size: var(--text-sm); }
+
+/* ---- ledtexten ------------------------------------------------------- */
+
+.ledtext { padding: var(--d-pad-y) var(--d-pad-x); display: grid; gap: var(--space-2); flex: 0 0 auto; }
+.ledtext h2 { font-size: var(--text-xl); }
+.ledtext p { margin: 0; color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
+
+/* ---- bildbädden ------------------------------------------------------ */
+/* Bakom kvittot ligger något mörkare än sidan, så att papperets kant syns även
+   när fotot är överexponerat i hörnen. */
+
+.bildbadd {
+  flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  padding: var(--d-card-pad);
+  background: var(--image-bed);
+  overflow: hidden;
+}
+
+.foto { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: var(--shadow-md); }
+
+.remsa { position: relative; max-width: 100%; box-shadow: var(--shadow-md); border-inline-start: 3px solid var(--accent); }
+.remsa img { width: 100%; display: block; }
+
+.remsetikett {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  background: var(--sunken);
   color: var(--ink-faint);
   font-size: var(--text-xs);
+  letter-spacing: var(--tracking-label);
+}
+
+.ingenremsa {
+  margin: 0;
+  padding: var(--d-card-pad);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
   text-align: center;
 }
 
-.kvittens.klar { color: var(--accent); }
+.varning {
+  margin: 0;
+  padding: var(--d-pad-y) var(--d-pad-x);
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: var(--text-base);
+  flex: 0 0 auto;
+}
 
-/* Kvittokortet ligger som ett band över sökarens nederkant: kameran syns, men det
-   senaste kvittot har en egen plats att svara från. */
-.kvittokort {
-  position: fixed;
-  inset-inline: var(--space-3);
-  inset-block-end: 216px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+/* ---- kortet efter sparat --------------------------------------------- */
+
+.innehall { flex: 1 1 auto; display: grid; align-content: start; gap: var(--d-gap); padding: var(--space-5) var(--d-card-pad); overflow-y: auto; }
+
+.kort {
+  display: flex;
   align-items: center;
   gap: var(--d-gap);
-  padding: var(--d-pad-y) var(--d-pad-x);
-  border-radius: var(--radius-md);
+  padding: var(--d-card-pad);
   border: 1px solid var(--line);
+  border-radius: var(--radius-md);
   background: var(--surface);
 }
 
-.kvittokort.illa { border-color: var(--bad, var(--line-strong)); }
+.kort.illa { border-color: var(--danger); background: var(--danger-soft); }
+.kortbilder { display: flex; gap: var(--space-1); flex: 0 0 auto; }
+.kortbilder img { width: 48px; height: 64px; object-fit: cover; border-radius: var(--radius-xs); border: 1px solid var(--line); background: var(--sunken); }
+.korttext { display: grid; gap: var(--space-1); min-width: 0; }
+.korttext strong { font-size: var(--text-lg); font-weight: var(--weight-bold); }
+.kort.illa .korttext strong { color: var(--danger); }
+.korttext span { color: var(--ink-faint); font-size: var(--text-sm); }
 
-.kortbilder { display: flex; gap: 2px; }
-.kortbilder img {
-  width: 28px;
-  height: 36px;
-  object-fit: cover;
-  border-radius: var(--radius-xs);
-  background: var(--sunken);
-}
-
-.korttext { display: grid; min-width: 0; }
-.kortstatus { color: var(--ink); font-size: var(--text-sm); }
-.kvittokort.illa .kortstatus { color: var(--bad, var(--ink)); }
-.kortmeta { color: var(--ink-faint); font-size: var(--text-xs); }
-
-.kortval { display: grid; gap: 4px; }
-
-.kortval button, .kortval a {
-  min-height: 34px;
-  padding-inline: var(--space-3);
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--accent);
-  font-size: var(--text-sm);
-  text-decoration: none;
-  display: grid;
-  place-items: center;
-}
+.lugn { margin: 0; color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
 
 /* ---- handzonen ------------------------------------------------------- */
+/* Samma fält på varje skärm: en primär på 56 px, och högst en rad med två på 48. */
 
 .handzon {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  justify-items: center;
   gap: var(--d-gap);
-  padding-inline: var(--d-pad-x);
+  padding: var(--d-card-pad) var(--d-card-pad) var(--space-5);
   background: var(--surface);
   border-top: 1px solid var(--line);
+  flex: 0 0 auto;
 }
 
-/* Varje knapp har text. En omärkt cirkel är inte en avtryckare, den är en fläck —
-   och användaren trycker då på det enda som ser tryckbart ut. */
-.handzon button {
+.par { display: flex; gap: var(--d-gap); }
+.par > * { flex: 1 1 0; }
+
+.knapp {
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  background: none;
-  border: none;
-  color: var(--ink);
-  font-size: var(--text-sm);
+  gap: var(--d-gap-tight);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  text-decoration: none;
+  cursor: pointer;
 }
 
-.handzon button:disabled { opacity: 0.35; }
-.handzon .etikett { line-height: 1.2; }
+.knapp svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+.knapp input[type='file'] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.knapp:disabled { opacity: 0.5; }
 
-/* Sidoknapparna: fyrkantiga träffytor, tydligt underordnade avtryckaren. */
-.sido {
-  min-width: var(--tap-comfort);
-  min-height: var(--tap-comfort);
-  padding: var(--space-2);
-  border-radius: var(--radius-sm) !important;
-}
+.primar { min-height: var(--tap-primary); border: none; background: var(--accent); color: var(--on-accent); font-weight: var(--weight-bold); }
+.kontur { min-height: var(--tap-comfort); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
 
-.sido .ikon {
+/* ---- väntläget och det blockerande felet ----------------------------- */
+
+.vantar {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
   display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--line-strong);
-  font-size: var(--text-lg);
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--bg);
+  text-align: center;
 }
 
-/* Störst, i mitten, där tummen vilar. Krav 7: den finns alltid. */
-.avtryckare {
-  min-width: 96px;
-  min-height: 96px;
-}
-
-.avtryckare .ring {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--accent);
-}
-
-/* Blicken är på skärmen när avtryckaren trycks, alltså hör kvittensen hemma här. */
-.avtryckare.sparad .ring {
-  box-shadow: 0 0 0 4px var(--surface), 0 0 0 10px var(--accent-soft);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .avtryckare .ring { transition: box-shadow 180ms ease-out; }
-}
-
-.avtryckare .etikett {
-  font-weight: var(--weight-bold);
-  color: var(--accent);
-}
-
-/* Den knapp som avslutar ett kvitto ligger under tummen och är den enda av
-   sidoknapparna som markeras — den trycks en gång per kvitto, alltså ofta. */
-.sido.primar .ikon { border-color: var(--accent); color: var(--accent); }
-.sido.primar .etikett { color: var(--accent); }
-
-/* ---- det enda blockerande felet -------------------------------------- */
+.vantar-ikon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: var(--radius-full); background: var(--accent-soft); }
+.vantar-ikon svg { width: 30px; height: 30px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.vantar h2 { font-size: var(--text-xl); }
+.vantar p { max-width: 28ch; color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
+.vantar .kontur { width: 100%; max-width: 20rem; }
 
 .sparfel {
   position: fixed;
   inset: auto var(--space-4) var(--space-4);
+  z-index: var(--z-dialog);
+  display: grid;
+  gap: var(--d-gap);
   padding: var(--d-card-pad);
+  border: 1px solid var(--danger);
   border-radius: var(--radius-md);
-  border: 1px solid var(--bad, var(--line-strong));
   background: var(--surface);
-  box-shadow: var(--shadow-2, none);
+  box-shadow: var(--shadow-lg);
 }
 
-.sparfel p { margin-block-end: var(--space-3); font-size: var(--text-sm); }
-
-.sparfel button {
-  min-height: var(--tap-comfort);
-  width: 100%;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line-strong);
-  background: var(--surface);
-  color: var(--ink);
-}
+.sparfel p { margin: 0; font-size: var(--text-base); line-height: var(--leading-body); }

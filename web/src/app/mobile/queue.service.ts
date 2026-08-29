@@ -130,6 +130,12 @@ export class QueueService {
     void this.drain();
   }
 
+  /** "Skicka om": släpp fastnat-märkningen och kör ett pass till, på användarens ord. */
+  retryStuck(): Promise<void> {
+    this.state.update((s) => ({ ...s, stuck: [] }));
+    return this.drain();
+  }
+
   private async refresh(): Promise<void> {
     const [segments, receipts] = await Promise.all([allSegments(), allReceipts()]);
     this.state.update((s) => ({
@@ -172,7 +178,25 @@ export class QueueService {
     }
   }
 
-  /** @returns false när nätet dog — då är det ingen mening att fortsätta med nästa kvitto. */
+  /**
+   * Ett svar servern gett måste delas i tre, inte två. Ett nätverksfel eller en 5xx
+   * går över av sig själv och ska försökas igen. Ett 4xx gör det aldrig: bilden är
+   * avvisad, och att fortsätta skicka den var femtonde sekund i evighet är en tyst
+   * loop som ingen ser. 401 är det tredje fallet — sessionen har gått ut, kvittot är
+   * oskyldigt, och kön ska bara vila tills någon loggat in igen.
+   */
+  private classify(status: number): 'ok' | 'retry' | 'stuck' | 'unauthorized' {
+    if (status < 400) return 'ok';
+    if (status === 401 || status === 403) return 'unauthorized';
+    if (status === 408 || status === 429 || status >= 500) return 'retry';
+    return 'stuck';
+  }
+
+  private markStuck(id: string): void {
+    this.state.update((s) => ({ ...s, stuck: [...new Set([...s.stuck, id])] }));
+  }
+
+  /** @returns false när nätet dog eller sessionen gått ut — då är det ingen mening att fortsätta. */
   private async uploadReceipt(receipt: QueuedReceipt, segments: QueuedSegment[]): Promise<boolean> {
     try {
       const created = await fetch('/api/receipts', {
@@ -180,7 +204,13 @@ export class QueueService {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ id: receipt.id, backlog: true }),
       });
-      if (!created.ok) return true;
+      const createdVerdict = this.classify(created.status);
+      if (createdVerdict === 'unauthorized') return false;
+      if (createdVerdict === 'stuck') {
+        this.markStuck(receipt.id);
+        return true;
+      }
+      if (createdVerdict === 'retry') return true;
 
       for (const segment of segments) {
         if (segment.confirmedAt) continue;
@@ -192,13 +222,16 @@ export class QueueService {
           method: 'POST',
           body: form,
         });
-        if (response.status === 409) {
-          // Samma nummer, annat innehåll. Det får inte lösas automatiskt — bilderna
-          // är oåterkalleliga, och den här ska tas om hand vid datorn.
-          this.state.update((s) => ({ ...s, stuck: [...new Set([...s.stuck, receipt.id])] }));
+        const verdict = this.classify(response.status);
+        if (verdict === 'unauthorized') return false;
+        if (verdict === 'stuck') {
+          // 409 är samma nummer med annat innehåll; 415 är en bild servern inte kan
+          // läsa. Ingetdera löser sig av sig självt, och båda ska tas om hand vid
+          // datorn i stället för att försökas igen för alltid.
+          this.markStuck(receipt.id);
           return true;
         }
-        if (!response.ok) return true;
+        if (verdict === 'retry') return true;
 
         const saved = (await response.json()) as { sha256?: string };
         // Kvittensen: samma bytes, inte bara ett lyckat anrop.
@@ -212,11 +245,14 @@ export class QueueService {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ segments: receipt.segments }),
         });
-        if (done.ok) {
+        const verdict = this.classify(done.status);
+        if (verdict === 'unauthorized') return false;
+        if (verdict === 'stuck') this.markStuck(receipt.id);
+        if (verdict === 'ok') {
           await deleteReceipt(receipt.id);
           const n = readToday() + 1;
           writeToday(n);
-          this.state.update((s) => ({ ...s, archivedToday: n }));
+          this.state.update((s) => ({ ...s, archivedToday: n, stuck: s.stuck.filter((x) => x !== receipt.id) }));
         }
       }
       return true;

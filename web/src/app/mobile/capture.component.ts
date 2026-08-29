@@ -1,281 +1,125 @@
-import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, computed, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { CaptureFlowService } from './capture-flow.service';
 import { QueueService } from './queue.service';
-import { ulid } from '../shared/ulid';
-import { sha256 } from '../shared/sha256';
 
-type Shot = { index: number; url: string; sha: string; replaced: boolean };
-
-/** Hur stor del av föregående bilds nederkant som visas som skuggremsa. */
-const OVERLAP = 0.2;
+type Steg = 'granska' | 'borjahar' | 'sparat';
 
 /**
- * Mobilläget (krav 1, 2, 3, 5, 7, 42, 43). Ett syfte: få in kvittot, stående, med en
- * hand, och släppa det.
+ * Granskningen av en tagen bild, och avslutet.
  *
- * Ordningen i `capture()` är hela milstolpen. Bilden skrivs till disk **innan** den
- * visas i remsan, därför att en bild som syns men inte ligger kvar efter en krasch är
- * precis den tysta förlusten arkivet finns för att förhindra. Uppladdningen ligger
- * däremot aldrig i vägen: den startar och användaren går vidare.
+ * Fotograferingen sker inte här — den sker i telefonens egen kameraapp, som är en
+ * skärm vi varken äger eller kan lägga något ovanpå. Därför finns ingen sökare, ingen
+ * avtryckare och ingen autoutlösare i den här komponenten. Det som finns är det enda
+ * ögonblick appen faktiskt har: bilden i handen, med användaren fortfarande kvar vid
+ * kvittot.
  *
- * Autoutlösningen (krav 6) hör till M8. Här finns bara den manuella avtryckaren, som
- * enligt krav 7 alltid ska finnas kvar oavsett vad som byggs ovanpå.
+ * "Börja här" är skuggremsans arvtagare. Som sikte över livebilden är den död, men
+ * dess funktion — att veta var nästa bild ska börja — flyttar till *före* avfärden,
+ * som ett minne man bär med sig in i kameraappen.
  */
 @Component({
   selector: 'app-capture',
   host: { 'data-density': 'comfortable' },
-  imports: [RouterLink],
+  imports: [],
   templateUrl: './capture.component.html',
   styleUrl: './capture.component.css',
 })
 export class CaptureComponent {
+  private readonly router = inject(Router);
   private readonly queue = inject(QueueService);
-  private readonly video = viewChild.required<ElementRef<HTMLVideoElement>>('video');
+  readonly flow = inject(CaptureFlowService);
 
-  readonly shots = signal<Shot[]>([]);
-  readonly cameraError = signal<string | null>(null);
-  readonly saveError = signal<string | null>(null);
-  readonly busy = signal(false);
+  readonly steg = signal<Steg>('granska');
+  readonly sparatId = signal<string | null>(null);
+  readonly sparadeBilder = signal<{ index: number; url: string }[]>([]);
   readonly queueState = this.queue.snapshot;
-  readonly hasShots = computed(() => this.shots().length > 0);
+
+  readonly shots = this.flow.shots;
+  readonly sista = computed(() => this.shots().at(-1) ?? null);
+  readonly antal = computed(() => this.shots().length);
 
   /**
-   * Kvittokortet: det kvitto som just avslutades. Flödets fjärde skede — att landa.
-   * Kortet är ett band och inte en grind: kameran lever ovanför, och nästa bild
-   * avfärdar det av sig självt, så den som betar av en hög aldrig trycker extra.
+   * Var är det sparade kvittot? Bocken sätts först när varje bild kvitterats med rätt
+   * sha256 — annars kan ett halvt kvitto se helt ut.
    */
-  readonly finished = signal<{ id: string; shots: Shot[] } | null>(null);
-
-  /** Blicken är på skärmen när avtryckaren trycks — kvittensen hör hemma där, inte i toppen. */
-  readonly flash = signal(false);
-
-  /**
-   * Skuggremsan: nedersta femtedelen av förra bilden, fastnaglad i förhandsvisningens
-   * överkant. Klipppunkten på ett långt kvitto blir därmed ingen fråga utan en
-   * handrörelse — man skjuter papperet tills raderna syns igen. Poängen är i första
-   * hand att göra ett hoppat mellanrum synligt för människan.
-   */
-  readonly ghost = signal<string | null>(null);
-
-  /** Sömvyn: segmenten staplade, för att se efter att inget hoppats över. */
-  readonly seam = signal(false);
-
-  /**
-   * Var är det avslutade kvittot? Frågan gäller ett kvitto, inte en kös djup, och
-   * bocken sätts först när varje bild kvitterats med rätt sha256 **och**
-   * kompletteringen tagits emot — annars kan ett halvt kvitto se helt ut.
-   */
-  readonly finishedStatus = computed<{ text: string; done: boolean; bad: boolean }>(() => {
-    const card = this.finished();
+  readonly sparatStatus = computed<{ text: string; klar: boolean; illa: boolean }>(() => {
+    const id = this.sparatId();
     const state = this.queueState();
-    if (!card) return { text: '', done: false, bad: false };
-    if (state.stuck.includes(card.id)) return { text: 'Kom inte fram — ta upp det vid datorn', done: false, bad: true };
-    if (!state.receipts.includes(card.id)) return { text: 'I arkivet', done: true, bad: false };
-    const kvar = state.pending.filter((k) => k.startsWith(`${card.id}:`)).length;
-    const total = card.shots.length;
-    if (state.offline) return { text: `Sparat i telefonen · väntar på nät`, done: false, bad: false };
-    if (kvar === 0) return { text: 'På väg till arkivet', done: false, bad: false };
-    return { text: `Skickar bild ${total - kvar + 1} av ${total}`, done: false, bad: false };
+    if (!id) return { text: '', klar: false, illa: false };
+    if (state.stuck.includes(id)) return { text: 'Kom inte fram', klar: false, illa: true };
+    if (!state.receipts.includes(id)) return { text: 'I arkivet', klar: true, illa: false };
+    if (state.offline) return { text: 'Sparat i telefonen · väntar på nät', klar: false, illa: false };
+    const kvar = state.pending.filter((k) => k.startsWith(`${id}:`)).length;
+    const total = this.sparadeBilder().length;
+    if (kvar === 0) return { text: 'På väg till arkivet', klar: false, illa: false };
+    return { text: `Skickar bild ${total - kvar + 1} av ${total}`, klar: false, illa: false };
   });
-
-  /** Arkivraden svarar på en fråga i taget, den viktigaste först. */
-  readonly archiveLine = computed<{ text: string; bad: boolean }>(() => {
-    const s = this.queueState();
-    if (s.stuck.length) return { text: `${s.stuck.length} kom inte fram`, bad: true };
-    if (s.offline && s.waiting) return { text: `${s.waiting} väntar på nät`, bad: false };
-    if (s.waiting) return { text: `${s.waiting} på väg till arkivet`, bad: false };
-    if (s.archivedToday) return { text: `Allt i arkivet · ${s.archivedToday} i dag`, bad: false };
-    return { text: 'Inget fångat än', bad: false };
-  });
-
-  /**
-   * Har servern kvitterat den här bilden? Kön raderar posten först när samma sha256
-   * kommit tillbaka, så frånvaro ur `pending` är svaret — inte "vi har försökt".
-   */
-  isConfirmed(index: number): boolean {
-    return this.receiptId !== null && !this.queueState().pending.includes(`${this.receiptId}:${index}`);
-  }
-
-  /** ULID:ens tidsstämpel bestämmer katalogen på disk, så den myntas vid första bilden. */
-  private receiptId: string | null = null;
-  /**
-   * Signal, inte ett vanligt fält: strömmen kommer en stund efter att vyn ritats, och
-   * en effekt som bara läser vanliga fält körs aldrig om när de ändras. Då finns
-   * kameran men syns inte — och det ser ut som att rättigheten nekats fast den gavs.
-   */
-  private readonly stream = signal<MediaStream | null>(null);
 
   constructor() {
     this.queue.start();
-    void this.openCamera();
-    inject(DestroyRef).onDestroy(() => {
-      this.queue.stop();
-      this.stream()?.getTracks().forEach((t) => t.stop());
-      for (const shot of this.shots()) URL.revokeObjectURL(shot.url);
-    });
-    // Kopplas så snart både elementet och strömmen finns, i vilken ordning de än blir
-    // klara. Strömmen stoppas aldrig mellan bilder — att starta om en kamera kostar
-    // hundratals millisekunder och äter trekundersbudgeten.
-    effect(() => {
-      const element = this.video().nativeElement;
-      const stream = this.stream();
-      if (!stream || element.srcObject === stream) return;
-      element.srcObject = stream;
-      // Safari och flera Android-webbläsare startar inte av `autoplay` ensamt när
-      // källan sätts efter att elementet ritats.
-      void element.play().catch(() => this.cameraError.set('Kameran startade inte. Ladda om sidan.'));
-    });
+    // Direktnavigering hit utan påbörjad fångst har ingenting att visa.
+    if (this.flow.shots().length === 0) void this.router.navigateByUrl('/kvitton');
   }
 
-  private async openCamera(): Promise<void> {
-    try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        // Nästan alltid osäker kontext: kameran finns bara över https eller localhost.
-        throw new Error('insecure');
-      }
-      this.stream.set(
-        await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: false,
-        }),
-      );
-      this.cameraError.set(null);
-    } catch (error) {
-      const name = (error as Error).name;
-      this.cameraError.set(
-        (error as Error).message === 'insecure'
-          ? 'Kameran kräver en https-adress. Öppna sidan via tailnet-adressen, inte via IP.'
-          : name === 'NotAllowedError'
-            ? 'Kameran är inte tillåten. Ge sidan tillgång till kameran i webbläsarens inställningar.'
-            : name === 'NotReadableError'
-              ? 'Kameran är upptagen av en annan app. Stäng den och ladda om sidan.'
-              : `Kameran går inte att starta (${name}).`,
-      );
+  isConfirmed(index: number): boolean {
+    return this.flow.isConfirmed(index);
+  }
+
+  /** "Kvittot fortsätter": visa var nästa bild ska börja, innan kameran öppnas. */
+  fortsatt(): void {
+    this.steg.set('borjahar');
+  }
+
+  openCamera(): void {
+    this.flow.markAwaiting();
+  }
+
+  /** Samma input används för att ta om en bild och för att lägga till nästa del. */
+  async onFile(event: Event, omtagning = false): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      this.flow.cancelAwaiting();
+      return;
+    }
+    if (await this.flow.accept(file)) {
+      if (omtagning) this.flow.markLastReplaced();
+      this.steg.set('granska');
     }
   }
 
-  /**
-   * Kritiska vägen. Allt tungt sker här, vid varje bild — inte vid "Klart". Det gör
-   * att avslutet blir en liten skrivning i stället för hela kvittots arbete, och
-   * krymper förlustfönstret från kvittots längd till ett ögonblick.
-   */
-  async capture(): Promise<void> {
-    if (this.busy() || this.cameraError()) return;
-    this.busy.set(true);
-    try {
-      const element = this.video().nativeElement;
-      const canvas = document.createElement('canvas');
-      canvas.width = element.videoWidth;
-      canvas.height = element.videoHeight;
-      canvas.getContext('2d')!.drawImage(element, 0, 0);
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-      if (!blob) throw new Error('Bilden gick inte att koda.');
-
-      const bytes = await blob.arrayBuffer();
-      const sha = await sha256(bytes);
-      this.receiptId ??= ulid();
-      const index = this.shots().length + 1;
-
-      // Först disk, sedan skärm. Aldrig tvärtom.
-      await this.queue.enqueueSegment(this.receiptId, index, bytes, sha, {
-        width: canvas.width,
-        height: canvas.height,
-        autoShutter: false,
-        takenAt: new Date().toISOString(),
-      });
-
-      this.shots.update((s) => [...s, { index, url: URL.createObjectURL(blob), sha, replaced: false }]);
-      this.setGhost(canvas);
-      this.saveError.set(null);
-      // Nästa bild avfärdar kortet — inget extra tryck för den som betar av en hög.
-      this.dismissCard();
-      this.flash.set(true);
-      setTimeout(() => this.flash.set(false), 450);
-      navigator.vibrate?.(20);
-    } catch (error) {
-      // Det enda blockerande felet i hela mobilläget: bilden kunde inte sparas lokalt.
-      this.saveError.set(
-        `Bilden kunde inte sparas i telefonen: ${(error as Error).message} ` +
-          'Ta inte bort kvittot — försök igen, eller frigör utrymme först.',
-      );
-      navigator.vibrate?.([40, 60, 40]);
-    } finally {
-      this.busy.set(false);
-    }
+  async spara(): Promise<void> {
+    const bilder = this.shots().map((s) => ({ index: s.index, url: s.url }));
+    const id = await this.flow.save();
+    if (!id) return;
+    this.sparadeBilder.set(bilder);
+    this.sparatId.set(id);
+    this.steg.set('sparat');
   }
 
-  /**
-   * "Ta om" tar en **ny** bild med ett nytt nummer och märker den förra som ersatt.
-   * Den gamla laddas upp ändå: bilderna är oåterkalleliga, och en bild som användaren
-   * ångrat är inte samma sak som en bild som aldrig fanns. Vilken som gäller avgörs
-   * vid datorn, där man ser båda.
-   */
-  async retake(): Promise<void> {
-    const last = this.shots().at(-1);
-    if (!last || this.busy()) return;
-    await this.capture();
-    // Bara om den nya bilden faktiskt kom i hamn — annars stod användaren kvar utan
-    // användbar bild och med den gamla struken.
-    if (this.shots().length > 1 && this.shots().at(-1)!.index !== last.index) {
-      this.shots.update((s) => s.map((shot) => (shot.index === last.index ? { ...shot, replaced: true } : shot)));
-    }
+  /** "Fotografera nästa kvitto" — kortet släpps och kameran öppnas för ett nytt id. */
+  nastaKvitto(): void {
+    this.slappKort();
+    this.flow.markAwaiting();
   }
 
-  /** "Klart": antalet bilder blir känt, och kameran är omedelbart redo för nästa kvitto. */
-  async done(): Promise<void> {
-    const id = this.receiptId;
-    const count = this.shots().length;
-    if (!id || count === 0) return;
-
-    // Bilderna behålls i kortet, alltså revokeras de inte här utan när kortet släpps.
-    this.finished.set({ id, shots: this.shots() });
-    this.shots.set([]);
-    this.receiptId = null;
-    // Nytt kvitto, ny början: skuggremsan hör till det förra papperet.
-    this.ghost.set(null);
-    this.seam.set(false);
-    navigator.vibrate?.([20, 40, 20]);
-
-    // Efter nollställningen: användaren väntar inte på skrivningen.
-    await this.queue.completeReceipt(id, count);
+  async fardig(): Promise<void> {
+    this.slappKort();
+    await this.router.navigateByUrl('/kvitton');
   }
 
-  dismissSaveError(): void {
-    this.saveError.set(null);
+  async avbryt(): Promise<void> {
+    // Bilderna ligger kvar i kön och laddas upp ändå — de är oåterkalleliga.
+    this.flow.reset();
+    await this.router.navigateByUrl('/kvitton');
   }
 
-  /** Klipper ut nederkanten ur den bild som just tagits och sparar den som skuggremsa. */
-  private setGhost(source: HTMLCanvasElement): void {
-    const height = Math.round(source.height * OVERLAP);
-    const strip = document.createElement('canvas');
-    strip.width = source.width;
-    strip.height = height;
-    strip.getContext('2d')!.drawImage(source, 0, source.height - height, source.width, height, 0, 0, source.width, height);
-    // Data-URL, inte objekt-URL: remsan är liten och ska inte behöva städas.
-    this.ghost.set(strip.toDataURL('image/jpeg', 0.7));
-  }
-
-  toggleSeam(): void {
-    this.seam.update((open) => !open);
-  }
-
-  dismissCard(): void {
-    const card = this.finished();
-    if (!card) return;
-    for (const shot of card.shots) URL.revokeObjectURL(shot.url);
-    this.finished.set(null);
-  }
-
-  /**
-   * "Lägg till bild" räddar flödets vanligaste misstag: "Klart" tryckt innan sista
-   * biten fotograferats. Utan den är felet osynligt och kostar totalbeloppet, som
-   * nästan alltid står på sista biten.
-   */
-  reopen(): void {
-    const card = this.finished();
-    if (!card) return;
-    this.receiptId = card.id;
-    this.shots.set(card.shots);
-    this.finished.set(null);
+  private slappKort(): void {
+    for (const bild of this.sparadeBilder()) URL.revokeObjectURL(bild.url);
+    this.sparadeBilder.set([]);
+    this.sparatId.set(null);
+    this.steg.set('granska');
   }
 }

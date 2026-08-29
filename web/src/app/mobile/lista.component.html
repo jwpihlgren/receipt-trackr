@@ -1,0 +1,108 @@
+<div class="skarm">
+  <header class="topp">
+    <app-meny />
+    <h1>Kvitton</h1>
+    <span class="antal num">{{ total() }}</span>
+  </header>
+
+  @if (kvarText(); as text) {
+    <a class="remsa" [class.illa]="kvarIlla()" routerLink="/uppladdning">
+      @if (kvarIlla()) {
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
+      } @else {
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
+      }
+      <span>{{ text }}</span>
+      <svg class="pil" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+    </a>
+  }
+
+  @if (paborjat(); as antal) {
+    <div class="paborjat" role="status">
+      <div class="paborjat-text">
+        <strong>Ett kvitto är påbörjat</strong>
+        <span>{{ antal }} {{ antal === 1 ? 'bild ligger' : 'bilder ligger' }} kvar i telefonen.</span>
+      </div>
+      <a class="konturprimar" routerLink="/fanga">Fortsätt kvittot</a>
+    </div>
+  }
+
+  <div class="innehall">
+    @if (error(); as message) {
+      <p class="fel" role="alert">
+        {{ message }}
+        <button type="button" (click)="load()">Försök igen</button>
+      </p>
+    } @else {
+      @if (receipts() === null) {
+        <p class="tyst">Hämtar …</p>
+      } @else {
+        @if (grupper().length === 0) {
+          <div class="tomt">
+            <h2>Inga kvitton än</h2>
+            <p>Fotografera kvittot direkt i butiken. Bilden tas i telefonens vanliga kamera och kommer tillbaka hit.</p>
+          </div>
+        }
+        @for (grupp of grupper(); track grupp.rubrik) {
+          <h2 class="dag">{{ grupp.rubrik }}</h2>
+          <ul class="lista">
+            @for (rad of grupp.rader; track rad.id) {
+              <li>
+                <a class="rad" [routerLink]="['/kvitto', rad.id]">
+                  <img class="tumnagel" [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
+                  <span class="text">
+                    <span class="huvud">{{ rad.store ?? klocka(rad.capturedAt) }}</span>
+                    <span class="under">
+                      {{ rad.segments }} {{ rad.segments === 1 ? 'bild' : 'bilder' }}@if (!rad.store) { · inte tolkat än }
+                    </span>
+                  </span>
+                  @if (rad.total !== null) { <span class="belopp num">{{ rad.total }} kr</span> }
+                  @if (status(rad) === 'arkiv') {
+                    <span class="lage klar">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5 5L20 7" /></svg>
+                      i arkivet
+                    </span>
+                  } @else {
+                    <span class="lage">skickas</span>
+                  }
+                </a>
+              </li>
+            }
+          </ul>
+        }
+      }
+    }
+  </div>
+
+  <div class="handzon">
+    <label class="knapp primar">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z" />
+        <circle cx="12" cy="13" r="3.5" />
+      </svg>
+      Öppna kameran
+      <input type="file" accept="image/*" capture="environment" (click)="openCamera()" (change)="onFiles($event)" />
+    </label>
+
+    @if (grupper().length === 0 && receipts() !== null) {
+      <label class="knapp kontur">
+        Lägg till från bilder
+        <input type="file" accept="image/*" multiple (change)="onFiles($event)" />
+      </label>
+    }
+  </div>
+
+  @if (flow.awaiting()) {
+    <div class="vantar" role="status">
+      <div class="vantar-ikon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z" />
+          <circle cx="12" cy="13" r="3.5" />
+        </svg>
+      </div>
+      <h2>Kameran är öppen</h2>
+      <p>Fotografera kvittot i telefonens vanliga kamera. Bilden kommer tillbaka hit av sig själv.</p>
+      <button type="button" class="knapp kontur" (click)="flow.cancelAwaiting()">Avbryt</button>
+    </div>
+  }
+</div>

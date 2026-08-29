@@ -1,48 +1,53 @@
-<header class="topp">
-  <a routerLink="/fanga" class="tillbaka">← Kameran</a>
-  <h1>Uppladdning</h1>
-</header>
+<div class="skarm">
+  <header class="topp">
+    <a class="tillbaka" routerLink="/kvitton" aria-label="Tillbaka till kvitton">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+    </a>
+    <h1>På väg till arkivet</h1>
+  </header>
 
-<p class="rubrik" [class.illa]="state().stuck.length > 0">{{ heading() }}</p>
-
-@if (done()) {
-  <p class="klar">
-    @if (state().archivedToday) {
-      Alla kvitton du fångat har kommit fram. Bilderna ligger i arkivet på servern.
-    } @else {
-      Fånga ett kvitto först, så syns det här.
+  <div class="innehall">
+    @if (sammanfattning(); as text) {
+      <p class="ingress">{{ text }}</p>
     }
-  </p>
-} @else {
-  <ul class="lista">
-    @for (row of rows(); track row.id) {
-      <li [class.illa]="row.stuck">
-        <span class="namn">Kvitto {{ $index + 1 }}</span>
-        <span class="status">
-          @if (row.stuck) {
-            Kom inte fram — ta upp det vid datorn
-          } @else if (state().offline) {
-            Väntar på nät · {{ row.kvar }} {{ row.kvar === 1 ? 'bild kvar' : 'bilder kvar' }}
-          } @else if (row.kvar === 0) {
-            Sista steget …
-          } @else {
-            Skickar · {{ row.kvar }} {{ row.kvar === 1 ? 'bild kvar' : 'bilder kvar' }}
+
+    @if (rader().length === 0) {
+      <div class="tomt">
+        <div class="tomt-ikon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="m4 13 5 5L20 7" /></svg>
+        </div>
+        <h2>Allt är i arkivet</h2>
+        <p>Ingenting väntar. Telefonens kopior är raderade sedan servern kvitterat varje bild.</p>
+      </div>
+    }
+
+    @for (rad of rader(); track rad.id) {
+      <div class="kort" [class.illa]="rad.fast">
+        <div class="kortrad">
+          <img class="tumnagel" [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
+          <div class="korttext">
+            <span class="tid">{{ rad.tid }}</span>
+            @if (rad.fast) {
+              <span class="lage farlig">Kom inte fram — servern avvisade en bild</span>
+            } @else if (state().offline) {
+              <span class="lage vantar">Väntar på nät · {{ rad.kvar }} {{ rad.kvar === 1 ? 'bild' : 'bilder' }}</span>
+            } @else if (rad.kvar === 0) {
+              <span class="lage">Bilderna är framme · avslutar kvittot</span>
+            } @else {
+              <span class="lage">Skickar · {{ rad.kvar }} {{ rad.kvar === 1 ? 'bild kvar' : 'bilder kvar' }}</span>
+            }
+          </div>
+          @if (!rad.fast && !state().offline) {
+            <svg class="snurra" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
           }
-        </span>
-      </li>
+        </div>
+      </div>
     }
-  </ul>
+  </div>
 
-  @if (state().offline) {
-    <p class="hjalp">Ingen anslutning just nu. Bilderna ligger kvar i telefonen och skickas av sig själva när nätet kommer tillbaka.</p>
-  } @else {
-    <p class="hjalp">Uppladdningen sköter sig själv. Du kan stänga appen — kön finns kvar.</p>
-  }
-}
-
-<div class="knappar">
-  <button type="button" class="primar" (click)="back()">Fånga nästa kvitto</button>
-  @if (!done()) {
-    <button type="button" (click)="retry()">Försök igen nu</button>
+  @if (harFast()) {
+    <div class="handzon">
+      <button type="button" class="knapp primar" (click)="retry()">Försök igen nu</button>
+    </div>
   }
 </div>

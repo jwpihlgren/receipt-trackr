@@ -1,0 +1,30 @@
+<main class="ark">
+  <form class="kort" (submit)="submit($event)">
+    <div class="rubrik">
+      <h1>Kvittoarkiv</h1>
+      <p>Hemma hos er, på er egen burk.</p>
+    </div>
+
+    <div class="falt">
+      <label for="fras">Lösenordsfras</label>
+      <input
+        id="fras"
+        type="password"
+        name="password"
+        autocomplete="current-password"
+        [value]="password()"
+        (input)="onInput($event)"
+        [attr.aria-invalid]="error() ? 'true' : null"
+      />
+      @if (error(); as message) {
+        <p class="fel" role="alert">{{ message }}</p>
+      }
+    </div>
+
+    <button type="submit" class="primar" [disabled]="busy() || !password()">
+      {{ busy() ? 'Loggar in …' : 'Logga in' }}
+    </button>
+
+    <p class="fotnot">Samma fras för hela hushållet. Telefonen förblir inloggad tills du loggar ut.</p>
+  </form>
+</main>

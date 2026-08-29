@@ -1,0 +1,176 @@
+.skarm {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr auto;
+  height: 100dvh;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+/* ---- toppen ---------------------------------------------------------- */
+
+.topp {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline-end: var(--d-pad-x);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  min-height: 56px;
+}
+
+.topp h1 { font-size: var(--text-lg); }
+.topp .antal { margin-inline-start: auto; color: var(--ink-faint); font-size: var(--text-sm); }
+
+/* Remsan finns bara när något inte är i arkivet. Är allt framme syns ingenting —
+   det är hela poängen: en status som alltid står där slutar betyda något. */
+.remsa {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap);
+  padding: var(--d-pad-y) var(--d-pad-x);
+  background: var(--sel);
+  border-bottom: 1px solid var(--line);
+  color: var(--accent);
+  font-size: var(--text-base);
+  text-decoration: none;
+  min-height: var(--tap-min);
+}
+
+.remsa svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: 0 0 auto; }
+.remsa .pil { margin-inline-start: auto; width: 18px; height: 18px; }
+.remsa.illa { background: var(--danger-soft); color: var(--danger); }
+
+/* Ett påbörjat kvitto som legat kvar: iOS vräker fliken medan kameran ligger över. */
+.paborjat {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap);
+  margin: var(--space-4) var(--space-4) 0;
+  padding: var(--d-card-pad);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-md);
+  background: var(--warn-soft);
+}
+
+.paborjat-text { display: grid; gap: var(--space-1); min-width: 0; }
+.paborjat-text strong { font-size: var(--text-base); font-weight: var(--weight-bold); }
+.paborjat-text span { color: var(--ink-muted); font-size: var(--text-base); }
+
+/* ---- listan ---------------------------------------------------------- */
+
+.innehall { overflow-y: auto; }
+
+.dag {
+  padding: var(--space-4) var(--d-pad-x) var(--space-2);
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  letter-spacing: var(--tracking-label);
+}
+
+.lista { margin: 0; padding: 0; list-style: none; background: var(--surface); border-block: 1px solid var(--line); }
+.lista li + li .rad { border-top: 1px solid var(--line); }
+
+.rad {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap);
+  padding: var(--d-pad-y) var(--d-pad-x);
+  color: var(--ink);
+  text-decoration: none;
+  min-height: var(--tap-comfort);
+}
+
+.tumnagel {
+  width: var(--d-thumb-w);
+  height: var(--d-thumb-h);
+  object-fit: cover;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--line);
+  background: var(--sunken);
+  flex: 0 0 auto;
+}
+
+.text { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 auto; }
+.huvud { font-size: var(--text-base); }
+.under { color: var(--ink-faint); font-size: var(--text-sm); }
+.belopp { font-size: var(--text-base); }
+
+.lage { display: flex; align-items: center; gap: var(--space-1); color: var(--ink-faint); font-size: var(--text-sm); flex: 0 0 auto; }
+.lage.klar { color: var(--ok); }
+.lage svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+.tomt { display: grid; gap: var(--space-3); place-items: center; padding: var(--space-8) var(--space-6); text-align: center; }
+.tomt h2 { font-size: var(--text-xl); }
+.tomt p { color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
+
+.tyst { padding: var(--space-6) var(--d-pad-x); color: var(--ink-faint); font-size: var(--text-base); }
+
+.fel { padding: var(--space-4) var(--d-pad-x); color: var(--danger); font-size: var(--text-base); }
+.fel button {
+  margin-inline-start: var(--space-2);
+  min-height: var(--tap-min);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--danger);
+}
+
+/* ---- handzonen ------------------------------------------------------- */
+/* Samma fält på varje skärm i appen: vit yta, en linje ovanför, en primär. */
+
+.handzon {
+  display: grid;
+  gap: var(--d-gap);
+  padding: var(--d-card-pad) var(--d-card-pad) var(--space-5);
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+
+.knapp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--d-gap-tight);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-base);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.knapp svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.knapp input[type='file'] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+.primar { min-height: var(--tap-primary); border: none; background: var(--accent); color: var(--on-accent); font-weight: var(--weight-bold); }
+.kontur { min-height: var(--tap-comfort); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.konturprimar { min-height: var(--tap-comfort); padding-inline: var(--space-4); border: 1px solid var(--accent); border-radius: var(--radius-sm); background: var(--surface); color: var(--accent); flex: 0 0 auto; }
+
+/* ---- väntläget ------------------------------------------------------- */
+/* Svaret på "när tar jag kvittot", sagt på den skärm där frågan uppstår. */
+
+.vantar {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--bg);
+  text-align: center;
+}
+
+.vantar-ikon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+}
+
+.vantar-ikon svg { width: 30px; height: 30px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.vantar h2 { font-size: var(--text-xl); }
+.vantar p { max-width: 28ch; color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
+.vantar .kontur { width: 100%; max-width: 20rem; }
