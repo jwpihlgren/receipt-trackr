@@ -229,8 +229,22 @@ Skälet är att kameran inte längre kräver https. Telefonens egen kameraapp ta
 så det finns inget secure context-krav kvar — och då behövs varken Tailscale-klient
 eller certifikat för att nå appen hemifrån.
 
+Porten på värden är **5000**, inte 8080 — den senare är upptagen på burken. Talet
+inuti containern är och förblir 8080; det är bara värdsidan av mappningen som flyttats,
+och därför frågar `HEALTHCHECK` fortfarande 8080 på loopback.
+
 Vill ni stänga in den igen, sätt `BIND_ADDR=127.0.0.1` i `.env`. Då krävs
 `tailscale serve` eller en annan terminator framför, som tidigare.
+
+### Vad som hör hemma i .env
+
+Bara `AUTH_PASSWORD` och `ARCHIVE_DIR`. Den första därför att `docker-compose.yml`
+ligger i git och är pushad — ett lösenord i historiken är läckt för alltid, även om
+nästa commit tar bort det. Den andra därför att den pekar ut en katalog som bara finns
+på den här maskinen, och compose vägrar starta utan den.
+
+Allt annat (`HTTP_PORT`, `BIND_ADDR`, `PUID`, `PGID`, `BACKUP_DIR`) har ett
+standardvärde i compose och behöver bara sättas om ni vill något annat.
 
 Trafiken går okrypterad över hemnätet. Lösenordsfrasen skickas alltså i klartext till
 den som redan sitter på ert wifi. Det är samma tillitsnivå som en NAS-utdelning, och

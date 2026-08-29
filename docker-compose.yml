@@ -23,7 +23,11 @@ services:
       MIN_FREE_BYTES: 5G
       LOG_LEVEL: info
       # Lösenordsfrasen för hushållet. Utan den startar servern inte — se docs/DRIFT.md.
-      # Den ligger i .env bredvid ARCHIVE_DIR, inte här.
+      #
+      # Den enda variabeln som *måste* bo i .env i stället för här. Den här filen ligger
+      # i git och är pushad; ett lösenord som en gång hamnat i historiken är läckt för
+      # alltid, även om nästa commit tar bort det. Allt annat i filen är standardvärden
+      # med en nödutgång och tål att stå framme.
       AUTH_PASSWORD: ${AUTH_PASSWORD:-}
     volumes:
       # Enda monteringen. Pekar mot ZFS-poolen, aldrig mot kortets eMMC: en
@@ -37,4 +41,8 @@ services:
       # den från datorn direkt behövs varken Tailscale-klient eller VPN där.
       # Sätt BIND_ADDR=127.0.0.1 i .env för att stänga in den igen — då krävs
       # `tailscale serve` eller en annan terminator framför.
-      - "${BIND_ADDR:-0.0.0.0}:${HTTP_PORT:-8080}:8080"
+      #
+      # 5000 på värden, inte 8080: den porten är upptagen på burken. Talet inuti
+      # containern är och förblir 8080 — det är bara värdsidan av mappningen som
+      # flyttas, och därför fortsätter HEALTHCHECK att fråga 8080 på loopback.
+      - "${BIND_ADDR:-0.0.0.0}:${HTTP_PORT:-5000}:8080"
