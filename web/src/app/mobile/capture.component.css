@@ -227,14 +227,19 @@
 .kvittokort.illa .kortstatus { color: var(--bad, var(--ink)); }
 .kortmeta { color: var(--ink-faint); font-size: var(--text-xs); }
 
-.lagg-till {
-  min-height: var(--tap-min);
+.kortval { display: grid; gap: 4px; }
+
+.kortval button, .kortval a {
+  min-height: 34px;
   padding-inline: var(--space-3);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--accent);
   font-size: var(--text-sm);
+  text-decoration: none;
+  display: grid;
+  place-items: center;
 }
 
 /* ---- handzonen ------------------------------------------------------- */
@@ -312,6 +317,11 @@
   font-weight: var(--weight-bold);
   color: var(--accent);
 }
+
+/* Den knapp som avslutar ett kvitto ligger under tummen och är den enda av
+   sidoknapparna som markeras — den trycks en gång per kvitto, alltså ofta. */
+.sido.primar .ikon { border-color: var(--accent); color: var(--accent); }
+.sido.primar .etikett { color: var(--accent); }
 
 /* ---- det enda blockerande felet -------------------------------------- */
 

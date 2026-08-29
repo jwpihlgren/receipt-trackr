@@ -71,40 +71,40 @@
         </span>
         <span class="kortmeta">{{ card.shots.length }} {{ card.shots.length === 1 ? 'bild' : 'bilder' }}</span>
       </div>
-      <button type="button" class="lagg-till" (click)="reopen()">Lägg till bild</button>
+      <div class="kortval">
+        <button type="button" (click)="reopen()">Lägg till bild</button>
+        <a routerLink="/uppladdning">Ladda upp</a>
+      </div>
     </div>
   }
 
   <div class="handzon">
-    <!-- Vänster: avslutet. Ligger längst från vilotummen, för en felträff här
-         skickar iväg ett kvitto med en bild för lite. -->
-    <!-- "Nästa kvitto" ligger i exakt samma position som "Klart", så att rytmen blir
-         tryck-tryck utan att handen flyttas. -->
+    <!-- Vänster: sällan använt. Att ta om en bild är undantaget, inte rytmen. -->
+    <button type="button" class="sido" [disabled]="!hasShots() || busy()" (click)="retake()">
+      <span class="ikon" aria-hidden="true">↺</span>
+      <span class="etikett">Ta om</span>
+    </button>
+
+    <!-- Mitten: den enda knapp som tar en bild. Störst, märkt, alltid samma plats. -->
+    <button type="button" class="avtryckare" [class.sparad]="flash()" [disabled]="busy() || !!cameraError()" (click)="capture()">
+      <span class="ring" aria-hidden="true"></span>
+      <span class="etikett">{{ hasShots() ? 'Nästa bild' : 'Ta bild' }}</span>
+    </button>
+
+    <!-- Höger: under tummen, för det är här rytmen slutar. Ett kvitto per tryck. -->
     @if (finished()) {
-      <button type="button" class="sido" (click)="dismissCard()">
+      <button type="button" class="sido primar" (click)="dismissCard()">
         <span class="ikon" aria-hidden="true">→</span>
         <span class="etikett">Nästa kvitto</span>
       </button>
     } @else {
-      <button type="button" class="sido" [disabled]="!hasShots()" (click)="done()">
+      <button type="button" class="sido primar" [disabled]="!hasShots()" (click)="done()">
         <span class="ikon" aria-hidden="true">✓</span>
         <span class="etikett">
           @if (hasShots()) { Klart · {{ shots().length }} } @else { Klart }
         </span>
       </button>
     }
-
-    <!-- Mitten: den enda knapp som tar en bild. Störst, märkt, alltid på samma plats. -->
-    <button type="button" class="avtryckare" [class.sparad]="flash()" [disabled]="busy() || !!cameraError()" (click)="capture()">
-      <span class="ring" aria-hidden="true"></span>
-      <span class="etikett">{{ hasShots() ? 'Nästa bild' : 'Ta bild' }}</span>
-    </button>
-
-    <!-- Höger: ta om den senaste. Ny bild, nytt nummer — den gamla kastas aldrig. -->
-    <button type="button" class="sido" [disabled]="!hasShots() || busy()" (click)="retake()">
-      <span class="ikon" aria-hidden="true">↺</span>
-      <span class="etikett">Ta om</span>
-    </button>
   </div>
 
   @if (saveError(); as message) {

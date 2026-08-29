@@ -1,0 +1,48 @@
+<header class="topp">
+  <a routerLink="/fanga" class="tillbaka">← Kameran</a>
+  <h1>Uppladdning</h1>
+</header>
+
+<p class="rubrik" [class.illa]="state().stuck.length > 0">{{ heading() }}</p>
+
+@if (done()) {
+  <p class="klar">
+    @if (state().archivedToday) {
+      Alla kvitton du fångat har kommit fram. Bilderna ligger i arkivet på servern.
+    } @else {
+      Fånga ett kvitto först, så syns det här.
+    }
+  </p>
+} @else {
+  <ul class="lista">
+    @for (row of rows(); track row.id) {
+      <li [class.illa]="row.stuck">
+        <span class="namn">Kvitto {{ $index + 1 }}</span>
+        <span class="status">
+          @if (row.stuck) {
+            Kom inte fram — ta upp det vid datorn
+          } @else if (state().offline) {
+            Väntar på nät · {{ row.kvar }} {{ row.kvar === 1 ? 'bild kvar' : 'bilder kvar' }}
+          } @else if (row.kvar === 0) {
+            Sista steget …
+          } @else {
+            Skickar · {{ row.kvar }} {{ row.kvar === 1 ? 'bild kvar' : 'bilder kvar' }}
+          }
+        </span>
+      </li>
+    }
+  </ul>
+
+  @if (state().offline) {
+    <p class="hjalp">Ingen anslutning just nu. Bilderna ligger kvar i telefonen och skickas av sig själva när nätet kommer tillbaka.</p>
+  } @else {
+    <p class="hjalp">Uppladdningen sköter sig själv. Du kan stänga appen — kön finns kvar.</p>
+  }
+}
+
+<div class="knappar">
+  <button type="button" class="primar" (click)="back()">Fånga nästa kvitto</button>
+  @if (!done()) {
+    <button type="button" (click)="retry()">Försök igen nu</button>
+  }
+</div>

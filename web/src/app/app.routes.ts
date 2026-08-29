@@ -13,6 +13,11 @@ export const routes: Routes = [
     loadComponent: () => import('./mobile/capture.component').then((m) => m.CaptureComponent),
   },
   {
+    path: 'uppladdning',
+    title: 'Uppladdning',
+    loadComponent: () => import('./mobile/upload.component').then((m) => m.UploadComponent),
+  },
+  {
     path: 'kvitton',
     title: 'Kvitton',
     loadComponent: () => import('./mobile/receipts.component').then((m) => m.ReceiptsComponent),
