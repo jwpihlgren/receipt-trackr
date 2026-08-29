@@ -47,8 +47,17 @@ export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    // Grov pekare betyder finger, alltså telefon. Frågan ställs en gång, vid ingången.
-    redirectTo: () => (matchMedia('(pointer: coarse)').matches ? '/kvitton' : '/arkiv'),
+    /**
+     * Vägvalet vid ingången, ställt en gång. Två villkor, och båda behövs:
+     * bredden ensam duger inte (en telefon i landskap är bredare än 900 px), och
+     * pekaren ensam duger inte (en pekskärmsdator rapporterar grov pekare fast den
+     * står på ett skrivbord). Faller något av dem tillbaka på mobilläget är det rätt
+     * väg att fela — mobilytan fungerar på en stor skärm, tvärtom gör den inte.
+     *
+     * Båda ytorna länkar dessutom till varandra, så ett felval kostar ett klick.
+     */
+    redirectTo: () =>
+      matchMedia('(min-width: 900px) and (pointer: fine)').matches ? '/arkiv' : '/kvitton',
   },
   { path: '**', redirectTo: '' },
 ];
