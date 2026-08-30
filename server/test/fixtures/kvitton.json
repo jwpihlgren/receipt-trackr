@@ -208,6 +208,40 @@
       "belopp": null,
       "anm": "Bilden gav noll tecken. Får inte krascha något.",
       "text": ""
+    },
+    {
+      "fil": "lighthouse-netto",
+      "butik": "LIGHTHOUSE",
+      "datum": null,
+      "belopp": 5497.0,
+      "anm": "Radbruten text ur körningen 2026-08-30. Butiken lästes som Netto: 'NETT01 T0T' blir 'NETTOI' och ligger inom toleransen för kedjan Netto.",
+      "text": "LIGHTHOUSE\nBackavägen 1\n417 30 Göteborg\nTel: 031-23 10 20\nG.NR:\n5591526651\n、10：\n0000000000000001\n∠026/06/21 SöN\n12:57\nArmatur\n2899.00\nArmatur\n2299.00\nElartiklar\n299.00\n3.00×ANTAL\nMOMS 1 KURS\n25.000%\nNETT01 T0T\n4397.60\nMOMS1\n1099.40\nMOHS TOTALT\n1099.40\nT0TAL\n5497.00\nKORT\n5497.00\nKEAXE000000033581\nRUN NUMBER :\n000000019729\nKASSöR 01\n*** ORIGINAL** 4\n026012 00004\nGUleali osankta vacar\noppet kop 7 dagar.\nJjuskallor och uartiklar\nTack för besbket!\""
+    },
+    {
+      "fil": "slogan-forst",
+      "butik": null,
+      "datum": "2026-05-31",
+      "belopp": 1426.45,
+      "anm": "Kvittot inleds med en slogan, inte ett namn. Butiken blev 'finns altid'. Tomt är rätt svar — namnet står inte i texten.",
+      "text": "Det finns altid nat att góra.\nKORT-FODERLIST712395\nART/EANS7350062892345\n61 95\nFODER 12X×69×2200 VIT\n86,00\n172,001\nSKARVLIST 38MM2 M\n309,00\n309,001\nPLANHYVLAT 21X165 FU\n1× 490,50\n490,50 1\nSumma [22]\nSEK\n1426,45\nGIVET Mastercard\nSEK\n1426, 45\nOr9.Nr:\n0317799300\n5566134853\n2026-05-31\n15:03\nKO\nPERSONLIG KOD\nSEK 1426.45\nDebit Mastercard PSN:00\nAUKT.KOD:\n485413\nREF:005675\nBRUTTO\n26,2S\nNETTO\n125 %\n1426,45\n1141,16\nÖppet köp gäller i 30 dagar\nmed originalkvitto."
+    },
+    {
+      "fil": "sostrene-utan-logotyp",
+      "butik": null,
+      "datum": "2026-07-10",
+      "belopp": 201.76,
+      "grupp": "sostrene",
+      "anm": "Logotypen kom inte med. 'WORLD' på tredje raden är inte butiken — tomt är rätt, och syskonet fyller luckan. Samma köp som sostrene-hm-*, men med radbrytningar — matchningen ska hitta alla fyra som en grupp oavsett textform.",
+      "text": "ALL\nOVER THE\nWORLD\nAllum, Partille\nKyrktoget 19\n433 33\nPartille\nTelefon: 031-445i004\nSlip: 0000P20041000310454\nStaff: Alva\nTrans!\n503500\nDate: 26-07-10 15:44\nA&C Pløk, Cola SOUR, Pcs\n12,24\nB\n12,24\nB\nTotal SEK\n201,76\nCard\n-201,76\nBankkort MC\nVAT%\nNet.Amt\nVAT\nAmount\n25\n33.92\n8,48\n42,40"
+    },
+    {
+      "fil": "sostrene-med-logotyp",
+      "butik": "Søstrene Grene",
+      "datum": "2026-07-10",
+      "belopp": 201.76,
+      "grupp": "sostrene",
+      "anm": "Samma kvitto, andra fotot — här kom logotypen med. Samma köp som sostrene-hm-*, men med radbrytningar — matchningen ska hitta alla fyra som en grupp oavsett textform.",
+      "text": "c0STRENE GRENES\nALL\nOVER THE\nWORLD\nKyrktoget 19\nAllum, Partille\n433 33\nPartille\nTelefon:031-445004\nSlip: (\n000oP20041000310454\nStaff:Alva\nTrans:\n503500\nDate: 26-07-10 15:44\nA&C Pløk, Cola SOUR, Pcs\n12,24\nB\n12,24 B\nTotal SEK\n201,76\nCard\n-201,76\nBankkort MC\nVAT%\nNet.Amt\nVAT\nAmount\n25\n33,92\n8,48\n42,40"
     }
   ]
 }

@@ -82,6 +82,20 @@ describe("fältutvinningen mot riktiga kvitton", () => {
     expect(las(kvitto).butik).not.toBe(fel);
   });
 
+  /**
+   * Hittar utvinningen ingen butik ska fältet vara **tomt**, inte fyllt med det första
+   * som stod på kvittot. Alla tre kom ur beställarens andra körning: en slogan, ett
+   * ord ur en logotyp, och kedjan `Netto` funnen i `NETT01 T0T` på en momsrad.
+   */
+  it.each([["slogan-forst"], ["sostrene-utan-logotyp"]])("lämnar butiken tom i %s", (fil) => {
+    const kvitto = kvitton.find((k) => k.fil === fil)!;
+    expect(las(kvitto).butik).toBeNull();
+  });
+
+  it("tar inte momsradens NETTO för kedjan Netto", () => {
+    expect(las(kvitton.find((k) => k.fil === "lighthouse-netto")!).butik).toBe("LIGHTHOUSE");
+  });
+
   /** Butiken är ett namn, inte kvittots sextio första tecken. */
   it("gör aldrig en adressrad eller momsrad till butiksnamn", () => {
     for (const kvitto of kvitton) {
@@ -110,7 +124,7 @@ describe("fältutvinningen mot riktiga kvitton", () => {
  * Höjs när utvinningen blir bättre, aldrig sänkt för att få ett test grönt: en sänkning
  * här är ett beslut att arkivet får bli sämre.
  */
-const GOLV = { butik: 21, datum: 21, belopp: 23 };
+const GOLV = { butik: 23, datum: 24, belopp: 27 };
 
 /**
  * De två butiker som fattas är `null`, inte fel — kvittot vars huvud är bortklippt har

@@ -54,6 +54,15 @@ const INTE_NAMN = new Set([
   "ALL", "OVER", "THE", "AB", "DEN", "DET", "OCH",
 ]);
 
+/**
+ * Kedjenamn som också är vanliga kvittoord. De matchas **exakt eller inte alls**.
+ *
+ * `NETT01 T0T` på ett Lighthouse-kvitto blir `NETTOI` när siffrorna viks till
+ * bokstäver, och det ligger ett tecken från kedjan `Netto`. Ett namn som krockar med
+ * ett ord varje svenskt kvitto innehåller får inte tvivelsmålets fördel.
+ */
+const KROCKAR = new Set(["NETTO", "TOTAL", "KORT", "INGO"]);
+
 /** Ord som visar att vi lämnat namnet och kommit till adressen. */
 const ADRESSORD = /(VAGEN|VÄGEN|GATAN|GATA|VAG|VÄG|TORGET|PLATSEN|ALLEN|ALLÉN|BACKEN)$/;
 
@@ -91,7 +100,7 @@ export function utvinnButik(text: string): Butikskandidat[] {
       continue;
     }
 
-    const platser = hitta(orden, delar);
+    const platser = hitta(orden, delar, KROCKAR.has(delar.join(" ")));
     if (platser.length === 0) continue;
 
     /**
@@ -122,16 +131,16 @@ export function utvinnButik(text: string): Butikskandidat[] {
 }
 
 /** Var i ordlistan namnets ord står, exakt eller inom toleransen. */
-function hitta(orden: string[], delar: string[]): number[] {
+function hitta(orden: string[], delar: string[], baraExakt: boolean): number[] {
   const platser: number[] = [];
   for (let i = 0; i + delar.length <= orden.length; i++) {
-    if (delar.every((del, j) => likа(orden[i + j]!, del))) platser.push(i);
+    if (delar.every((del, j) => likа(orden[i + j]!, del, baraExakt))) platser.push(i);
   }
   return platser;
 }
 
-const likа = (ordet: string, del: string): boolean =>
-  ordet === del || avstand(ordet, del, tolerans(del)) <= tolerans(del);
+const likа = (ordet: string, del: string, baraExakt: boolean): boolean =>
+  ordet === del || (!baraExakt && avstand(ordet, del, tolerans(del)) <= tolerans(del));
 
 function iSummering(orden: string[], plats: number, langd: number): boolean {
   const fran = Math.max(0, plats - SUMMERINGSFONSTER);
@@ -148,8 +157,14 @@ function iSummering(orden: string[], plats: number, langd: number): boolean {
  * fältet fylls i stället av de andra fotona av samma kvitto.
  */
 function gissaNamn(text: string): string | null {
-  const rader = text.split(/\n+/).flatMap((r) => r.split(/\s{2,}/));
-  const kandidater = rader.length > 1 ? rader.slice(0, 4) : [text];
+  const rader = text.split(/\n+/).flatMap((r) => r.split(/\s{2,}/)).filter((r) => r.trim());
+  /**
+   * **Första raden eller ingen alls.** Butiken står överst på ett kvitto; står den
+   * inte där står den ingenstans, och då är tomt rätt svar. Regeln gick inte att
+   * hålla så länge texten saknade radbrytningar — då var "första raden" hela kvittot.
+   * Utan den blev `ALL / OVER THE / WORLD / Allum, Partille` till butiken "WORLD".
+   */
+  const kandidater = rader.slice(0, 1);
 
   for (const rad of kandidater) {
     const rått = rad.trim().split(/\s+/);
@@ -163,7 +178,12 @@ function gissaNamn(text: string): string | null {
       const rent = jamforbar(bit);
       if (!rent) continue;
       // Inledande skräp och enbokstavsrester hoppas över, men bryter inte namnet.
-      if (namn.length === 0 && (rent.length < 3 || INTE_NAMN.has(rent) || /\d/.test(bit))) continue;
+      /**
+       * Namnets första ord måste vara skrivet med versal i originalet. Ett kvitto som
+       * inleds med en slogan — `Det finns altid nat att góra.` — gav annars butiken
+       * "finns altid". Butiksnamn är egennamn; gemener först är en mening, inte ett namn.
+       */
+      if (namn.length === 0 && (rent.length < 3 || INTE_NAMN.has(rent) || /\d/.test(bit) || !/^[A-ZÅÄÖ]/.test(bit))) continue;
       if (namn.length > 0 && (INTE_NAMN.has(rent) || ADRESSORD.test(rent) || /\d/.test(bit))) break;
       if (!/[A-ZÅÄÖ]{3}/.test(rent)) break;
       namn.push(bit.replace(/[^\p{L}\p{N}&.\-']/gu, ""));
