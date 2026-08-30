@@ -1,0 +1,183 @@
+.yta { display: flex; flex-direction: column; height: 100dvh; background: var(--bg); overflow: hidden; }
+
+.topp {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 56px;
+  padding-inline: var(--space-2) var(--space-5);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+.tillbaka {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap-tight);
+  min-height: var(--tap-comfort);
+  padding-inline: var(--space-2);
+  color: var(--accent);
+  font-size: var(--text-base);
+  text-decoration: none;
+}
+
+.tillbaka svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.topp h1 { font-size: var(--text-lg); }
+
+/* Mätaren är en dubblering av siffran bredvid, inte en ersättning för den: en stapel
+   utan tal går inte att läsa högt, och ett tal utan stapel går inte att se på håll. */
+.matare { width: 200px; height: 4px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.matare .fylld { height: 100%; background: var(--ink-muted); }
+
+.tyst { color: var(--ink-faint); font-size: var(--text-sm); }
+.laddar { padding: var(--space-6); }
+.fel { padding: var(--space-3) var(--space-5); background: var(--danger-soft); color: var(--danger); font-size: var(--text-base); }
+
+.kropp { flex: 1 1 auto; display: flex; overflow: hidden; }
+
+/* ---- arbetslistan ---------------------------------------------------- */
+
+.arbetslista {
+  width: 20rem;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-inline-end: 1px solid var(--line);
+  overflow-y: auto;
+}
+
+.listhuvud { padding: var(--d-pad-y) var(--d-pad-x); border-bottom: 1px solid var(--line); }
+.etikett { color: var(--ink-muted); font-size: var(--text-sm); letter-spacing: var(--tracking-label); }
+
+.listrad {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap-tight);
+  min-height: var(--d-row-h);
+  padding: var(--d-pad-y) var(--d-pad-x);
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  text-align: start;
+  cursor: pointer;
+}
+
+/* Avklarad bärs av bocken och av dämpad text, inte av färg ensam. */
+.listrad.avklarad { color: var(--ink-faint); }
+.listrad.aktiv { background: var(--accent-soft); font-weight: var(--weight-medium); }
+.listrad:hover:not(.aktiv) { background: var(--sunken); }
+
+.bock { width: 16px; flex: 0 0 auto; }
+.bock svg { width: 16px; height: 16px; fill: none; stroke: var(--ok); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.radtext { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.radbelopp.tomt { color: var(--ink-faint); }
+
+/* ---- bilden ---------------------------------------------------------- */
+
+.bildbadd {
+  flex: 1 1 auto;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6);
+  background: var(--image-bed);
+  overflow-y: auto;
+}
+
+.papper { width: min(22rem, 100%); align-self: flex-start; background: var(--surface); box-shadow: var(--shadow-md); }
+.papper img { width: 100%; display: block; }
+
+/* ---- fältpanelen ----------------------------------------------------- */
+
+.faltpanel {
+  width: 26rem;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-inline-start: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.falten { flex: 1 1 auto; display: grid; align-content: start; gap: var(--space-5); padding: var(--space-5); overflow-y: auto; }
+.falt { display: grid; gap: var(--space-1); }
+
+.ratta {
+  min-height: var(--tap-comfort);
+  padding-inline: var(--d-pad-x);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-base);
+}
+
+/* Beloppet är sidans tyngsta tal och skrivs som ett sådant. */
+.ratta.tal { font-size: var(--text-2xl); font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }
+.ratta:focus { border-color: var(--accent); }
+
+.undertext { display: flex; align-items: baseline; gap: var(--d-gap-tight); flex-wrap: wrap; }
+
+/*
+ * Konfidensen står i neutralt bläck och utan skala. En färgad mätare hade påstått en
+ * gräns ingen mätt; siffran påstår bara sig själv.
+ */
+.konfidens { color: var(--ink-faint); font-size: var(--text-xs); }
+
+.granskat { display: flex; align-items: center; gap: var(--space-1); color: var(--ok); font-size: var(--text-sm); }
+.granskat svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.kandidater { display: flex; align-items: baseline; gap: var(--d-gap-tight); flex-wrap: wrap; }
+.kandidat { color: var(--ink-muted); font-size: var(--text-sm); }
+
+.botten { flex: 0 0 auto; display: grid; gap: var(--d-gap); padding: var(--space-4) var(--space-5) var(--space-5); border-top: 1px solid var(--line); }
+
+.stor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--d-gap-tight);
+  min-height: var(--tap-comfort);
+  padding-inline: var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-base);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.stor.primar { min-height: 56px; border: none; background: var(--accent); color: var(--on-accent); font-weight: var(--weight-bold); }
+.stor.primar:disabled { opacity: 0.6; cursor: default; }
+
+.tangent {
+  padding: 0 var(--space-1);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-normal);
+  opacity: 0.7;
+}
+
+.knapprad { display: flex; gap: var(--d-gap); }
+.knapprad .stor { flex: 1 1 0; }
+
+.fotnot { color: var(--ink-faint); font-size: var(--text-sm); line-height: var(--leading-body); }
+kbd { font-family: var(--font-mono); font-size: var(--text-xs); }
+
+/* ---- slutet ---------------------------------------------------------- */
+
+.slut { display: grid; align-content: start; justify-items: start; gap: var(--space-4); max-width: 34rem; margin: 0 auto; padding: var(--space-8) var(--space-6); }
+.slut h2 { font-size: var(--text-2xl); }
+.slut p { color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
+.slutrad { display: flex; gap: var(--d-gap); }
+
+/* Under 1200 px ryms inte tre spalter. Arbetslistan är den som får vika: den är en
+   översikt, medan bilden och fälten är själva arbetet. */
+@media (max-width: 1200px) {
+  .arbetslista { display: none; }
+}

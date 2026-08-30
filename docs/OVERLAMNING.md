@@ -44,7 +44,8 @@ ett jobb, aldrig annars, och det får aldrig flytta in på servern.
 
 ## Läget just nu
 
-M0 till M6 är byggda. M7 är halvt byggd. M8 måste skrivas om.
+M0 till M6 är byggda. M7 är nästan klar — rättningspasset finns, granskningsurvalet
+saknas. M8 måste skrivas om.
 
 **Fångst.** Ingen livekamera. `getUserMedia` kräver säker kontext, och det kravet
 dikterade hela nätverksarkitekturen — därför öppnar ett filinput telefonens egen
@@ -64,6 +65,18 @@ tom FTS-text betyder otolkat. Reservationer lever i minnet och aldrig på disk.
 **Fältutvinning** kör på servern, inte på klienten. Det är regexar och räkning, och
 därför räcker `POST /api/falt/omtolka` för att låta bättre regler nå gamla kvitton
 utan att en bild läses om. Rättelser skrivs över aldrig.
+
+**Rättningspasset** ligger på `/pass` och nås från arkivet när det finns något att
+göra. Kön är härledd som allt annat: indexet har en kolumn `unreviewed` som räknar hur
+många av butik, datum och belopp som ingen människa sett, och kvitton utan text hålls
+utanför — de hör till tolkningskön. `Enter` sparar fältet och faller till nästa,
+`Enter` i det sista fältet sparar och tar in nästa kvitto. **Ett fält man lämnar orört
+sparas inte**: tystnad är inte ett godkännande, och en påhittad bekräftelse hade
+förgiftat just den mätning `corrections` finns till för.
+
+Indexet bär nu en **schemaversion**. Stämmer den inte med koden kastas tabellerna vid
+start och byggs om ur `receipts/` — löftet "en schemaändring är en reindex" är
+därmed något koden gör, inte något dokumentationen påstår.
 
 ## Vad som är mätt, och vad siffrorna betyder
 
@@ -94,13 +107,15 @@ inte vara ett inköpsdatum.
 
 ## Nästa steg
 
-1. **Rättningspasset** (M7). Arbetslista, bild, fält, `Enter` sparar och faller
-   vidare. Skärmen finns ritad i designytan. Värdet ligger här nu: fälten finns med
-   konfidens, men det finns ingen effektiv väg att beta av dem.
-2. **Granskningsurvalet** (M7). Hundra slumpade kvitton mot bilden, `review.sampled`.
-   Utan det finns inga siffror till M9.
-3. **Kvalitetsflaggan** (M8 omskriven). Tecken per rad, på servern, in i samma
+1. **Granskningsurvalet** (M7). Hundra slumpade kvitton mot bilden, `review.sampled`.
+   Utan det finns inga siffror till M9. Skärmarna finns ritade: `design/Granska.dc.html`
+   och `design/GranskaFler.dc.html`. Passet är formen att bygga vidare på — men
+   granskningen är inte samma sak som rättningen, och urvalet måste dras oberoende av
+   konfidens, annars mäter det bara det man redan snubblat på.
+2. **Kvalitetsflaggan** (M8 omskriven). Tecken per rad, på servern, in i samma
    granskningskö som låg konfidens.
+3. **Rättningspasset** är byggt 2026-08-30. Det som saknas där är prövat i handen, inte
+   i koden: om `Enter`-slingan verkligen är snabbare än att klicka sig igenom.
 
 ## Så arbetar beställaren
 

@@ -16,14 +16,24 @@ export { ImageError };
 
 export type CreateInput = { id: string; capturedAt?: string; backlog?: boolean };
 
+/** En människas ord om ett fält: antingen ett nytt värde, eller att det gamla dög. */
+export type Rattelse = { namn: string; value: unknown; bekraftat: boolean };
+
 export class Archive {
   private constructor(
     readonly dataDir: string,
     readonly db: ReceiptIndex,
+    /**
+     * Sant när indexets schema var ett annat än kodens och tabellerna därför kastades.
+     * Den som öppnar arkivet ansvarar för att köra `reindex` — indexet är tomt tills
+     * dess, och ett tomt index är inte ett fel utan ett obesvarat anrop.
+     */
+    readonly indexRebuilt: boolean,
   ) {}
 
   static open(dataDir: string): Archive {
-    return new Archive(dataDir, openIndex(indexPath(dataDir)));
+    const { db, rebuilt } = openIndex(indexPath(dataDir));
+    return new Archive(dataDir, db, rebuilt);
   }
 
   close(): void {
@@ -148,7 +158,6 @@ export class Archive {
     return { indexed, skipped };
   }
 
-  /** Sökvägen till en fil i kvittots katalog. Namnet valideras av anroparen. */
   /**
    * Skriver in tolkningen. Samma ordning som allt annat: sidecar först, index efteråt.
    *
@@ -178,28 +187,45 @@ export class Archive {
    * det inte att skilja ett fält ingen tittat på från ett någon granskat och godkänt,
    * och då säger felfrekvensen ingenting.
    */
-  async rattaFalt(id: string, namn: string, value: unknown, bekraftat: boolean): Promise<Receipt> {
+  rattaFalt(id: string, namn: string, value: unknown, bekraftat: boolean): Promise<Receipt> {
+    return this.rattaFalten(id, [{ namn, value, bekraftat }]);
+  }
+
+  /**
+   * Flera fält i ett svep, och avsiktligt i **en** skrivning.
+   *
+   * Rättningspasset sparar hela kvittot på ett tryck, och tre skrivningar efter
+   * varandra vore tre chanser att krascha mitt i något som användaren upplevde som en
+   * handling. De delar också tidsstämpel: posterna i `corrections` beskriver ett enda
+   * ögonblick, för det var vad det var.
+   */
+  async rattaFalten(id: string, rattelser: Rattelse[]): Promise<Receipt> {
     const receipt = await this.get(id);
     if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    if (rattelser.length === 0) return receipt;
 
-    const falt = (receipt.fields as Record<string, { value?: unknown; confidence?: number } | undefined>)[namn];
-    receipt.corrections = [
-      ...receipt.corrections,
-      {
-        at: new Date().toISOString(),
-        field: namn,
-        from: falt?.value ?? null,
-        to: value,
-        fromConfidence: falt?.confidence ?? null,
-        action: bekraftat ? "confirmed" : "corrected",
-      },
-    ];
-    (receipt.fields as Record<string, unknown>)[namn] = {
-      value,
-      // En människa som tittat på bilden är inte 90 % säker, hon vet.
-      confidence: 1,
-      source: bekraftat ? "confirmed" : "manual",
-    };
+    const at = new Date().toISOString();
+    const falten = receipt.fields as Record<string, { value?: unknown; confidence?: number } | undefined>;
+    for (const { namn, value, bekraftat } of rattelser) {
+      const falt = falten[namn];
+      receipt.corrections = [
+        ...receipt.corrections,
+        {
+          at,
+          field: namn,
+          from: falt?.value ?? null,
+          to: value,
+          fromConfidence: falt?.confidence ?? null,
+          action: bekraftat ? "confirmed" : "corrected",
+        },
+      ];
+      falten[namn] = {
+        value,
+        // En människa som tittat på bilden är inte 90 % säker, hon vet.
+        confidence: 1,
+        source: bekraftat ? "confirmed" : "manual",
+      } as { value?: unknown; confidence?: number };
+    }
     await this.persist(receipt);
     return receipt;
   }
@@ -238,6 +264,7 @@ export class Archive {
     return { omtolkade, utanText };
   }
 
+  /** Sökvägen till en fil i kvittots katalog. Namnet valideras av anroparen. */
   fileIn(id: string, name: string): string {
     return join(receiptDir(this.dataDir, id), name);
   }

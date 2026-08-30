@@ -78,6 +78,20 @@
         </div>
       }
 
+      @if (attRatta() > 0) {
+        <div class="tolkremsa">
+          <div class="tolkrad">
+            <span class="tolktext">
+              {{ attRatta() }} {{ attRatta() === 1 ? 'kvitto har fält' : 'kvitton har fält' }} som ingen sett
+            </span>
+            <a class="tolkknapp primar" routerLink="/pass">Rätta dem</a>
+          </div>
+          <span class="tyst">
+            Ett kvitto i taget med bilden bredvid. <kbd>Enter</kbd> sparar fältet och faller vidare.
+          </span>
+        </div>
+      }
+
       @if (tolkning.snapshot().fel; as fel) {
         <p class="fel" role="alert">Tolkningen stannade: {{ fel }}</p>
       }
@@ -105,7 +119,8 @@
                   @if (rad.store) {
                     {{ rad.store }}@if (rad.total !== null) { <span class="tyst"> · {{ rad.total }} kr</span> }
                   } @else if (rad.tecken > 0) {
-                    <span class="tolkad">Tolkad</span> <span class="tyst">· {{ rad.tecken }} tecken · fälten kommer i M6</span>
+                    <span class="tolkad">Tolkad</span>
+                    <span class="tyst">· {{ rad.tecken }} tecken · ingen butik hittades i texten</span>
                   } @else {
                     <span class="tyst">Inte tolkat än</span>
                   }

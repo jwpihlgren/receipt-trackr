@@ -1,0 +1,164 @@
+<div class="yta">
+  <header class="topp">
+    <a class="tillbaka" routerLink="/arkiv">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+      Avsluta passet
+    </a>
+
+    @if (lista(); as list) {
+      @if (list.length > 0 && !klart()) {
+        <h1>Rättar <span class="num">{{ pos() + 1 }}</span> av <span class="num">{{ antal() }}</span></h1>
+        <div class="matare" role="progressbar" [attr.aria-valuenow]="pos()" aria-valuemin="0" [attr.aria-valuemax]="antal()">
+          <div class="fylld" [style.width.%]="andel()"></div>
+        </div>
+      }
+    }
+  </header>
+
+  @if (error(); as message) {
+    <p class="fel" role="alert">{{ message }}</p>
+  }
+
+  @if (lista() === null) {
+    <p class="tyst laddar">Hämtar arbetslistan …</p>
+  } @else if (antal() === 0) {
+
+    <div class="slut">
+      <h2>Ingenting att rätta</h2>
+      <p>
+        Alla tolkade kvitton har fält som någon sett. Nya dyker upp här när telefonen
+        eller datorn tolkat dem.
+      </p>
+      <a class="stor primar" routerLink="/arkiv">Till arkivet</a>
+    </div>
+
+  } @else if (klart()) {
+
+    <div class="slut">
+      <h2>Passet är avbetat</h2>
+      <p>
+        <span class="num">{{ klara().size }}</span>
+        {{ klara().size === 1 ? 'kvitto fick' : 'kvitton fick' }} sina fält granskade.
+        @if (klara().size < antal()) {
+          Resten hoppades över och står kvar i listan.
+        }
+      </p>
+      @if (utanfor() > 0) {
+        <p class="tyst">
+          <span class="num">{{ utanfor() }}</span> till väntar utanför det här passet.
+        </p>
+      }
+      <div class="slutrad">
+        <button type="button" class="stor primar" (click)="borja()">Hämta ett nytt pass</button>
+        <a class="stor" routerLink="/arkiv">Till arkivet</a>
+      </div>
+    </div>
+
+  } @else {
+
+    <div class="kropp">
+
+      <nav class="arbetslista" aria-label="Kvar att rätta">
+        <div class="listhuvud">
+          <span class="etikett">KVAR ATT RÄTTA</span>
+        </div>
+        @for (rad of lista(); track rad.id) {
+          <button
+            type="button"
+            class="listrad"
+            [class.aktiv]="ardag(rad)"
+            [class.avklarad]="arKlar(rad)"
+            [attr.aria-current]="ardag(rad) ? 'true' : null"
+            (click)="gaTill($index)"
+          >
+            <span class="bock">
+              @if (arKlar(rad)) {
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5 5L20 7" /></svg>
+                <span class="sr-only">Granskat</span>
+              }
+            </span>
+            <span class="radtext">{{ radrubrik(rad) }} · {{ rad.store ?? 'okänd butik' }}</span>
+            <span class="radbelopp num" [class.tomt]="rad.total === null">{{ belopp(rad) }}</span>
+          </button>
+        }
+      </nav>
+
+      <div class="bildbadd">
+        @if (receipt(); as r) {
+          <div class="papper">
+            @for (segment of r.segments; track segment.sha256) {
+              <img [src]="bild(segment.file)" [alt]="'Bild ' + ($index + 1)" />
+            }
+          </div>
+        } @else {
+          <p class="tyst">Hämtar kvittot …</p>
+        }
+      </div>
+
+      <aside class="faltpanel">
+        <div class="falten">
+          @for (f of falt; track f.namn) {
+            <div class="falt">
+              <label class="etikett" [attr.for]="'falt-' + f.namn">{{ f.etikett }}</label>
+              <input
+                #faltInput
+                class="ratta"
+                [class.tal]="f.sort === 'tal'"
+                [id]="'falt-' + f.namn"
+                type="text"
+                [value]="utkast()[f.namn]"
+                [attr.inputmode]="f.sort === 'tal' ? 'decimal' : null"
+                (input)="onUtkast(f.namn, $event)"
+                (keydown.enter)="enter($index)"
+                (keydown.escape)="angra(f.namn)"
+              />
+              <div class="undertext">
+                @if (varde(f.namn); as v) {
+                  @if (v.source === 'ocr') {
+                    <span class="konfidens num">{{ v.confidence }}</span>
+                    <span class="tyst">maskinläst — inte granskat</span>
+                  } @else {
+                    <span class="granskat">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5 5L20 7" /></svg>
+                      {{ v.source === 'confirmed' ? 'Bekräftat av dig' : 'Rättat av dig' }}
+                    </span>
+                  }
+                } @else {
+                  <span class="tyst">Maskinen hittade inget här</span>
+                }
+              </div>
+
+              @if (varde(f.namn); as v) {
+                @if (v.source === 'ocr' && v.candidates?.length) {
+                  <div class="kandidater">
+                    <span class="tyst">Även läst som</span>
+                    @for (k of v.candidates; track k.value) {
+                      <span class="kandidat num">{{ k.value }}</span>
+                    }
+                  </div>
+                }
+              }
+            </div>
+          }
+        </div>
+
+        <div class="botten">
+          <button type="button" class="stor primar" [disabled]="sparar()" (click)="sparaOchNasta()">
+            Spara och nästa
+            <span class="tangent">Enter</span>
+          </button>
+          <div class="knapprad">
+            <button type="button" class="stor" (click)="hoppaOver()">Hoppa över</button>
+            <button type="button" class="stor" (click)="angraAllt()">Ångra allt</button>
+          </div>
+          <p class="fotnot">
+            <kbd>Enter</kbd> sparar fältet och faller vidare · <kbd>Esc</kbd> ångrar det
+            du skrivit i fältet. Ett fält du lämnar orört sparas inte — tystnad är inte
+            ett godkännande.
+          </p>
+        </div>
+      </aside>
+
+    </div>
+  }
+</div>

@@ -184,6 +184,12 @@ docker compose exec app node server/dist/reindex.js
 Ingenting går förlorat av att köra det, och det är samma väg som används efter en
 återställning från säkerhetskopia.
 
+**Efter en uppgradering behöver du oftast inte göra det för hand.** Indexet bär en
+schemaversion, och stämmer den inte med koden kastas tabellerna vid start och byggs om
+ur `receipts/` av sig själva. Det syns i loggen som `indexets schema var av en annan
+version — byggt om ur receipts/`, med antalet lästa kvitton. Starten tar då längre tid
+än vanligt, en gång.
+
 ## Loggar
 
 Servern loggar strukturerad JSON till standard ut, alltså till `docker compose logs`.

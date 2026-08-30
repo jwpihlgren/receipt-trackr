@@ -132,6 +132,10 @@
 
 .tolkknapp.primar { border: none; background: var(--accent); color: var(--on-accent); font-weight: var(--weight-bold); }
 
+/* Vägen in i rättningspasset är en länk, inte en knapp: den byter sida. Samma form
+   som knappen bredvid, för de gör samma sorts sak sett från högen. */
+a.tolkknapp { display: flex; align-items: center; text-decoration: none; }
+
 .tomt { display: grid; gap: var(--space-3); place-items: center; padding: var(--space-8); text-align: center; }
 .tomt h2 { font-size: var(--text-xl); }
 .tomt p { color: var(--ink-muted); font-size: var(--text-base); }

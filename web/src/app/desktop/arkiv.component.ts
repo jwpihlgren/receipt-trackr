@@ -49,6 +49,13 @@ export class ArkivComponent {
   readonly total = signal(0);
   readonly error = signal<string | null>(null);
 
+  /**
+   * Hur många kvitton som har fält ingen sett. Serverns räkning, hämtad hit bara för
+   * att kön ska synas: ett rättningspass går man in i med avsikt, och en avsikt kräver
+   * att man vet att det finns något att göra.
+   */
+  readonly attRatta = signal(0);
+
   readonly fraga = signal('');
   readonly traffar = signal<Traff[] | null>(null);
   readonly soker = signal(false);
@@ -94,9 +101,17 @@ export class ArkivComponent {
       const body = (await response.json()) as { total: number; receipts: Rad[] };
       this.rader.set(body.receipts);
       this.total.set(body.total);
+      await this.raknaAttRatta();
     } catch {
       this.error.set('Kunde inte hämta kvittona. Är servern igång?');
     }
+  }
+
+  /** Bara siffran behövs här — arbetslistan hämtas när passet börjar, inte nu. */
+  private async raknaAttRatta(): Promise<void> {
+    const svar = await fetch('/api/pass?limit=1');
+    if (!svar.ok) return;
+    this.attRatta.set(((await svar.json()) as { total: number }).total);
   }
 
   onFraga(event: Event): void {

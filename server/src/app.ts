@@ -28,6 +28,18 @@ export async function buildApp(config: Config, options: FastifyServerOptions = {
   const archive = Archive.open(config.dataDir);
   app.addHook("onClose", () => archive.close());
 
+  // Indexet är härlett, och därför finns här inga migrationer: har schemat ändrats
+  // sedan förra versionen är tabellerna redan kastade, och det som återstår är att
+  // läsa sidecarerna igen. Det kostar en stund vid start efter en uppgradering och
+  // ingenting alls annars.
+  if (archive.indexRebuilt) {
+    const { indexed, skipped } = await archive.reindex();
+    app.log.info(
+      { indexed, skipped: skipped.length },
+      "indexets schema var av en annan version — byggt om ur receipts/",
+    );
+  }
+
   registerHealth(app, config);
 
   // Grinden registreras före rutterna den skyddar. Utan lösenordsfras finns ingen

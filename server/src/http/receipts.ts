@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { stat } from "node:fs/promises";
 import { Archive, ConflictError, ImageError } from "../store/archive.js";
 import { InvalidIdError, isSafeFileName } from "../store/paths.js";
-import { count, ftsQuery, recent, search } from "../store/index-db.js";
+import { count, ftsQuery, recent, search, unreviewed, unreviewedTotal } from "../store/index-db.js";
 import { thumbName } from "../store/paths.js";
 
 const CONTENT_TYPES: Record<string, string> = { ".jpg": "image/jpeg", ".webp": "image/webp" };
@@ -155,6 +155,49 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
       return reply.send(receipt);
     },
   );
+
+  /**
+   * Flera fält på en gång — det rättningspasset sparar när man går vidare till nästa
+   * kvitto. Egen rutt i stället för en andra kroppsform på rutten ovanför: två
+   * betydelser i samma URL är den sortens sparsamhet som kostar mer att läsa än den
+   * sparar att skriva.
+   */
+  app.post<{ Params: { id: string }; Body: { rattelser?: { namn?: string; value?: unknown; bekraftat?: boolean }[] } }>(
+    "/api/receipts/:id/falt/flera",
+    async (request, reply) => {
+      const rattelser = request.body?.rattelser;
+      if (!Array.isArray(rattelser) || rattelser.length === 0) {
+        return reply.code(400).send({ error: "missing_rattelser", message: "Skicka minst en rättelse." });
+      }
+      for (const rattelse of rattelser) {
+        if (!rattelse?.namn || !FALT.has(rattelse.namn)) {
+          return reply
+            .code(400)
+            .send({ error: "okant_falt", message: `Fältet ska vara ett av ${[...FALT].join(", ")}.` });
+        }
+        if (rattelse.value === undefined) {
+          return reply.code(400).send({ error: "missing_value", message: "Ange vad fältet ska bli." });
+        }
+      }
+      const receipt = await archive.rattaFalten(
+        request.params.id,
+        rattelser.map((r) => ({ namn: r.namn as string, value: r.value, bekraftat: r.bekraftat === true })),
+      );
+      return reply.send(receipt);
+    },
+  );
+
+  /**
+   * Arbetslistan för ett rättningspass, och hur lång den är i sin helhet.
+   *
+   * `total` är hela kön, `receipts` är den bit passet orkar med i ett svep. Arkivet
+   * använder samma rutt med `limit=1` bara för att få siffran — en kö man ska gå in i
+   * med avsikt behöver synas innan man går in i den.
+   */
+  app.get<{ Querystring: { limit?: string } }>("/api/pass", async (request) => {
+    const limit = Math.min(Math.max(Number(request.query.limit ?? 100) || 100, 1), 500);
+    return { total: unreviewedTotal(archive.db), receipts: unreviewed(archive.db, limit) };
+  });
 
   app.post("/api/reindex", async () => archive.reindex());
 
