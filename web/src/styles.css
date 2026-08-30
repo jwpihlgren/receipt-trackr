@@ -62,7 +62,7 @@
   --size-selector: 0.25rem;
   --size-field: 0.25rem;
   --border: 1px;
-  --depth: 0;
+  --depth: 1;
   --noise: 0;
 }
 
@@ -70,30 +70,6 @@
    när fotot är överexponerat i hörnen. */
 @theme {
   --color-bildbadd: #0e0d10;
-}
-
-/**
- * Tabellen, satt efter duken: tätheten kommer ur typografin, inte ur ramar.
- * Radhöjd 44px, 13px text, versala kolumnrubriker på 11px, hårfina linjer.
- */
-@layer components {
-  .table :where(th) {
-    font-size: 0.6875rem;
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    padding-block: 0 0.625rem;
-  }
-
-  .table :where(td) {
-    height: 44px;
-    padding-block: 0;
-    font-size: 0.8125rem;
-  }
-
-  .table :where(th, td) {
-    padding-inline: 1.25rem;
-  }
 }
 
 /* DaisyUI dämpar tabellhuvud och platshållare till 60 respektive 20 procent av
@@ -108,10 +84,25 @@
   color: var(--color-neutral);
 }
 
+/**
+ * Kanten på det man kan peka på.
+ *
+ * DaisyUI räknar fältkanter som bläcket vid 20 %, och en neutral knapp får samma
+ * kantfärg som sin egen botten. Uppmätt i den här paletten: knapp 1,09:1 mot panelen,
+ * fält 1,64:1. Kravet för gränssnittsdelar är 3:1, och under det finns ingen synlig
+ * avgränsning alls — knappen är en textrad och fältet en aning mörkare yta.
+ *
+ * `--line-strong` mäter 3,2:1 mot panelen och 3,5:1 mot sidan. Det gäller bara
+ * kontroller: raddelare i en tabell är dekor och behöver inte nå 3:1, och skulle
+ * dessutom motverka att tätheten ska komma ur typografin.
+ */
+:where(.btn, .input, .select, .textarea, .file-input):not(.btn-primary, .btn-error, .btn-ghost, .btn-link) {
+  border-color: var(--line-strong);
+}
+
 .input::placeholder,
 .textarea::placeholder {
   color: var(--color-neutral);
-  opacity: 0.75;
 }
 
 /* Bakgrunden bakom ett kvittofoto: något mörkare än sidan, så att papperets kant

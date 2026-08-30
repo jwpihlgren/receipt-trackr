@@ -37,6 +37,8 @@
       <div class="flex items-center gap-3 p-4 text-neutral">
         <span class="loading loading-spinner loading-sm"></span> Hämtar …
       </div>
+    } @else if (rader().length === 0) {
+      <p class="text-neutral">Inget kvitto väntar på något.</p>
     } @else {
       <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
         <table class="table table-sm">
@@ -73,11 +75,11 @@
                   @if (arbetarMed() === rad.id) {
                     <span class="loading loading-spinner loading-xs text-primary" aria-label="Tolkar"></span>
                   } @else if (rad.lage !== 'ofullstandig') {
-                    <button type="button" class="btn btn-xs btn-ghost text-primary" [disabled]="arbetar()" (click)="lasOm(rad.id)">
+                    <button type="button" class="btn btn-sm btn-ghost text-primary" [disabled]="arbetar()" (click)="lasOm(rad.id)">
                       {{ rad.lage === 'vantar' ? 'Tolka nu' : 'Läs om bilden' }}
                     </button>
                   }
-                  <a class="btn btn-xs btn-ghost text-primary" [routerLink]="[yta() === 'mobil' ? '/telefon/kvitto' : '/dator/kvitto', rad.id]">Öppna</a>
+                  <a class="btn btn-sm btn-ghost text-primary" [routerLink]="[yta() === 'mobil' ? '/telefon/kvitto' : '/dator/kvitto', rad.id]">Öppna</a>
                 </td>
               </tr>
             }

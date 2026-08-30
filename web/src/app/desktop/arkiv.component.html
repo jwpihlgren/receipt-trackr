@@ -60,12 +60,11 @@
       <div class="flex items-center gap-3 p-4 text-neutral">
         <span class="loading loading-spinner loading-sm"></span> Hämtar …
       </div>
+    } @else if (rader()!.length === 0) {
+      <p class="text-neutral">
+        {{ filtrerat() ? 'Inget kvitto matchar filtret.' : 'Inga klara kvitton än.' }}
+      </p>
     } @else {
-      @if (rader()!.length === 0) {
-        <p class="p-4 text-neutral">
-          {{ filtrerat() ? 'Inget kvitto matchar filtret.' : 'Inga klara kvitton än.' }}
-        </p>
-      }
       <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
         <table class="table table-sm">
           <thead>
@@ -74,7 +73,7 @@
               <th>Datum</th>
               <th>Butik</th>
               <th class="text-right">Belopp</th>
-              <th>Bilder</th>
+              <th class="text-right">Bilder</th>
               <th>Fångat</th>
               <th class="text-right"><span class="sr-only">Öppna</span></th>
             </tr>
@@ -98,10 +97,10 @@
                   }
                 </td>
                 <td class="num whitespace-nowrap text-right">{{ belopp(rad) }} kr</td>
-                <td class="num">{{ rad.segments }}</td>
+                <td class="num text-right">{{ rad.segments }}</td>
                 <td class="num whitespace-nowrap text-neutral">{{ fangat(rad.capturedAt) }}</td>
                 <td class="text-right">
-                  <a class="btn btn-xs btn-ghost text-primary" [routerLink]="['/dator/kvitto', rad.id]">Öppna</a>
+                  <a class="btn btn-sm btn-ghost text-primary" [routerLink]="['/dator/kvitto', rad.id]">Öppna</a>
                 </td>
               </tr>
             }
