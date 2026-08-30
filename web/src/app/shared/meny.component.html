@@ -4,98 +4,105 @@
   </svg>
 </button>
 
-@if (open()) {
-  <div class="fixed inset-0 z-50 flex">
-    <nav class="flex h-full w-72 flex-col bg-base-100 shadow-xl" aria-label="Meny">
-      <div class="border-b border-base-300 px-4 py-4">
-        <strong class="text-base">Kvittoarkiv</strong>
-      </div>
+<!--
+  Lådan är en riktig <dialog> som öppnas med showModal(). Den var förut ett eget
+  överlägg i en @if, och därmed en fokusfälla: Esc gjorde ingenting, fokus låg kvar
+  bakom lådan, och skärmen under gick att tabba runt i fast den såg blockerad ut.
+  Ingenting av det behöver skrivas här — <dialog> gör Esc, fokusflytt, fokusfälla och
+  inert bakgrund själv, och DaisyUIs `modal modal-start` ger utseendet.
+-->
+<dialog #lada class="modal modal-start" (close)="close()">
+  <nav class="modal-box flex w-72 flex-col p-0" aria-label="Meny">
+    <div class="border-b border-base-300 px-4 py-4">
+      <strong class="text-base">Kvittoarkiv</strong>
+    </div>
 
-      <!--
-        Första gruppen är ytans egna skärmar. Telefonens uppladdningskö låg tidigare
-        här även i datorläget, men den kön bor i telefonens egen webbläsare — på
-        datorn var raden alltid tom och ledde till en skärm som inte hörde hemma där.
-      -->
-      <ul class="menu w-full flex-nowrap gap-1 p-2">
-        @if (lage() === 'mobil') {
-          <li>
-            <a routerLink="/telefon/kvitton" (click)="close()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
-              Kvitton
-            </a>
-          </li>
-          <li>
-            <a routerLink="/telefon/uppladdning" (click)="close()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
-              På väg till arkivet
-              @if (pavag() > 0) { <span class="badge badge-sm">{{ pavag() }}</span> }
-            </a>
-          </li>
-          <li>
-            <a routerLink="/telefon/aktivitet" (click)="close()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>
-              Aktivitet
-            </a>
-          </li>
-          @if (fast() > 0) {
-            <li>
-              <a class="text-error" routerLink="/telefon/uppladdning" (click)="close()">
-                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
-                Kom inte fram
-                <span class="badge badge-sm badge-error">{{ fast() }}</span>
-              </a>
-            </li>
-          }
-        } @else {
-          <li>
-            <a routerLink="/dator/kvitton" (click)="close()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
-              Kvitton
-            </a>
-          </li>
-          <li>
-            <a routerLink="/dator/aktivitet" (click)="close()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>
-              Aktivitet
-            </a>
-          </li>
-        }
-      </ul>
-
-      <div class="divider my-0"></div>
-
-      <ul class="menu w-full flex-nowrap gap-1 p-2">
-        @if (lage() === 'mobil') {
-          <li>
-            <a routerLink="/dator/kvitton" (click)="close()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
-              Datorläge
-            </a>
-          </li>
-        } @else {
-          <li>
-            <a routerLink="/telefon/kvitton" (click)="close()">
-              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></svg>
-              Telefonläge
-            </a>
-          </li>
-        }
+    <!--
+      Första gruppen är ytans egna skärmar. Telefonens uppladdningskö låg tidigare
+      här även i datorläget, men den kön bor i telefonens egen webbläsare — på
+      datorn var raden alltid tom och ledde till en skärm som inte hörde hemma där.
+    -->
+    <ul class="menu w-full flex-nowrap gap-1 p-2">
+      @if (lage() === 'mobil') {
         <li>
-          <a routerLink="/dator/drift" (click)="close()">
-            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="7" rx="2" /><rect x="2" y="13" width="20" height="7" rx="2" /><path d="M6 7.5h.01" /><path d="M6 16.5h.01" /></svg>
-            Drift
+          <a routerLink="/telefon/kvitton" (click)="close()">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
+            Kvitton
           </a>
         </li>
-      </ul>
+        <li>
+          <a routerLink="/telefon/uppladdning" (click)="close()">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
+            På väg till arkivet
+            @if (pavag() > 0) { <span class="badge badge-sm">{{ pavag() }}</span> }
+          </a>
+        </li>
+        <li>
+          <a routerLink="/telefon/aktivitet" (click)="close()">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>
+            Aktivitet
+          </a>
+        </li>
+        @if (fast() > 0) {
+          <li>
+            <a class="text-error" routerLink="/telefon/uppladdning" (click)="close()">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
+              Kom inte fram
+              <span class="badge badge-sm badge-error">{{ fast() }}</span>
+            </a>
+          </li>
+        }
+      } @else {
+        <li>
+          <a routerLink="/dator/kvitton" (click)="close()">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
+            Kvitton
+          </a>
+        </li>
+        <li>
+          <a routerLink="/dator/aktivitet" (click)="close()">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>
+            Aktivitet
+          </a>
+        </li>
+      }
+    </ul>
 
-      <div class="mt-auto border-t border-base-300 p-2">
-        <button type="button" class="btn btn-ghost w-full justify-start" (click)="logout()">
-          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></svg>
-          Logga ut
-        </button>
-      </div>
-    </nav>
+    <div class="divider my-0"></div>
 
-    <button type="button" class="flex-1 bg-black/40" aria-label="Stäng menyn" (click)="close()"></button>
-  </div>
-}
+    <ul class="menu w-full flex-nowrap gap-1 p-2">
+      @if (lage() === 'mobil') {
+        <li>
+          <a routerLink="/dator/kvitton" (click)="close()">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
+            Datorläge
+          </a>
+        </li>
+      } @else {
+        <li>
+          <a routerLink="/telefon/kvitton" (click)="close()">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></svg>
+            Telefonläge
+          </a>
+        </li>
+      }
+      <li>
+        <a routerLink="/dator/drift" (click)="close()">
+          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="7" rx="2" /><rect x="2" y="13" width="20" height="7" rx="2" /><path d="M6 7.5h.01" /><path d="M6 16.5h.01" /></svg>
+          Drift
+        </a>
+      </li>
+    </ul>
+
+    <div class="mt-auto border-t border-base-300 p-2">
+      <button type="button" class="btn btn-ghost w-full justify-start" (click)="logout()">
+        <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></svg>
+        Logga ut
+      </button>
+    </div>
+  </nav>
+
+  <form method="dialog" class="modal-backdrop">
+    <button type="submit">Stäng menyn</button>
+  </form>
+</dialog>

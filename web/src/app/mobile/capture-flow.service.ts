@@ -136,6 +136,22 @@ export class CaptureFlowService {
     return id;
   }
 
+  /**
+   * Kastar fångsten: bilderna raderas ur telefonen och laddas inte upp.
+   *
+   * Det här är den enda vägen i appen där bilder försvinner utan att ha nått arkivet.
+   * Den finns därför att knappen som förut hette "Avbryt" gjorde tvärtom mot vad ordet
+   * lovade — den släppte skärmen och lät kön ladda upp allt ändå, som ett kvitto utan
+   * känt antal bilder som sedan stod kvar i aktiviteten för alltid. Ett ord som ljuger
+   * är värre än en radering användaren bett om medan hon står med papperet kvar i
+   * handen. Anropet ska därför alltid ligga bakom en bekräftelse.
+   */
+  async discard(): Promise<void> {
+    const id = this.receiptId;
+    this.reset(true);
+    if (id) await this.queue.discardReceipt(id);
+  }
+
   /** Släpper fångsten utan att spara. Bilderna ligger kvar i kön och laddas upp ändå. */
   reset(revoke = true): void {
     if (revoke) for (const shot of this.shots()) URL.revokeObjectURL(shot.url);

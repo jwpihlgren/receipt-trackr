@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { CaptureFlowService } from './capture-flow.service';
 import { QueueService } from './queue.service';
@@ -31,6 +31,8 @@ export class CaptureComponent {
   readonly flow = inject(CaptureFlowService);
 
   readonly steg = signal<Steg>('granska');
+  /** Sant medan frågan om att kasta bilderna står på skärmen. */
+  readonly fragar = signal(false);
   readonly sparatId = signal<string | null>(null);
   readonly sparadeBilder = signal<{ index: number; url: string }[]>([]);
   readonly queueState = this.queue.snapshot;
@@ -47,7 +49,7 @@ export class CaptureComponent {
     const id = this.sparatId();
     const state = this.queueState();
     if (!id) return { text: '', klar: false, illa: false };
-    if (state.stuck.includes(id)) return { text: 'Kom inte fram', klar: false, illa: true };
+    if (state.stuck.some((f) => f.id === id)) return { text: 'Kom inte fram', klar: false, illa: true };
     if (!state.receipts.includes(id)) return { text: 'I arkivet', klar: true, illa: false };
     if (state.offline) return { text: 'Sparat i telefonen · väntar på nät', klar: false, illa: false };
     const kvar = state.pending.filter((k) => k.startsWith(`${id}:`)).length;
@@ -56,10 +58,22 @@ export class CaptureComponent {
     return { text: `Skickar bild ${total - kvar + 1} av ${total}`, klar: false, illa: false };
   });
 
+  private readonly fragan = viewChild<ElementRef<HTMLDialogElement>>('fraga');
+
   constructor() {
     this.queue.start();
     // Direktnavigering hit utan påbörjad fångst har ingenting att visa.
     if (this.flow.shots().length === 0) void this.router.navigateByUrl('/telefon/kvitton');
+
+    // Signalen är sanningen; <dialog> är bara det som visar den. `showModal()` är
+    // enda vägen till Esc, fokusfälla och inert bakgrund — attributet `open` ger
+    // ingetdera.
+    effect(() => {
+      const el = this.fragan()?.nativeElement;
+      if (!el) return;
+      if (this.fragar() && !el.open) el.showModal();
+      else if (!this.fragar() && el.open) el.close();
+    });
   }
 
   isConfirmed(index: number): boolean {
@@ -110,10 +124,33 @@ export class CaptureComponent {
     await this.router.navigateByUrl('/telefon/kvitton');
   }
 
-  async avbryt(): Promise<void> {
-    // Bilderna ligger kvar i kön och laddas upp ändå — de är oåterkalleliga.
-    this.flow.reset();
+  /**
+   * "Avbryt" frågar först, och kastar sedan på riktigt.
+   *
+   * Knappen släppte tidigare bara skärmen medan kön laddade upp bilderna ändå, och
+   * kvittot blev kvar i arkivet utan känt antal bilder — alltså för alltid ofärdigt.
+   * Ordet lovade motsatsen till vad som hände. Nu gör det det ordet säger, men aldrig
+   * på ett enda tryck: bilder som försvinner ska en människa ha sagt ja till.
+   */
+  avbryt(): void {
+    if (this.antal() === 0) {
+      void this.router.navigateByUrl('/telefon/kvitton');
+      return;
+    }
+    this.fragar.set(true);
+  }
+
+  angraAvbryt(): void {
+    this.fragar.set(false);
+  }
+
+  async kasta(): Promise<void> {
+    this.fragar.set(false);
+    // Skärmen släpps med en gång. Raderingen fortsätter i tjänsten — den som tryckt
+    // ska inte stå kvar och titta på en dialog medan en serverradering går fram.
+    const klart = this.flow.discard();
     await this.router.navigateByUrl('/telefon/kvitton');
+    await klart;
   }
 
   private slappKort(): void {

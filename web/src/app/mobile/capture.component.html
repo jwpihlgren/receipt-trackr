@@ -144,6 +144,24 @@
     </div>
   }
 
+  <!--
+    Frågan innan bilderna kastas. En riktig <dialog> och inte ett eget överlägg:
+    Esc stänger, fokus hamnar i rutan och stannar där, och resten av skärmen blir
+    inert utan att vi skriver en rad för det. Ett överlägg som ser blockerande ut men
+    släpper igenom tangentbordet är samma fokusfälla som menyn hade.
+  -->
+  <dialog #fraga class="fragan" aria-labelledby="kasta-rubrik" (cancel)="angraAvbryt()" (close)="angraAvbryt()">
+    <h2 id="kasta-rubrik">Kasta bilderna?</h2>
+    <p>
+      {{ antal() }} {{ antal() === 1 ? 'bild tas' : 'bilder tas' }} bort ur telefonen och laddas inte upp.
+      Det går inte att ångra — men papperet ligger kvar i handen.
+    </p>
+    <button type="button" class="knapp kastaknapp" (click)="kasta()">
+      Kasta {{ antal() }} {{ antal() === 1 ? 'bild' : 'bilder' }}
+    </button>
+    <button type="button" class="knapp kontur" (click)="angraAvbryt()">Fortsätt kvittot</button>
+  </dialog>
+
   @if (flow.saveError(); as message) {
     <div class="sparfel" role="alert">
       <p>{{ message }}</p>

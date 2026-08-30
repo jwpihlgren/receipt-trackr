@@ -58,3 +58,40 @@
 
 .knapp { display: flex; align-items: center; justify-content: center; border-radius: var(--horn-sm); font-size: var(--typ-base); }
 .primar { min-height: var(--tap-primary); border: none; background: var(--accent); color: var(--on-accent); font-weight: var(--weight-bold); }
+.tumnagel.tom { border-style: dashed; }
+
+/* Vägen ut ur en avvisning som inte går att försöka om. Ligger i kortet, inte i
+   handzonen: den gäller den här raden och ingen annan. */
+.utvag { display: grid; gap: var(--d-gap-tight); margin-top: var(--d-gap); }
+.utvag p { margin: 0; color: var(--ink-muted); font-size: var(--typ-sm); line-height: var(--radavstand-body); }
+.utvag .knapp { justify-self: start; padding-inline: var(--space-4); }
+
+.kontur { min-height: var(--tap-comfort); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.knapp[disabled] { opacity: 0.5; }
+
+/* Frågan innan bilderna kastas: en riktig <dialog>, för Esc, fokusfälla och inert
+   bakgrund. Ett eget överlägg hade gett utseendet men inget av det. */
+.fragan {
+  width: min(22rem, calc(100vw - 2 * var(--space-4)));
+  margin: auto;
+  gap: var(--d-gap);
+  padding: var(--d-card-pad);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--horn-md);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Layouten sitter på [open], inte på elementet: `display` utan villkor slår ut
+   webbläsarens egen `dialog:not([open]) { display: none }`, och då ritas rutan över
+   skärmen även när den är stängd. Det syntes först när skärmen renderades. */
+.fragan[open] { display: grid; }
+.fragan::backdrop { background: rgb(0 0 0 / 0.6); }
+.fragan h2 { font-size: var(--typ-xl); }
+.fragan p { margin: 0; color: var(--ink-muted); font-size: var(--typ-base); line-height: var(--radavstand-body); }
+
+/* Knappen som kastar. Heter inte .farlig: det namnet bär redan en textfärg på
+   lägesraden, och två betydelser i ett klassnamn gjorde statusraden till ett rött
+   block utan läsbar text. */
+.kastaknapp { min-height: var(--tap-primary); border: none; background: var(--danger); color: var(--on-danger); font-weight: var(--weight-bold); }

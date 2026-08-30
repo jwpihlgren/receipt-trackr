@@ -40,6 +40,18 @@ export class ArkivComponent {
   readonly total = signal(0);
   readonly butiker = signal<string[]>([]);
   readonly error = signal<string | null>(null);
+  /** Sant medan en hämtning pågår. Skilt från `rader() === null`, som betyder "vet inte". */
+  readonly laddar = signal(false);
+
+  /**
+   * Vilken hämtning som gäller.
+   *
+   * Filtren hämtar om vid varje ändring, och två anrop som överlappar kan komma
+   * tillbaka i omvänd ordning — då avgjorde svarsordningen vad tabellen visade, inte
+   * vad som stod i fälten. Byt butik och datum snabbt efter varandra, så visades
+   * butikssvaret. Bara den senast startade hämtningen får skriva.
+   */
+  private lasning = 0;
 
   readonly fraga = signal('');
   readonly butik = signal('');
@@ -76,7 +88,9 @@ export class ArkivComponent {
   }
 
   async load(): Promise<void> {
+    const min = ++this.lasning;
     this.error.set(null);
+    this.laddar.set(true);
     const p = new URLSearchParams();
     if (this.fraga().trim()) p.set('q', this.fraga().trim());
     if (this.butik()) p.set('butik', this.butik());
@@ -84,21 +98,28 @@ export class ArkivComponent {
     if (this.till()) p.set('till', this.till());
     try {
       const svar = await fetch(`/api/receipts?${p.toString()}`);
+      if (min !== this.lasning) return;
       if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
       if (!svar.ok) throw new Error(String(svar.status));
       const body = (await svar.json()) as Svar;
+      if (min !== this.lasning) return;
       this.rader.set(body.receipts);
       this.total.set(body.total);
       this.butiker.set(body.butiker);
-      await this.raknaOfardiga();
+      await this.raknaOfardiga(min);
     } catch {
+      if (min !== this.lasning) return;
       this.error.set('Kvittona gick inte att hämta. Försök igen.');
+    } finally {
+      // Bara den hämtning som fortfarande gäller får släcka laddläget. Annars kunde
+      // ett gammalt anrop som kom tillbaka sist påstå att det nya var färdigt.
+      if (min === this.lasning) this.laddar.set(false);
     }
   }
 
-  private async raknaOfardiga(): Promise<void> {
+  private async raknaOfardiga(min: number): Promise<void> {
     const svar = await fetch('/api/aktivitet');
-    if (!svar.ok) return;
+    if (!svar.ok || min !== this.lasning) return;
     this.ofardiga.set(((await svar.json()) as { receipts: unknown[] }).receipts.length);
   }
 

@@ -36,7 +36,10 @@
     <div class="flex min-h-0 flex-1 flex-col overflow-y-auto xl:flex-row xl:overflow-hidden">
       <div class="flex flex-1 justify-center overflow-y-auto bg-bildbadd p-6">
         <div class="w-full max-w-md self-start shadow-md">
-          @for (segment of r.segments; track segment.sha256) {
+          <!-- Nyckeln är filnamnet, inte summan: två identiska bilder av samma
+               kvitto ger samma sha256 och kraschade listan med NG0955. Filnamnet
+               är unikt per segment — det är arkivets egen identitet på bilden. -->
+          @for (segment of r.segments; track segment.file) {
             <img class="block w-full" [src]="bild(segment.file)" [alt]="'Bild ' + ($index + 1)" loading="lazy" />
           }
           @if (saknade() > 0) {

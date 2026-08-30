@@ -10,7 +10,23 @@
  * appen får fokus, och med jämna mellanrum — men användaren väntar aldrig på den.
  */
 import { Injectable, computed, signal } from '@angular/core';
-import { allReceipts, allSegments, deleteReceipt, deleteSegment, putReceipt, putSegment, type QueuedReceipt, type QueuedSegment } from './db';
+import { allReceipts, allSegments, deleteReceipt, deleteSegment, putReceipt, putSegment, segmentsFor, type QueuedReceipt, type QueuedSegment } from './db';
+
+/**
+ * Ett kvitto servern vägrat ta emot, med skälet kvar.
+ *
+ * Skälet fanns tidigare bara som ett id i en lista, vilket gjorde alla avvisningar
+ * lika: en bild servern inte kan läsa fick samma "Försök igen" som en krock som en
+ * människa kan lösa vid datorn. `gorOm` skiljer dem åt — det är sant bara när ett
+ * nytt försök faktiskt kan sluta annorlunda.
+ */
+export type Fastnat = {
+  id: string;
+  /** HTTP-statusen servern gav. 0 betyder att bytesen inte kom fram hela. */
+  status: number;
+  skal: string;
+  gorOm: boolean;
+};
 
 export type QueueState = {
   /** Sant när servern svarat 401 eller 403. Kön vilar då tills någon loggat in igen. */
@@ -21,8 +37,8 @@ export type QueueState = {
   pendingSegments: number;
   uploading: boolean;
   offline: boolean;
-  /** Kvitton där ett segment vägrats av servern och som behöver hanteras på datorn. */
-  stuck: string[];
+  /** Kvitton där ett segment vägrats av servern och som behöver hanteras av en människa. */
+  stuck: Fastnat[];
   /**
    * Nycklarna (`kvitto:nummer`) som ännu ligger kvar lokalt. En bild försvinner ur
    * mängden först när servern kvitterat samma sha256 — därför är den här mängden
@@ -54,6 +70,32 @@ function writeToday(n: number): void {
   }
 }
 
+/**
+ * Vad avvisningen betyder, och om ett nytt försök kan sluta annorlunda.
+ *
+ * Bara krocken är värd att försöka om: den uppstår när ett kvitto redan ligger i
+ * arkivet med annat innehåll, och den går över så fort någon rett ut det vid datorn.
+ * En oläsbar bild och en för stor bild ser likadana ut hur många gånger de än
+ * skickas — de raderna har en annan väg ut, inte en knapp som låtsas arbeta.
+ */
+function anledning(status: number): Omit<Fastnat, 'id'> {
+  switch (status) {
+    case 0:
+      // Bytesen ändrades på vägen, inte i servern: den har inte dömt bilden, den fick
+      // en annan. Ett nytt försök kan sluta annorlunda — och gör det inte det svarar
+      // servern 409 nästa gång, vilket är ett ärligare besked än tystnad.
+      return { status, skal: 'Bilden kom fram med andra bytes än de som skickades.', gorOm: true };
+    case 409:
+      return { status, skal: 'Kvittot finns redan i arkivet med ett annat innehåll.', gorOm: true };
+    case 413:
+      return { status, skal: 'Bilden är för stor för servern.', gorOm: false };
+    case 415:
+      return { status, skal: 'Servern kunde inte läsa bilden.', gorOm: false };
+    default:
+      return { status, skal: `Servern avvisade kvittot (${status}).`, gorOm: false };
+  }
+}
+
 const RETRY_MS = 15_000;
 
 @Injectable({ providedIn: 'root' })
@@ -72,6 +114,8 @@ export class QueueService {
 
   readonly snapshot = this.state.asReadonly();
   readonly waiting = computed(() => this.state().waiting);
+  /** Finns det något ett nytt försök kan lösa? Styr om knappen alls ska stå där. */
+  readonly harOmforsok = computed(() => this.state().stuck.some((f) => f.gorOm));
 
   private timer: ReturnType<typeof setInterval> | null = null;
   /**
@@ -81,6 +125,17 @@ export class QueueService {
    * på `drain()` ska veta att ett pass som startade efter anropet är klart.
    */
   private chain: Promise<void> = Promise.resolve();
+
+  /** Kvitton användaren kastat. Ett pågående pass ska inte skicka mer av dem. */
+  private readonly slangda = new Set<string>();
+
+  /**
+   * Räknaren finns därför att `refresh()` läser två lager och sedan skriver ett
+   * tillstånd. Två läsningar som överlappar kunde avslutas i omvänd ordning, och då
+   * skrevs den äldre listan tillbaka över den nyare — kön såg ut att växa av att
+   * tömmas. Bara den senast startade läsningen får skriva.
+   */
+  private lasning = 0;
 
   start(): void {
     void this.refresh();
@@ -133,14 +188,59 @@ export class QueueService {
     void this.drain();
   }
 
-  /** "Skicka om": släpp fastnat-märkningen och kör ett pass till, på användarens ord. */
+  /**
+   * Kvittot kastas, på användarens uttryckliga ord.
+   *
+   * Det är den enda platsen i appen där bilder försvinner utan att ha nått arkivet,
+   * och den finns därför att alternativet var värre: en "Avbryt" som laddade upp
+   * allt ändå. Regeln om oåterkalleliga bilder skyddar mot tyst förlust — mot en
+   * krasch, ett tappat svar, en kapplöpning — inte mot en människa som står med
+   * papperet kvar i handen och säger att bilderna inte ska sparas.
+   *
+   * Raderingen körs i samma kedja som uppladdningen, så att den aldrig krockar med
+   * ett pågående pass. Servern kan redan ha hunnit få kvittot; därför går det en
+   * radering dit också.
+   */
+  async discardReceipt(id: string): Promise<void> {
+    // Märkningen först: ett pass som redan rullar ska inte skicka mer av kvittot.
+    this.slangda.add(id);
+
+    // Sedan det lokala, med en gång. Det är det användaren bad om, och det får inte
+    // vänta på ett nät eller på att en pågående uppladdning ska ge sig.
+    for (const segment of await segmentsFor(id)) await deleteSegment(segment.key);
+    await deleteReceipt(id);
+    this.state.update((s) => ({ ...s, stuck: s.stuck.filter((f) => f.id !== id) }));
+    await this.refresh();
+
+    // Servern kan redan ha hunnit få kvittot. Den raderingen läggs sist i kedjan, så
+    // att den aldrig kommer före ett segment som är på väg upp i samma stund. Går den
+    // inte fram ligger kvittot kvar i aktiviteten och kan tas bort där — bytesen i
+    // telefonen är borta oavsett, och det var det som bads om.
+    this.chain = this.chain
+      .then(() => fetch(`/api/receipts/${id}`, { method: 'DELETE' }).then(() => undefined))
+      .catch(() => undefined)
+      .then(() => {
+        this.slangda.delete(id);
+      });
+  }
+
+  /**
+   * "Försök igen": släpp de märkningar ett nytt försök kan lösa, och bara dem.
+   *
+   * Knappen nollade tidigare allt, även det servern avvisat med 415 — som ger samma
+   * svar nästa gång. Utåt såg det ut som en knapp som inte gjorde något. Offline gör
+   * den ingenting alls, och det ska synas på knappen i stället för att gissas.
+   */
   retryStuck(): Promise<void> {
-    this.state.update((s) => ({ ...s, stuck: [] }));
+    if (!navigator.onLine || !this.harOmforsok()) return Promise.resolve();
+    this.state.update((s) => ({ ...s, stuck: s.stuck.filter((f) => !f.gorOm) }));
     return this.drain();
   }
 
   private async refresh(): Promise<void> {
+    const min = ++this.lasning;
     const [segments, receipts] = await Promise.all([allSegments(), allReceipts()]);
+    if (min !== this.lasning) return;
     this.state.update((s) => ({
       ...s,
       waiting: receipts.length,
@@ -155,6 +255,10 @@ export class QueueService {
    * Tömmer kön. En i taget och i nummerordning: servern är en liten fanless-burk, och
    * ordningen gör att ett kvitto blir helt i stället för hålig när nätet försvinner
    * mitt i.
+   *
+   * Kvitton som redan är avvisade hoppas över. Utan det försökte kön om dem var
+   * femtonde sekund för alltid — precis den tysta loopen märkningen finns för att
+   * hindra — och "Försök igen" var inte längre användarens beslut utan en klocka.
    */
   drain(): Promise<void> {
     this.chain = this.chain.then(() => this.pass()).catch(() => undefined);
@@ -168,6 +272,8 @@ export class QueueService {
       const receipts = (await allReceipts()).sort((a, b) => a.createdAt - b.createdAt);
       const segments = await allSegments();
       for (const receipt of receipts) {
+        if (this.slangda.has(receipt.id)) continue;
+        if (this.state().stuck.some((f) => f.id === receipt.id)) continue;
         const mine = segments.filter((s) => s.receiptId === receipt.id).sort((a, b) => a.index - b.index);
         if (!(await this.uploadReceipt(receipt, mine))) break;
         // Efter varje kvitto: låt vyn se framdriften i stället för att vänta på slutet.
@@ -205,8 +311,8 @@ export class QueueService {
     return false;
   }
 
-  private markStuck(id: string): void {
-    this.state.update((s) => ({ ...s, stuck: [...new Set([...s.stuck, id])] }));
+  private markStuck(id: string, status: number): void {
+    this.state.update((s) => ({ ...s, stuck: [...s.stuck.filter((f) => f.id !== id), { id, ...anledning(status) }] }));
   }
 
   /** @returns false när nätet dog eller sessionen gått ut — då är det ingen mening att fortsätta. */
@@ -220,7 +326,7 @@ export class QueueService {
       const createdVerdict = this.classify(created.status);
       if (createdVerdict === 'unauthorized') return this.utloggad();
       if (createdVerdict === 'stuck') {
-        this.markStuck(receipt.id);
+        this.markStuck(receipt.id, created.status);
         return true;
       }
       if (createdVerdict === 'retry') return true;
@@ -228,6 +334,7 @@ export class QueueService {
 
       for (const segment of segments) {
         if (segment.confirmedAt) continue;
+        if (this.slangda.has(receipt.id)) return true;
         const form = new FormData();
         // Kameravärdena måste ligga före filen: fälten läses i den ordning de kommer.
         form.append('capture', JSON.stringify(segment.capture));
@@ -240,9 +347,8 @@ export class QueueService {
         if (verdict === 'unauthorized') return this.utloggad();
         if (verdict === 'stuck') {
           // 409 är samma nummer med annat innehåll; 415 är en bild servern inte kan
-          // läsa. Ingetdera löser sig av sig självt, och båda ska tas om hand vid
-          // datorn i stället för att försökas igen för alltid.
-          this.markStuck(receipt.id);
+          // läsa. Skälet följer med märkningen, för de två har olika vägar ut.
+          this.markStuck(receipt.id, response.status);
           return true;
         }
         if (verdict === 'retry') return true;
@@ -252,13 +358,13 @@ export class QueueService {
         // det inget som löser sig av att försöka igen — samma bytes ger samma svar.
         // Kvittot märks som fastnat i stället för att skickas om för alltid.
         if (saved.sha256 !== segment.sha256) {
-          this.markStuck(receipt.id);
+          this.markStuck(receipt.id, 0);
           return true;
         }
         await deleteSegment(segment.key);
       }
 
-      if (receipt.segments !== null) {
+      if (receipt.segments !== null && !this.slangda.has(receipt.id)) {
         const done = await fetch(`/api/receipts/${receipt.id}/complete`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -266,12 +372,12 @@ export class QueueService {
         });
         const verdict = this.classify(done.status);
         if (verdict === 'unauthorized') return this.utloggad();
-        if (verdict === 'stuck') this.markStuck(receipt.id);
+        if (verdict === 'stuck') this.markStuck(receipt.id, done.status);
         if (verdict === 'ok') {
           await deleteReceipt(receipt.id);
           const n = readToday() + 1;
           writeToday(n);
-          this.state.update((s) => ({ ...s, archivedToday: n, stuck: s.stuck.filter((x) => x !== receipt.id) }));
+          this.state.update((s) => ({ ...s, archivedToday: n, stuck: s.stuck.filter((f) => f.id !== receipt.id) }));
         }
       }
       return true;

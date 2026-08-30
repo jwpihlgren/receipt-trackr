@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, signal } from '@angular/core';
+import { Component, ElementRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { QueueService } from '../mobile/queue.service';
 import { AuthService } from './auth.service';
@@ -31,9 +31,21 @@ export class MenyComponent {
 
   readonly open = signal(false);
   private readonly state = this.queue.snapshot;
+  private readonly lada = viewChild<ElementRef<HTMLDialogElement>>('lada');
 
   readonly pavag = computed(() => this.state().waiting - this.state().stuck.length);
   readonly fast = computed(() => this.state().stuck.length);
+
+  constructor() {
+    // Signalen styr, <dialog> visar. `showModal()` är det som ger Esc, fokusfälla
+    // och inert bakgrund; attributet `open` ger utseendet men inget av det.
+    effect(() => {
+      const el = this.lada()?.nativeElement;
+      if (!el) return;
+      if (this.open() && !el.open) el.showModal();
+      else if (!this.open() && el.open) el.close();
+    });
+  }
 
   toggle(): void {
     this.open.update((o) => !o);

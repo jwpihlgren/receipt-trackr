@@ -106,3 +106,7 @@ export const deleteSegment = (key: string): Promise<unknown> =>
 
 export const deleteReceipt = (id: string): Promise<unknown> =>
   tx('receipts', 'readwrite', (s) => s.delete(id));
+
+/** Ett kvittos bilder i nummerordning. Kön är kort, så ett filter räcker som index. */
+export const segmentsFor = async (receiptId: string): Promise<QueuedSegment[]> =>
+  (await allSegments()).filter((s) => s.receiptId === receiptId).sort((a, b) => a.index - b.index);

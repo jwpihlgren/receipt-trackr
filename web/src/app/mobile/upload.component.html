@@ -25,11 +25,15 @@
     @for (rad of rader(); track rad.id) {
       <div class="kort" [class.illa]="rad.fast">
         <div class="kortrad">
-          <img class="tumnagel" [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
+          @if (rad.tumnagel) {
+            <img class="tumnagel" [src]="rad.tumnagel" alt="" (error)="tumnagelTrasig(rad.id)" />
+          } @else {
+            <div class="tumnagel tom" aria-hidden="true"></div>
+          }
           <div class="korttext">
             <span class="tid">{{ rad.tid }}</span>
-            @if (rad.fast) {
-              <span class="lage farlig">Kom inte fram — servern avvisade en bild</span>
+            @if (rad.fast; as fast) {
+              <span class="lage farlig">Kom inte fram · {{ fast.skal }}</span>
             } @else if (state().utloggad) {
               <span class="lage farlig">Sessionen har gått ut — logga in igen</span>
             } @else if (state().offline) {
@@ -44,6 +48,18 @@
             <svg class="snurra" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
           }
         </div>
+
+        <!--
+          En avvisning som ett nytt försök inte kan lösa måste ha en väg ut ändå.
+          Den enda som finns är att kasta bilderna: servern kommer aldrig att ta emot
+          dem, och utan knappen står raden kvar för alltid.
+        -->
+        @if (rad.fast && !rad.fast.gorOm) {
+          <div class="utvag">
+            <p>Ett nytt försök ger samma svar. Fotografera kvittot igen, och kasta sedan de här bilderna.</p>
+            <button type="button" class="knapp kontur" (click)="fraga(rad)">Kasta bilderna</button>
+          </div>
+        }
       </div>
     }
   </div>
@@ -52,9 +68,21 @@
     <div class="handzon">
       <a class="knapp primar" routerLink="/logga-in">Logga in igen</a>
     </div>
-  } @else if (harFast()) {
+  } @else if (harOmforsok()) {
     <div class="handzon">
-      <button type="button" class="knapp primar" (click)="retry()">Försök igen nu</button>
+      <button type="button" class="knapp primar" [disabled]="offline() || forsoker()" (click)="retry()">
+        @if (offline()) { Väntar på nät } @else if (forsoker()) { Försöker … } @else { Försök igen nu }
+      </button>
     </div>
   }
+
+  <dialog #kastfraga class="fragan" aria-labelledby="kasta-rubrik" (cancel)="angra()" (close)="angra()">
+    <h2 id="kasta-rubrik">Kasta bilderna?</h2>
+    <p>
+      Bilderna tas bort ur telefonen och skickas inte igen. De finns inte i arkivet, så
+      efter det här finns kvittot bara på papper.
+    </p>
+    <button type="button" class="knapp kastaknapp" (click)="kasta()">Kasta bilderna</button>
+    <button type="button" class="knapp kontur" (click)="angra()">Behåll dem</button>
+  </dialog>
 </div>

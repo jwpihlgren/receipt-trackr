@@ -237,3 +237,20 @@
   color: var(--ok);
   font-size: var(--typ-base);
 }
+
+/* Sparfelet: samma ruta som i fångstvyn, för samma fel. Den lägger sig över handzonen
+   i stället för att trängas i flödet — den som just tryckt på kameran tittar dit. */
+.sparfel {
+  position: fixed;
+  inset: auto var(--space-4) var(--space-4);
+  z-index: var(--z-dialog);
+  display: grid;
+  gap: var(--d-gap);
+  padding: var(--d-card-pad);
+  border: 1px solid var(--danger);
+  border-radius: var(--horn-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+
+.sparfel p { margin: 0; font-size: var(--typ-base); line-height: var(--radavstand-body); }

@@ -61,11 +61,18 @@
     </div>
   }
 
-  <main class="p-4">
+  <main class="p-4" [attr.aria-busy]="laddar()">
+    <!--
+      "Hämtar …" hör till en hämtning som pågår, inte till frånvaron av rader. Det
+      stod kvar under felrutan för alltid när ett anrop misslyckats: tabellen var
+      fortfarande tom, och tomheten fick betyda att något var på väg.
+    -->
     @if (rader() === null) {
-      <div class="flex items-center gap-3 p-4 text-neutral">
-        <span class="loading loading-spinner loading-sm"></span> Hämtar …
-      </div>
+      @if (laddar()) {
+        <div class="flex items-center gap-3 p-4 text-neutral">
+          <span class="loading loading-spinner loading-sm"></span> Hämtar …
+        </div>
+      }
     } @else if (rader()!.length === 0) {
       <p class="text-neutral">
         {{ filtrerat() ? 'Inget kvitto matchar filtret.' : 'Inga klara kvitton än.' }}

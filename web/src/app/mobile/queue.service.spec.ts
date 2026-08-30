@@ -52,11 +52,15 @@ describe('Kön i telefonen', () => {
     await queue.drain();
     expect(await allSegments()).toHaveSize(1);
 
+    // Fel summa märker kvittot som fastnat, och kön rör det inte förrän någon säger
+    // till: en avvisning som försöks om av en klocka är den tysta loopen igen.
+    expect(queue.snapshot().stuck.map((f) => f.id)).toContain(id);
+
     // Samma summa: nu, och först nu, får bytesen kastas.
     fetchSpy.and.callFake((url: string) =>
       url.includes('/segments/') ? svar({ sha256: 'rätt-summa' }) : svar({ id }),
     );
-    await queue.drain();
+    await queue.retryStuck();
     expect(await allSegments()).toHaveSize(0);
   });
 
@@ -88,7 +92,7 @@ describe('Kön i telefonen', () => {
     );
 
     await queue.drain();
-    expect(queue.snapshot().stuck).toContain(id);
+    expect(queue.snapshot().stuck.map((f) => f.id)).toContain(id);
     expect(await allSegments()).toHaveSize(1);
   });
 
@@ -101,7 +105,7 @@ describe('Kön i telefonen', () => {
 
     await queue.drain();
     // Utan den här regeln försöker kön om var femtonde sekund för alltid, tyst.
-    expect(queue.snapshot().stuck).toContain(id);
+    expect(queue.snapshot().stuck.map((f) => f.id)).toContain(id);
     expect(await allSegments()).toHaveSize(1);
   });
 
@@ -113,7 +117,7 @@ describe('Kön i telefonen', () => {
     );
 
     await queue.drain();
-    expect(queue.snapshot().stuck).not.toContain(id);
+    expect(queue.snapshot().stuck.map((f) => f.id)).not.toContain(id);
     expect(await allSegments()).toHaveSize(1);
   });
 
@@ -134,12 +138,67 @@ describe('Kön i telefonen', () => {
       url.includes('/segments/') ? svar({ error: 'conflict' }, 409) : svar({ id }),
     );
     await queue.drain();
-    expect(queue.snapshot().stuck).toContain(id);
+    expect(queue.snapshot().stuck.map((f) => f.id)).toContain(id);
 
     fetchSpy.and.callFake((url: string) => (url.includes('/segments/') ? svar({ sha256: 's1' }) : svar({ id })));
     await queue.retryStuck();
     expect(queue.snapshot().stuck).toEqual([]);
     expect(await allSegments()).toHaveSize(0);
+  });
+
+  it('försöker inte om ett avvisat kvitto av sig självt — det är en tyst loop', async () => {
+    const id = ulid();
+    await queue.enqueueSegment(id, 1, bytes(10), 's1', {});
+    fetchSpy.and.callFake((url: string) =>
+      url.includes('/segments/') ? svar({ error: 'not_an_image' }, 415) : svar({ id }),
+    );
+    await queue.drain();
+    expect(queue.snapshot().stuck.map((f) => f.id)).toContain(id);
+
+    // Nästa pass skulle ha lyckats — men kvittot ska inte skickas förrän en människa
+    // sagt till. Utan det här gick anropet var femtonde sekund, för alltid, osynligt.
+    fetchSpy.calls.reset();
+    fetchSpy.and.callFake((url: string) => (url.includes('/segments/') ? svar({ sha256: 's1' }) : svar({ id })));
+    await queue.drain();
+    expect(fetchSpy.calls.count()).toBe(0);
+    expect(await allSegments()).toHaveSize(1);
+  });
+
+  it('släpper inte en 415 vid "Försök igen" — samma bild ger samma svar', async () => {
+    const id = ulid();
+    await queue.enqueueSegment(id, 1, bytes(11), 's1', {});
+    fetchSpy.and.callFake((url: string) =>
+      url.includes('/segments/') ? svar({ error: 'not_an_image' }, 415) : svar({ id }),
+    );
+    await queue.drain();
+    expect(queue.snapshot().stuck.map((f) => f.gorOm)).toEqual([false]);
+
+    fetchSpy.calls.reset();
+    await queue.retryStuck();
+    // Knappen ska inte ens vara framme, och trycks den ändå händer ingenting: det såg
+    // förut ut som en knapp som inte gjorde något, eftersom raden märktes om direkt.
+    expect(fetchSpy.calls.count()).toBe(0);
+    expect(queue.snapshot().stuck.map((f) => f.id)).toContain(id);
+  });
+
+  it('kastar kvittot på användarens ord: bytesen raderas och servern får en radering', async () => {
+    const id = ulid();
+    // Nätet ligger nere, så bilden hinner aldrig upp: det är läget knappen finns för.
+    fetchSpy.and.returnValue(Promise.reject(new TypeError('Failed to fetch')));
+    await queue.enqueueSegment(id, 1, bytes(12), 's1', {});
+    await queue.drain();
+    expect(await allSegments()).toHaveSize(1);
+
+    fetchSpy.and.callFake(() => svar({}));
+    await queue.discardReceipt(id);
+    await queue.drain(); // kedjan ut, så att serverraderingen hunnit gå
+
+    expect(await allSegments()).toHaveSize(0);
+    expect(await allReceipts()).toHaveSize(0);
+    const raderingar = fetchSpy.calls
+      .allArgs()
+      .filter((args) => (args[1] as RequestInit | undefined)?.method === 'DELETE' && String(args[0]).endsWith(id));
+    expect(raderingar).toHaveSize(1);
   });
 
   it('rör inte kön när nätverket fallerar', async () => {

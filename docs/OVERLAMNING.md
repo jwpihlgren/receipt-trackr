@@ -148,11 +148,12 @@ ingenting, för okänt är inte dåligt.
 
 ## Granskningen 2026-08-30
 
-Tre granskare — frontend, UX och UI — gick över koden och hittade **109 fel**. Ungefär
-hälften är åtgärdade, i fem grupper: datafel och regelbrott, köer utan utgång,
-telefonytan, kanter och tabellmått, samt texten.
+Tre granskare — frontend, UX och UI — gick över koden och hittade **109 fel**. De
+åtgärdades i sex grupper: datafel och regelbrott, köer utan utgång, telefonytan,
+kanter och tabellmått, texten, och sist de elva buggar som stod kvar. Det som återstår
+av listan är konsekvens och form samt skräp — ingenting av det är en bugg.
 
-Fyra mönster är värda att inte återinföra:
+Sex mönster är värda att inte återinföra:
 
 **Svar som inte kontrolleras.** Ett `fetch` vars status aldrig prövas, plus ett `as`
 som gör den ogranskade formen till en typ. Orsaken till fyra av de fem värsta buggarna.
@@ -165,25 +166,49 @@ medel.
 
 **Egna klasser ovanpå DaisyUI.** Se avsnittet om gränssnittet.
 
+**`display` utan villkor på en `<dialog>`.** Egna regler slår ut webbläsarens
+`dialog:not([open]) { display: none }`, och rutan ligger och lyser över skärmen även
+när den är stängd. Layouten hör på `[open]`, resten på elementet.
+
+**Ett klassnamn med två betydelser i samma fil.** `.farlig` var både en textfärg på
+lägesraden och en knappfyllnad; statusraden blev ett rött block utan läsbar text.
+Ingetdera av de här två syns i en diff — båda hittades av att skärmen renderades.
+
 ### Kvar av listan
 
-**Buggar:**
+**Buggarna är åtgärdade** — alla elva, 2026-08-30 sent. Testerna är 22 i webben och
+111 i servern, alla gröna, och varje rättning är dessutom renderad i en huvudlös
+webbläsare och avläst på skärmen, inte bara i koden. Tre saker föll ut som är värda
+att bära vidare:
 
-- *Avbryt* i fångsten laddar upp bilderna ändå, utan bekräftelse, och skapar ett kvitto
-  utan `expectedSegments`. Ordet lovar motsatsen till vad som händer.
-- Överlappande `load()` i arkivet: ändra butik och datum snabbt, så avgör svarsordningen
-  vad tabellen visar.
-- "Hämtar …" står kvar under felrutan för alltid när ett anrop misslyckats.
-- Driftsidan visar `Http failure response for /api/health: 401` rakt av vid utgången
-  session; den har ingen 401-hantering alls.
-- `track segment.sha256` är instabil: två identiska bilder ger NG0955 i stället för en lista.
-- Menyn är en fokusfälla — ingen Esc, ingen fokusflytt, bakgrunden inte inert.
-- *Försök igen nu* saknar allt tillstånd och gör ingenting när man är offline.
-- Sparfel vid full telefon syns bara i fångstvyn, inte på listan man står på.
-- Tumnaglarna på uppladdningssidan är garanterat 404 — kvittona är per definition inte
-  i arkivet än.
-- `retryStuck()` nollar även det servern avvisat med 415/409, som aldrig går igenom.
-- `refresh()` i kön är osekvenserad och kan skriva tillbaka en äldre lista.
+**"Avbryt" kastar nu på riktigt.** Den släppte förut skärmen medan kön laddade upp
+bilderna ändå, och kvittot blev liggande i arkivet utan känt antal bilder — alltså
+ofärdigt för alltid. `discardReceipt()` i kön är den enda platsen i appen där bilder
+försvinner utan att ha nått arkivet, och den ligger bakom en `<dialog>` som säger vad
+som händer. Regeln om oåterkalleliga bilder skyddar mot **tyst** förlust — en krasch,
+ett tappat svar, en kapplöpning — inte mot en människa som står med papperet kvar i
+handen och säger nej.
+
+**Avvisningen bär sitt skäl.** `stuck` var en lista med id:n, vilket gjorde alla fel
+lika: en bild servern inte kan läsa fick samma "Försök igen" som en krock en människa
+kan lösa vid datorn. Nu är den `Fastnat[]` med `status`, `skal` och `gorOm`, och bara
+det som `gorOm` säger något om släpps av knappen. En 415 får i stället sin egen väg ut
+— *Kasta bilderna* — för ett läge utan utgång är värre än en radering.
+
+Och `pass()` hoppar nu över det som redan är avvisat. Märkningen påstod att den
+hindrade "en tyst loop som ingen ser", men ingenting stoppade slingan: kvittot
+skickades om var femtonde sekund i evighet.
+
+**Mönstret bakom fem av dem: ett tillstånd som saknades.** Överlappande `load()` utan
+sekvensnummer, `refresh()` likaså, "Hämtar …" som betydde "inga rader" i stället för
+"en hämtning pågår", "Försök igen nu" utan vetskap om nät eller om det fanns något att
+försöka med, och driftsidans avsaknad av 401. Var och en är en signal som inte fanns.
+
+**Hittat men inte åtgärdat:** `QueueService.start()` kör bara `refresh()`, inte
+`drain()`. En kö som ligger kvar sedan förra sessionen får därför sitt första försök
+först när femtonsekundersklockan slår, inte när appen öppnas. Det syntes när skärmarna
+renderades och är en riktig lucka, men den står inte på granskningens lista och rördes
+därför inte.
 
 **Konsekvens och form:** fem sätt att visa ett fel, tre laddlägen med två
 formuleringar, fyra verb för samma operation, tre olika vänsterkanter på telefonens

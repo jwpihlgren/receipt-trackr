@@ -23,7 +23,7 @@
         <strong>Ett kvitto är påbörjat</strong>
         <span>{{ antal }} {{ antal === 1 ? 'bild ligger' : 'bilder ligger' }} kvar i telefonen.</span>
       </div>
-      <a class="konturprimar" routerLink="/fanga">Fortsätt kvittot</a>
+      <a class="konturprimar" routerLink="/telefon/fanga">Fortsätt kvittot</a>
     </div>
   }
 
@@ -101,6 +101,18 @@
       <input type="file" accept="image/*" multiple (change)="onFiles($event)" />
     </label>
   </div>
+
+  <!--
+    Sparfelet hör hemma på den skärm man står på. Kameran öppnas härifrån, så en full
+    telefon slår till här — och meddelandet låg bara i fångstvyn, dit man aldrig kom
+    när sparningen var det som misslyckades. Det var ett fel utan mottagare.
+  -->
+  @if (flow.saveError(); as message) {
+    <div class="sparfel" role="alert">
+      <p>{{ message }}</p>
+      <button type="button" class="knapp kontur" (click)="flow.dismissSaveError()">Jag har läst</button>
+    </div>
+  }
 
   @if (flow.awaiting()) {
     <div class="vantar" role="status">

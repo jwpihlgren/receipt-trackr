@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { MenyComponent } from '../shared/meny.component';
 
 /** Svaret från `/api/health` — samma form som servern lovar i http/health.ts. */
@@ -29,11 +29,12 @@ export type Health = {
 @Component({
   selector: 'app-drift',
   host: { 'data-density': 'comfortable' },
-  imports: [RouterLink, MenyComponent],
+  imports: [MenyComponent],
   templateUrl: './drift.component.html',
 })
 export class DriftComponent {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
 
   readonly health = signal<Health | null>(null);
   readonly error = signal<string | null>(null);
@@ -48,7 +49,16 @@ export class DriftComponent {
     // det är exakt det läget vyn finns för att visa.
     this.http.get<Health>('/api/health', { observe: 'response' }).subscribe({
       next: (response) => this.health.set(response.body),
-      error: (err: { error?: Health; message?: string }) => {
+      error: (err: { status?: number; error?: Health; message?: string }) => {
+        // En utgången session är inte ett driftfel. Vyn skrev ut HttpClients egen
+        // rad — "Http failure response for /api/health: 401" — som om servern varit
+        // sjuk, i stället för att göra det varje annan vy här gör: skicka till
+        // inloggningen. Den som läser den raden får veta att något gått fel med
+        // arkivet, vilket är osant och dessutom skrämmande på just den här sidan.
+        if (err.status === 401 || err.status === 403) {
+          void this.router.navigateByUrl('/logga-in');
+          return;
+        }
         if (err.error?.status) this.health.set(err.error);
         else this.error.set(err.message ?? 'Servern svarar inte.');
       },
