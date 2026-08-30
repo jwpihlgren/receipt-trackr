@@ -349,3 +349,47 @@ Två saker att skriva upp i samma veva: om sidan var cross-origin isolated (anna
 WASM entrådat och siffrorna är sämre än de behöver vara), och hur lång uppvärmningen
 var. Modellen laddas en gång per nivå och den kostnaden ska inte blandas in i
 tiden per bild. Båda står överst i mätfilen.
+
+## Vad M5a gav (2026-08-30)
+
+17 segment ur arkivet, beställarens egna kvitton, samma bilder på båda maskinerna.
+
+| | tecken/bild | ms/bild | varav uppräting | varav tolkning | median | p10 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **telefon** · tiny · isolerad | **594** | **2023** | 569 | 1423 | 0,861 | 0,734 |
+| telefon · small · isolerad | 420 | 5560 | 1180 | 4347 | 0,830 | 0,703 |
+| dator · tiny · ej isolerad | 598 | 2557 | 700 | 1838 | 0,863 | 0,727 |
+| dator · small · ej isolerad | 418 | 7517 | 1564 | 5935 | 0,832 | 0,696 |
+
+Telefon: Android, Chrome 152, 8 kärnor, cross-origin isolated.
+Dator: Windows, Chrome 151, 12 kärnor, **inte** isolerad — appen nåddes över rå http.
+
+### Tre slutsatser
+
+**1. Telefonen orkar. Frågan är besvarad med ja.** Två sekunder per bild, i bakgrunden,
+medan appen är öppen. Ett kvitto på tre bilder är klart på sex sekunder. Tolkningen hör
+alltså hemma på telefonen, och datorn behövs bara för det som telefonen missade.
+
+**2. Telefonen är snabbare än datorn, och det beror inte på hårdvaran.** Åtta kärnor slår
+tolv därför att telefonen nåddes över https och därmed är cross-origin isolated, medan
+datorn nåddes över rå http och kör entrådad WASM. Skillnaden är ungefär 25 % på
+tolkningssteget — mätt på hårdvara som borde vara *sämre*. Det är priset för att köra
+utan TLS, och det är nu en siffra i stället för en gissning.
+
+**3. tiny slår small, bekräftat i en annan runtime.** 598 tecken mot 418, högre konfidens,
+och tre gånger snabbare. M0 mätte samma sak i Node med sharp; det gäller alltså inte en
+egenhet i den uppställningen. `small` läser dessutom *sämre* text — den tappar hela
+stycken där tiny får med dem.
+
+### Två saker mätningen visade som inte var frågan
+
+**Uppräteningen kostar 500–700 ms och gör ingen nytta på egna foton.** `vridna 0/17` på
+båda maskinerna: bilder som tagits genom appen har orienteringen inbakad i pixlarna sedan
+M4c. Regeln behövs för backloggen och för galleriimport, men för egna fångster vet vi
+redan svaret — `capture.source` i sidecaren säger det. Att hoppa över kalibreringen där
+tar bort en fjärdedel av tiden.
+
+**Två segment lästes knappt alls.** 16 och 27 tecken, tecken per rad 4,0 och 5,4 mot
+normalfallets 11. Det är precis den felklass M0 krävde skulle synas: en bild som lästes
+tecken för tecken får inte sparas som ett kvitto med tomma fält. Tecken per rad är måttet,
+och gränsen ligger någonstans kring 7.
