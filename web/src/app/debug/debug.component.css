@@ -1,0 +1,9 @@
+/* TILLFÄLLIG MÄTSIDA — ska tas bort tillsammans med resten av katalogen.
+   Sidan lånar DaisyUI rakt av och behöver därför nästan ingen egen CSS. */
+
+/* Filinputen ligger i en <label>-knapp; fokus hör till knappen, inte till den
+   osynliga inputen. Samma regel som i fångstflödet. */
+.btn:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}

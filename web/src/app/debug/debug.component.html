@@ -1,0 +1,156 @@
+<!-- TILLFÄLLIG MÄTSIDA — se filhuvudet i debug.component.ts. Ska tas bort. -->
+<div class="min-h-dvh bg-base-200">
+  <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-4">
+    <h1 class="text-lg font-semibold">Mätsida</h1>
+    <span class="badge badge-soft badge-warning">tillfällig · tas bort</span>
+    <span class="ml-auto text-sm text-neutral">
+      {{ isolerad() ? 'flertrådad WASM' : 'entrådad WASM (~25 % långsammare)' }}
+    </span>
+  </header>
+
+  <main class="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4">
+    <div class="rounded-box border border-base-300 bg-base-100 p-4">
+      <div class="flex flex-wrap items-end gap-4">
+        <label class="floating-label">
+          <span>Modellnivå</span>
+          <select class="select select-sm w-32" [value]="niva()" (change)="valjNiva($event)">
+            <option value="tiny">tiny</option>
+            <option value="small">small</option>
+          </select>
+        </label>
+
+        <label class="floating-label">
+          <span>Uppräting</span>
+          <select class="select select-sm w-40" [value]="rotation()" (change)="valjRotation($event)">
+            <option value="auto">auto</option>
+            <option value="0">ingen (0°)</option>
+            <option value="90">90°</option>
+            <option value="180">180°</option>
+            <option value="270">270°</option>
+          </select>
+        </label>
+
+        <label class="label cursor-pointer gap-2">
+          <input type="checkbox" class="checkbox checkbox-sm" [checked]="spara()" (change)="valjSpara($event)" />
+          <span>Spara i arkivet</span>
+        </label>
+
+        <label class="btn btn-sm btn-primary">
+          Välj bilder
+          <input type="file" accept="image/*" multiple class="hidden" [disabled]="kor()" (change)="onFiles($event)" />
+        </label>
+
+        @if (rader().length) {
+          <button type="button" class="btn btn-sm" [disabled]="kor()" (click)="kopiera()">
+            {{ kopierat() ? 'Kopierat' : 'Kopiera mätningen' }}
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost" [disabled]="kor()" (click)="rensa()">Rensa</button>
+        }
+      </div>
+
+      <p class="mt-3 text-sm text-neutral">
+        Utan <em>Spara i arkivet</em> läses bilden bara här och ingenting skrivs. Med den på går
+        bilden hela vägen — uppladdning, kvittens på sha256, komplettsignal, tolkning inlämnad —
+        och kolumnerna Butik, Datum och Belopp visar vad <em>servern</em> utvann ur texten.
+      </p>
+    </div>
+
+    @if (kor()) {
+      <div class="flex items-center gap-3 rounded-box border border-base-300 bg-base-100 p-4">
+        <span class="loading loading-spinner loading-sm"></span>
+        <span>{{ steg() ?? 'Arbetar …' }}</span>
+      </div>
+    }
+
+    @if (fel(); as message) {
+      <div role="alert" class="alert alert-soft alert-error">
+        <pre class="ocr-text overflow-auto whitespace-pre-wrap">{{ message }}</pre>
+      </div>
+    }
+
+    @if (summa(); as s) {
+      <div class="rounded-box border border-base-300 bg-base-100 p-4">
+        <div class="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-5">
+          <div><div class="text-sm text-neutral">Bilder</div><div class="num text-lg">{{ s.antal }}</div></div>
+          <div><div class="text-sm text-neutral">Median ms</div><div class="num text-lg">{{ tal(s.msMedian) }}</div></div>
+          <div><div class="text-sm text-neutral">Median tecken</div><div class="num text-lg">{{ tal(s.teckenMedian) }}</div></div>
+          <div><div class="text-sm text-neutral">Median tecken/rad</div><div class="num text-lg">{{ tal(s.teckenPerRadMedian) }}</div></div>
+          <div><div class="text-sm text-neutral">Median konfidens</div><div class="num text-lg">{{ tal(s.konfidensMedian) }}</div></div>
+          <div><div class="text-sm text-neutral">Under gränsen 7</div><div class="num text-lg">{{ s.underGransen }}</div></div>
+          <div><div class="text-sm text-neutral">Vända bilder</div><div class="num text-lg">{{ s.vandaBilder }}</div></div>
+          <div><div class="text-sm text-neutral">Med butik</div><div class="num text-lg">{{ s.medButik }}</div></div>
+          <div><div class="text-sm text-neutral">Med datum</div><div class="num text-lg">{{ s.medDatum }}</div></div>
+          <div><div class="text-sm text-neutral">Med belopp</div><div class="num text-lg">{{ s.medBelopp }}</div></div>
+        </div>
+      </div>
+    }
+
+    @if (rader().length) {
+      <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Fil</th>
+              <th class="text-right">Px</th>
+              <th class="text-right">Vridning</th>
+              <th class="text-right">ms</th>
+              <th class="text-right">Tecken</th>
+              <th class="text-right">Rader</th>
+              <th class="text-right">Tecken/rad</th>
+              <th class="text-right">Konf. median</th>
+              <th class="text-right">p10</th>
+              <th>Butik</th>
+              <th>Datum</th>
+              <th class="text-right">Belopp</th>
+              <th>Läge</th>
+              <th><span class="sr-only">Råtext</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (rad of rader(); track $index) {
+              <tr [class.bg-error]="rad.fel" [class.bg-opacity-10]="rad.fel">
+                <td class="max-w-48 truncate" [title]="rad.fil">{{ rad.fil }}</td>
+                @if (rad.fel) {
+                  <td colspan="13" class="text-error">{{ rad.fel }}</td>
+                } @else {
+                  <td class="num text-right whitespace-nowrap">{{ rad.px }}</td>
+                  <td class="num text-right">{{ rad.rotation }}°</td>
+                  <td class="num text-right">{{ tal(rad.ms.totalt) }}</td>
+                  <td class="num text-right">{{ rad.tecken }}</td>
+                  <td class="num text-right">{{ rad.rader }}</td>
+                  <!-- Gränsen 7 står i index-db.ts och är det som är oprövat. -->
+                  <td class="num text-right" [class.text-error]="rad.teckenPerRad > 0 && rad.teckenPerRad < 7">
+                    {{ tal(rad.teckenPerRad) }}
+                  </td>
+                  <td class="num text-right">{{ tal(rad.median) }}</td>
+                  <td class="num text-right">{{ tal(rad.p10) }}</td>
+                  <td class="max-w-40 truncate" [title]="rad.butik ?? ''">{{ rad.butik ?? '—' }}</td>
+                  <td class="num whitespace-nowrap">{{ rad.datum ?? '—' }}</td>
+                  <td class="num text-right">{{ rad.belopp === null ? '—' : tal(rad.belopp) }}</td>
+                  <td class="text-neutral">{{ rad.lage ?? (rad.id ? 'klart' : '—') }}</td>
+                  <td class="text-right">
+                    <button
+                      type="button"
+                      class="btn btn-xs btn-ghost text-primary"
+                      [attr.aria-expanded]="oppen() === $index"
+                      (click)="visa($index)"
+                    >
+                      {{ oppen() === $index ? 'Dölj texten' : 'Texten' }}
+                    </button>
+                  </td>
+                }
+              </tr>
+              @if (oppen() === $index && rad.text) {
+                <tr>
+                  <td colspan="14" class="bg-base-200">
+                    <pre class="ocr-text max-h-80 overflow-auto p-2">{{ rad.text }}</pre>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </main>
+</div>

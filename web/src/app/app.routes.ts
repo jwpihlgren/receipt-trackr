@@ -66,6 +66,17 @@ export const routes: Routes = [
     loadComponent: () => import('./desktop/drift.component').then((m) => m.DriftComponent),
   },
 
+  // ─── TILLFÄLLIG MÄTSIDA ────────────────────────────────────────────────
+  // Står inte i menyn och ligger utanför ytorna med flit: den är inte en del av
+  // appen. Tas bort genom att radera det här blocket och katalogen
+  // `web/src/app/debug/`. Ingenting annat rör den.
+  {
+    path: 'debug',
+    title: 'Mätsida',
+    loadComponent: () => import('./debug/debug.component').then((m) => m.DebugComponent),
+  },
+  // ───────────────────────────────────────────────────────────────────────
+
   // Gamla adresser. Någon kan ha dem sparade.
   { path: 'kvitton', redirectTo: 'telefon/kvitton' },
   { path: 'fanga', redirectTo: 'telefon/fanga' },

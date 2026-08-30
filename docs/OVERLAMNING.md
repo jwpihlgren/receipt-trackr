@@ -261,6 +261,30 @@ en trasig ruta i remsan ut som en förlorad bild.
 utan datum går inte att sortera eller filtrera på — det är en verklig lucka, inte en
 kvittering av något som redan fungerar. Beslutet står.
 
+## Mätsidan på `/debug` — tillfällig, ska bort
+
+Byggd 2026-08-30 på beställarens uttryckliga tillåtelse, för att han ska kunna köra
+sina egna kvitton genom kedjan och få siffror ur den. **Den är inte en del av appen.**
+Den står inte i menyn, ligger utanför `/telefon` och `/dator`, och ingen annan fil
+importerar något ur den.
+
+Så tas den bort, helt: radera katalogen `web/src/app/debug/` och rutt-blocket märkt
+"TILLFÄLLIG MÄTSIDA" i `app.routes.ts`. Servern är orörd — sidan använder bara rutter
+som appen redan har.
+
+Vad den gör: väljer man bilder läses varje bild i den här webbläsaren och en rad
+skrivs med px, vald vridning, ms, tecken, rader, **tecken per rad**, konfidensens
+median och p10, samt råtexten bakom en knapp. Med *Spara i arkivet* på går bilden hela
+vägen — uppladdning, kvittens på sha256, komplettsignal, tolkning inlämnad — och
+kolumnerna Butik, Datum och Belopp visar vad **servern** utvann. Sammandraget räknar
+medianer och hur många som skulle flaggas av gränsen 7. *Kopiera mätningen* lägger allt
+som JSON i urklippet.
+
+Varför den finns i stället för en skärm i appen: ett kalibreringsurval **är** en lista
+att beta av, och ingen skärm i appen får vara det. Mätningen hör hemma i något som
+slängs. Siffrorna den ger är underlaget till M9 och till frågan om gränsen 7 är rätt
+satt.
+
 ## Vad som inte är prövat
 
 - **Ingenting av dagens arbete är kört mot beställarens egna kvitton.** Skärmarna är
