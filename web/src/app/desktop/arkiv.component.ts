@@ -1,5 +1,5 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
 
@@ -30,6 +30,10 @@ type Svar = { total: number; receipts: Rad[]; butiker: string[] };
 })
 export class ArkivComponent {
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  /** Kvittens för radering, som sker på en annan sida. Slocknar av sig själv. */
+  readonly raderat = signal(false);
   readonly tolkning = inject(TolkningService);
 
   readonly rader = signal<Rad[] | null>(null);
@@ -48,6 +52,12 @@ export class ArkivComponent {
   readonly filtrerat = computed(() => !!(this.fraga() || this.butik() || this.fran() || this.till()));
 
   constructor() {
+    if (this.route.snapshot.queryParamMap.has('raderat')) {
+      this.raderat.set(true);
+      void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+      setTimeout(() => this.raderat.set(false), 4000);
+    }
+
     void this.load();
     void this.tolkning.rakna();
 
@@ -82,7 +92,7 @@ export class ArkivComponent {
       this.butiker.set(body.butiker);
       await this.raknaOfardiga();
     } catch {
-      this.error.set('Kunde inte hämta kvittona. Är servern igång?');
+      this.error.set('Kvittona gick inte att hämta. Försök igen.');
     }
   }
 

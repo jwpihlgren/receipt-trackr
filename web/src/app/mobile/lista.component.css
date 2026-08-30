@@ -229,3 +229,11 @@
   color: var(--ink);
   font-size: var(--typ-sm);
 }
+
+.kvittens {
+  margin: 0;
+  padding: var(--d-pad-y) var(--d-pad-x);
+  background: var(--ok-soft);
+  color: var(--ok);
+  font-size: var(--typ-base);
+}

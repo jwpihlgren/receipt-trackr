@@ -35,7 +35,7 @@ export class UploadComponent {
   readonly sammanfattning = computed(() => {
     const n = this.state().receipts.length;
     if (n === 0) return null;
-    return `${n} ${n === 1 ? 'kvitto är' : 'kvitton är'} inte i arkivet än. Uppladdningen sköter sig själv så länge appen är öppen.`;
+    return `${n} ${n === 1 ? 'kvitto är' : 'kvitton är'} på väg till arkivet.`;
   });
 
   readonly harFast = computed(() => this.state().stuck.length > 0);

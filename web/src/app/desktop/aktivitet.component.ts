@@ -64,7 +64,7 @@ export class AktivitetComponent {
       if (!svar.ok) throw new Error(String(svar.status));
       this.data.set((await svar.json()) as Aktivitet);
     } catch {
-      this.error.set('Kunde inte hämta aktiviteten. Är servern igång?');
+      this.error.set('Aktiviteten gick inte att hämta. Försök igen.');
     }
   }
 

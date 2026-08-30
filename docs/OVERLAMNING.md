@@ -135,6 +135,28 @@ literala färger finns någonstans utom i `styles/tokens.css` och `styles.css`.
 (`/telefon/kvitton`, `/dator/kvitton`), appen heter Kvittoarkiv, platsen heter
 Kvitton, och samma ord står i menyn, i rubriken och i webbläsarfliken.
 
+## Granskningen 2026-08-30
+
+Tre granskare — frontend, UX och UI — gick över koden och hittade 109 fel. De
+åtgärdades i fem grupper: datafel och regelbrott, köer utan utgång, telefonytan,
+kanter och tabellmått, samt texten. Fyra mönster är värda att inte återinföra:
+
+**Svar som inte kontrolleras.** Ett `fetch` vars status aldrig prövas, plus ett `as`
+som gör den ogranskade formen till en typ. Det var orsaken till fyra av de fem värsta
+buggarna, bland dem att varje rad i telefonlistan påstod sig vara otolkad.
+
+**Något som startas utan att stoppas.** `startaLopande()` anropades i en konstruktor
+medan `stoppaLopande()` bara fanns på papperet, och tjänsten lever i roten — datorn
+fortsatte tolka av sig själv efter ett ytbyte.
+
+**Lägen utan utgång.** Varje rad i aktiviteten måste kunna nå ett slut med appens egna
+medel. Regeln som bär det: en människas tre fält väger tyngre än maskinen.
+
+**Egna klasser ovanpå DaisyUI.** `flex-col` mot ett rutnät, tabellmått i `@layer
+components` som förlorar mot bibliotekets eget lager. Använd komponentens egen
+modifierare, och gå bara utanför när en mätning kräver det — kontrollernas kanter är
+det enda undantaget, och skälet står i `styles.css`.
+
 ## Vad som är mätt, och vad siffrorna betyder
 
 Ingenting nedan är gissat. Bryt inte mot det utan att mäta om.

@@ -96,7 +96,7 @@ export class CaptureFlowService {
       return true;
     } catch (error) {
       this.saveError.set(
-        `Bilden kunde inte sparas i telefonen: ${(error as Error).message} ` +
+        `Bilden kunde inte sparas i telefonen: ${(error instanceof Error ? error.message : String(error))} ` +
           'Ta inte bort kvittot — försök igen, eller frigör utrymme först.',
       );
       navigator.vibrate?.([40, 60, 40]);

@@ -1,5 +1,5 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { QueueService } from './queue.service';
 import { CaptureFlowService } from './capture-flow.service';
 import { MenyComponent } from '../shared/meny.component';
@@ -39,6 +39,10 @@ type Grupp = { rubrik: string; rader: ReceiptRow[] };
 })
 export class ListaComponent {
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+
+  /** Kvittens för radering, som sker på en annan sida. Slocknar av sig själv. */
+  readonly raderat = signal(false);
   private readonly queue = inject(QueueService);
   readonly flow = inject(CaptureFlowService);
   /**
@@ -84,6 +88,12 @@ export class ListaComponent {
   });
 
   constructor() {
+    if (this.route.snapshot.queryParamMap.has('raderat')) {
+      this.raderat.set(true);
+      void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+      setTimeout(() => this.raderat.set(false), 4000);
+    }
+
     this.queue.start();
     void this.load();
     this.tolkning.startaLopande();

@@ -35,6 +35,10 @@
     </div>
   }
 
+  @if (raderat()) {
+    <p class="kvittens" role="status">Kvittot är borttaget.</p>
+  }
+
   <div class="innehall">
     @if (error(); as message) {
       <p class="fel" role="alert">
@@ -61,7 +65,7 @@
                   <span class="text">
                     <span class="huvud">{{ rad.store ?? klocka(rad.capturedAt) }}</span>
                     <span class="under">
-                      {{ rad.segments }} {{ rad.segments === 1 ? 'bild' : 'bilder' }}@if (rad.tecken > 0) { · {{ rad.tecken }} tecken utlästa } @else { · inte tolkat än }
+                      {{ rad.segments }} {{ rad.segments === 1 ? 'bild' : 'bilder' }}@if (rad.tecken === 0) { · inte tolkat än }
                     </span>
                   </span>
                   @if (rad.total !== null) { <span class="belopp num">{{ rad.total }} kr</span> }

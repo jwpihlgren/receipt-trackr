@@ -39,7 +39,7 @@ export class LoggaInComponent {
         this.error.set('Fel lösenordsfras.');
       }
     } catch {
-      this.error.set('Servern svarar inte. Är burken igång?');
+      this.error.set('Ingen kontakt. Kontrollera att du är på hemnätet eller Tailscale.');
     } finally {
       this.busy.set(false);
     }

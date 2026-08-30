@@ -5,6 +5,12 @@
     <span class="num text-sm text-neutral">{{ total() }}{{ filtrerat() ? ' träffar' : ' kvitton' }}</span>
   </header>
 
+  @if (raderat()) {
+    <div role="status" class="alert alert-soft alert-success mx-4 mt-4 w-auto">
+      <span>Kvittot är borttaget.</span>
+    </div>
+  }
+
   @if (ofardiga() > 0) {
     <div class="flex items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
       <span>{{ ofardiga() }} {{ ofardiga() === 1 ? 'kvitto är' : 'kvitton är' }} inte klara</span>

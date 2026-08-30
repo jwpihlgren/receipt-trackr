@@ -108,7 +108,7 @@ export class TolkningService {
         }
       }
     } catch (fel) {
-      this.lage.update((l) => ({ ...l, fel: (fel as Error).message }));
+      this.lage.update((l) => ({ ...l, fel: (fel instanceof Error ? fel.message : String(fel)) }));
     } finally {
       this.lage.update((l) => ({ ...l, kor: false, aktuellt: null, steg: null }));
       await this.rakna();
@@ -132,7 +132,7 @@ export class TolkningService {
       if (!mitt) throw new Error('Kvittot var inte ledigt för tolkning.');
       await this.tolkaEtt(mitt);
     } catch (fel) {
-      this.lage.update((l) => ({ ...l, fel: (fel as Error).message }));
+      this.lage.update((l) => ({ ...l, fel: (fel instanceof Error ? fel.message : String(fel)) }));
     } finally {
       this.lage.update((l) => ({ ...l, kor: false, aktuellt: null, steg: null }));
       await this.rakna();
@@ -258,7 +258,11 @@ export class TolkningService {
       // Jobbet lämnas tillbaka så att någon annan — eller samma enhet senare — kan ta
       // det. Utan det ligger kvittot reserverat i fem minuter för ingenting.
       await this.aterlamna(jobb.id);
-      this.lage.update((l) => ({ ...l, fel: `${jobb.id}: ${(fel as Error).message}` }));
+      // Felet ska säga vad man gör åt det, inte bara vilket ULID och vilken
+      // statuskod det gällde. Kastas något som inte är ett Error blev meddelandet
+      // dessutom "undefined".
+      const varfor = fel instanceof Error ? fel.message : String(fel);
+      this.lage.update((l) => ({ ...l, fel: `Ett kvitto kunde inte tolkas: ${varfor}` }));
     }
   }
 }

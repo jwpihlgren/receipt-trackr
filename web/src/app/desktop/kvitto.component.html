@@ -12,8 +12,14 @@
         {{ r.segments.length }} {{ r.segments.length === 1 ? 'bild' : 'bilder' }}
       </span>
       @if (harText()) {
-        <button type="button" class="btn btn-sm ml-auto" [class.btn-active]="visaText()" (click)="toggleText()">
-          Visa texten
+        <button
+          type="button"
+          class="btn btn-sm ml-auto"
+          [class.btn-active]="visaText()"
+          [attr.aria-pressed]="visaText()"
+          (click)="toggleText()"
+        >
+          {{ visaText() ? 'Dölj texten' : 'Visa texten' }}
         </button>
       }
     }

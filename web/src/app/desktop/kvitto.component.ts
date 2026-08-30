@@ -209,6 +209,7 @@ export class KvittoComponent {
       this.receipt.set((await svar.json()) as Receipt);
       this.fyllUtkast();
       this.sparat.set(true);
+      setTimeout(() => this.sparat.set(false), 3000);
       this.error.set(null);
     } catch {
       this.error.set('Rättelsen gick inte att spara.');
@@ -342,7 +343,7 @@ export class KvittoComponent {
       const svar = await fetch(`/api/receipts/${this.id()}`, { method: 'DELETE' });
       if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
       if (!svar.ok && svar.status !== 404) throw new Error(String(svar.status));
-      await this.router.navigateByUrl(this.tillbakaLank());
+      await this.router.navigateByUrl(`${this.tillbakaLank()}?raderat=1`);
     } catch {
       this.error.set('Kvittot gick inte att ta bort.');
       this.sparar.set(false);
@@ -372,7 +373,7 @@ export class KvittoComponent {
         this.visaText.set(true);
       }
     } catch {
-      this.error.set('Kunde inte hämta kvittot. Är servern igång?');
+      this.error.set('Kvittot gick inte att hämta. Försök igen.');
     }
   }
 
