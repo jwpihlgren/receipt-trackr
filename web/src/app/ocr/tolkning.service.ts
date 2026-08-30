@@ -15,6 +15,13 @@ export type TolkningsLage = {
   aktuellt: string | null;
   steg: string | null;
   klaraIPasset: number;
+  /**
+   * Räknare som bara går uppåt, över hela sessionen. Vyer lyssnar på den för att veta
+   * när de ska hämta om sin lista — utan den tolkar appen vidare medan raderna står
+   * kvar och säger "inte tolkat än", och det ser ut som att ingenting händer.
+   * `klaraIPasset` duger inte till det: den nollställs vid varje nytt pass.
+   */
+  klaraTotalt: number;
   fel: string | null;
 };
 
@@ -43,11 +50,14 @@ export class TolkningService {
     aktuellt: null,
     steg: null,
     klaraIPasset: 0,
+    klaraTotalt: 0,
     fel: null,
   });
 
   readonly snapshot = this.lage.asReadonly();
   readonly vantande = computed(() => this.lage().vantande);
+  /** Signalen vyerna hänger sina omhämtningar på. */
+  readonly klaraTotalt = computed(() => this.lage().klaraTotalt);
 
   private lopande = false;
   private stoppa = false;
@@ -197,7 +207,12 @@ export class TolkningService {
         }),
       });
 
-      this.lage.update((l) => ({ ...l, klaraIPasset: l.klaraIPasset + 1 }));
+      this.lage.update((l) => ({
+        ...l,
+        klaraIPasset: l.klaraIPasset + 1,
+        klaraTotalt: l.klaraTotalt + 1,
+        vantande: Math.max(0, l.vantande - 1),
+      }));
     } catch (fel) {
       // Jobbet lämnas tillbaka så att någon annan — eller samma enhet senare — kan ta
       // det. Utan det ligger kvittot reserverat i fem minuter för ingenting.

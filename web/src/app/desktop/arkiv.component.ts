@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../shared/auth.service';
 import { TolkningService } from '../ocr/tolkning.service';
@@ -72,12 +72,17 @@ export class ArkivComponent {
   constructor() {
     void this.load();
     void this.tolkning.rakna();
+
+    // Ett tolkat kvitto ska synas direkt, inte när passet är slut. Ett långt pass
+    // annars är tio minuter där skärmen påstår att ingenting hänt.
+    effect(() => {
+      this.tolkning.klaraTotalt();
+      void this.load();
+    });
   }
 
-  async tolka(): Promise<void> {
-    await this.tolkning.kor();
-    // Texten finns nu i indexet — listan ska visa det utan att någon laddar om.
-    await this.load();
+  tolka(): Promise<void> {
+    return this.tolkning.kor();
   }
 
   async load(): Promise<void> {

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { QueueService } from './queue.service';
 import { CaptureFlowService } from './capture-flow.service';
@@ -87,6 +87,13 @@ export class ListaComponent {
     this.queue.start();
     void this.load();
     this.tolkning.startaLopande();
+
+    // Hämtar om listan varje gång ett kvitto blivit tolkat. Utan det arbetar
+    // tolkningen vidare medan raderna står kvar och säger "inte tolkat än".
+    effect(() => {
+      this.tolkning.klaraTotalt();
+      void this.load();
+    });
   }
 
   async load(): Promise<void> {
