@@ -61,6 +61,15 @@ export type Receipt = {
    * för att tyst förbättra siffran.
    */
   review: Review;
+  /**
+   * En bild som utlovades men aldrig kom fram, och som en människa sagt är borta.
+   *
+   * Förlusten skrivs ned i stället för att bara försvinna ur listan. `expectedSegments`
+   * sänks till det som faktiskt finns, så kvittot räknas som helt — men vad som gick
+   * förlorat, och när någon konstaterade det, står kvar för alltid. Bilderna är
+   * oåterkalleliga; att de var det ska inte gå att glömma bort.
+   */
+  lostSegments?: { at: string; utlovade: number; faktiska: number };
   ocr: unknown | null;
   tags: { user: string[]; auto: string[] };
   /** Hela råtexten, radbruten. Fylls av OCR-steget i M5. */

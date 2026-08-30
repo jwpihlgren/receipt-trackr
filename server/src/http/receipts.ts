@@ -14,6 +14,7 @@ import {
   butiker,
   count,
   ftsQuery,
+  lageFor,
   ofardiga,
   ogranskatUrval,
   pendingOcrCount,
@@ -118,10 +119,18 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
     },
   );
 
+  /**
+   * Kvittot, plus varför det står i aktiviteten.
+   *
+   * `lage` är härlett och står aldrig i sidecaren. Utan det landade den som klickat
+   * på "Bilden gick knappt att läsa" på en sida där den formuleringen inte fanns
+   * någonstans, och fick gissa vad som förväntades.
+   */
   app.get<{ Params: { id: string } }>("/api/receipts/:id", async (request, reply) => {
     const receipt = await archive.get(request.params.id);
     if (!receipt) return reply.code(404).send({ error: "not_found" });
-    return receipt;
+    const ofardigt = lageFor(archive.db, request.params.id);
+    return { ...receipt, lage: ofardigt?.lage ?? null, saknadeFalt: ofardigt?.saknadeFalt ?? [] };
   });
 
   // Bilderna lämnas ut direkt ur arkivet — de är oföränderliga, så de får cachas hårt.
@@ -319,6 +328,16 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
     if (!borttaget) return reply.code(404).send({ error: "not_found" });
     return reply.code(204).send();
   });
+
+  /** Avslutar en fångst telefonen aldrig hann avsluta, med de bilder som kom fram. */
+  app.post<{ Params: { id: string } }>("/api/receipts/:id/avsluta", async (request, reply) =>
+    reply.send(await archive.avsluta(request.params.id)),
+  );
+
+  /** En människa konstaterar att en utlovad bild är borta. Förlusten skrivs ned. */
+  app.post<{ Params: { id: string } }>("/api/receipts/:id/bilder-borta", async (request, reply) =>
+    reply.send(await archive.bilderBorta(request.params.id)),
+  );
 
   app.post("/api/reindex", async () => archive.reindex());
 

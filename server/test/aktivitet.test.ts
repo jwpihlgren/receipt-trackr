@@ -277,6 +277,102 @@ describe("aktiviteten", () => {
     expect(rader.find((r) => r.id === nyss)!.tecken).toBe(0);
   });
 
+  /**
+   * Det fanns lägen utan utgång: en bild som lästes till noll tecken kunde bara läsas
+   * om till noll tecken igen, och en flagga för svagt läst text gick inte att bli
+   * kvitt. En människas tre fält avslutar kvittot — hon har läst det maskinen inte kunde.
+   */
+  it("släpper ett kvitto utan text när en människa satt alla tre fälten", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, "");
+    expect((await rader()).receipts[0].lage).toBe("utan_text");
+
+    await app.inject({
+      method: "POST",
+      url: `/api/receipts/${id}/falt/flera`,
+      payload: {
+        rattelser: [
+          { namn: "store", value: "Coop" },
+          { namn: "date", value: "2026-08-29" },
+          { namn: "total", value: 284.5 },
+        ],
+      },
+    });
+    expect((await rader()).receipts).toHaveLength(0);
+  });
+
+  it("släpper svagt läst text när någon säger att fälten stämmer", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, HELT, 4.0);
+    expect((await rader()).receipts[0].lage).toBe("svag_text");
+
+    // "Fälten stämmer": samma värden, men bekräftade av en människa.
+    const kvitto = (await app.inject({ method: "GET", url: `/api/receipts/${id}` })).json();
+    await app.inject({
+      method: "POST",
+      url: `/api/receipts/${id}/falt/flera`,
+      payload: {
+        rattelser: ["store", "date", "total"].map((namn) => ({
+          namn,
+          value: kvitto.fields[namn].value,
+          bekraftat: true,
+        })),
+      },
+    });
+    expect((await rader()).receipts).toHaveLength(0);
+  });
+
+  it("avslutar en fångst telefonen aldrig hann avsluta", async () => {
+    const id = ulid();
+    await app.inject({ method: "POST", url: "/api/receipts", payload: { id } });
+    await app.inject({ method: "POST", url: `/api/receipts/${id}/segments/1`, ...multipart(await jpeg()) });
+    await tolka(id, HELT, 11);
+    expect((await rader()).receipts[0].lage).toBe("ofullstandig");
+
+    const svar = await app.inject({ method: "POST", url: `/api/receipts/${id}/avsluta` });
+    expect(svar.json()).toMatchObject({ expectedSegments: 1 });
+    expect((await rader()).receipts).toHaveLength(0);
+  });
+
+  /** Förlusten skrivs ned. Att bilderna var oåterkalleliga ska inte gå att glömma. */
+  it("skriver ned en förlorad bild i stället för att den bara försvinner ur listan", async () => {
+    const id = ulid();
+    await fanga(id, 3);
+    await tolka(id, HELT, 11);
+    expect((await rader()).receipts[0]).toMatchObject({ lage: "bilder", saknadeBilder: 2 });
+
+    const svar = await app.inject({ method: "POST", url: `/api/receipts/${id}/bilder-borta` });
+    expect(svar.json()).toMatchObject({ expectedSegments: 1 });
+    expect(svar.json().lostSegments).toMatchObject({ utlovade: 3, faktiska: 1 });
+    expect((await rader()).receipts).toHaveLength(0);
+  });
+
+  /** En misslyckad tolkning ska inte delas ut igen — då sinar kön aldrig. */
+  it("räknar inte en misslyckad tolkning som väntande", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, "");
+
+    const svar = await rader();
+    expect(svar.vantar).toBe(0);
+    expect(svar.receipts[0].lage).toBe("utan_text");
+
+    // Läs om bilden nollställer tolkningen och lägger tillbaka kvittot i kön.
+    await app.inject({ method: "POST", url: `/api/receipts/${id}/lasom` });
+    expect((await rader()).vantar).toBe(1);
+  });
+
+  it("säger i kvittosvaret varför kvittot står i aktiviteten", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, "COOP KONSUM\nnagot utan summa", 11);
+
+    const svar = await app.inject({ method: "GET", url: `/api/receipts/${id}` });
+    expect(svar.json()).toMatchObject({ lage: "saknar_falt", saknadeFalt: ["datum", "belopp"] });
+  });
+
   it("bygger om indexet av sig självt när schemaversionen är en annan", async () => {
     const id = ulid();
     await fanga(id, 3);

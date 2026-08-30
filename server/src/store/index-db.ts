@@ -141,20 +141,22 @@ export function remove(db: ReceiptIndex, id: string): void {
 }
 
 /**
- * Kvitton som ännu inte har någon text. Det är kön, härledd ur indexet i stället för
- * lagrad någonstans — precis som allt annat sökbart. En reservation är däremot inte
- * härledd och hör inte hemma här; den lever i minnet, se jobb.ts.
+ * Kvitton som väntar på sin tur. Kön är härledd ur indexet i stället för lagrad
+ * någonstans — precis som allt annat sökbart. En reservation är däremot inte härledd
+ * och hör inte hemma här; den lever i minnet, se jobb.ts.
  *
- * FTS-raden finns alltid, även tom: `upsert` skriver in den vid varje skrivning. Så
- * frågan blir "vilken rad har tom text", inte "vilken rad saknas".
+ * Villkoret är `tolkad = 0`, alltså "tolkningen har inte körts", inte "det finns
+ * ingen text". Skillnaden är hela skälet: en bild som lästes till noll tecken har
+ * körts, och att dela ut den igen ger samma noll tecken. Den hör till aktiviteten,
+ * inte till kön. Vill man ändå läsa om den finns *Läs om bilden*, som nollställer
+ * `ocr` och därmed lägger tillbaka kvittot här.
  */
 export function pendingOcr(db: ReceiptIndex, limit = 50): { id: string; capturedAt: string }[] {
   return db
     .prepare(
       `SELECT r.id AS id, r.captured_at AS capturedAt
          FROM receipts r
-         JOIN receipts_fts f ON f.id = r.id
-        WHERE length(f.text) = 0
+        WHERE r.tolkad = 0
         ORDER BY r.captured_at DESC
         LIMIT ?`,
     )
@@ -164,7 +166,7 @@ export function pendingOcr(db: ReceiptIndex, limit = 50): { id: string; captured
 export function pendingOcrCount(db: ReceiptIndex): number {
   const row = db
     .prepare(
-      `SELECT COUNT(*) AS n FROM receipts r JOIN receipts_fts f ON f.id = r.id WHERE length(f.text) = 0`,
+      `SELECT COUNT(*) AS n FROM receipts r WHERE r.tolkad = 0`,
     )
     .get() as { n: number };
   return row.n;
@@ -313,12 +315,21 @@ const TECKEN_PER_RAD_GRANS = 7;
  * Arkivlistan visar det som uppfyller det här; aktiviteten visar allt annat. Två
  * ställen som frågar om samma sak måste fråga likadant, annars finns kvitton som
  * varken syns i den ena listan eller den andra.
+ *
+ * **`manuella = 3` väger tyngre än maskinen.** Har en människa satt alla tre fälten
+ * själv — skrivit in dem eller sagt att maskinens läsning stämmer — är kvittot klart
+ * oavsett hur illa tolkningen gick. Utan den regeln fanns lägen utan utgång: en bild
+ * som lästes till noll tecken kunde bara läsas om till noll tecken igen, och ett
+ * kvitto flaggat som svagt läst blev aldrig kvitt flaggan.
  */
 const KLAR = `(
   r.expected IS NOT NULL AND r.segments >= r.expected
-  AND r.tolkad = 1 AND length(f.text) > 0
   AND r.store IS NOT NULL AND r.date IS NOT NULL AND r.total IS NOT NULL
-  AND (r.tecken_per_rad IS NULL OR r.tecken_per_rad >= ${TECKEN_PER_RAD_GRANS} OR r.manuella = 3)
+  AND (
+    (r.tolkad = 1 AND length(f.text) > 0
+      AND (r.tecken_per_rad IS NULL OR r.tecken_per_rad >= ${TECKEN_PER_RAD_GRANS}))
+    OR r.manuella = 3
+  )
 )`;
 
 export type Ofardigt = KvittoRad & {
@@ -383,7 +394,7 @@ export function ofardiga(db: ReceiptIndex, limit = 500): Ofardigt[] {
           ? "ofullstandig"
           : tolkad === 0
             ? "vantar"
-            : tecken === 0
+            : tecken === 0 && manuella < 3
               ? "utan_text"
               : teckenPerRad !== null && teckenPerRad < TECKEN_PER_RAD_GRANS && manuella < 3
                 ? // Före saknade fält, för det är svagt läst text som orsakar dem.
@@ -411,6 +422,11 @@ export function ogranskatUrval(db: ReceiptIndex, limit = 200): KvittoRad[] {
         LIMIT ?`,
     )
     .all(limit) as KvittoRad[];
+}
+
+/** Ett kvittos läge, eller `null` när det är klart. Härlett — står aldrig i sidecaren. */
+export function lageFor(db: ReceiptIndex, id: string): Ofardigt | null {
+  return ofardiga(db, 500).find((r) => r.id === id) ?? null;
 }
 
 export type UrvalLage = { urval: number; granskade: number; kvar: number; dragbara: number };

@@ -19,6 +19,8 @@ const FALT: { namn: 'store' | 'date' | 'total'; etikett: string; sort: 'text' | 
   { namn: 'total', etikett: 'BELOPP', sort: 'tal' },
 ];
 
+type Lage = 'bilder' | 'ofullstandig' | 'vantar' | 'utan_text' | 'svag_text' | 'saknar_falt';
+
 type Receipt = {
   id: string;
   capturedAt: string;
@@ -29,6 +31,10 @@ type Receipt = {
   fields: Record<string, Falt | undefined>;
   text: string;
   tags: { user: string[]; auto: string[] };
+  lostSegments?: { at: string; utlovade: number; faktiska: number };
+  /** Varför kvittot står i aktiviteten. `null` betyder klart. Härlett av servern. */
+  lage: Lage | null;
+  saknadeFalt: string[];
 };
 
 /**
@@ -227,6 +233,82 @@ export class KvittoComponent {
       this.error.set('Kvittot gick inte att läsa om.');
     } finally {
       this.tolkar.set(false);
+    }
+  }
+
+  /**
+   * Vad som saknas, i klartext. Den som klickat på en rad i aktiviteten ska mötas av
+   * samma ord här som stod där — inte gissa vad som förväntas.
+   */
+  readonly hinder = computed<string | null>(() => {
+    const r = this.receipt();
+    if (!r?.lage) return null;
+    switch (r.lage) {
+      case 'bilder':
+        return `${this.saknade()} ${this.saknade() === 1 ? 'bild' : 'bilder'} kom aldrig fram.`;
+      case 'ofullstandig':
+        return 'Telefonen hann aldrig säga hur många bilder kvittot har.';
+      case 'vantar':
+        return 'Kvittot väntar på tolkning.';
+      case 'utan_text':
+        return 'Tolkningen kördes men läste ingen text.';
+      case 'svag_text':
+        return 'Bilden gick knappt att läsa — värdena kan vara fel rakt igenom.';
+      case 'saknar_falt':
+        return `Maskinen hittade inte ${r.saknadeFalt.join(' eller ')}.`;
+    }
+  });
+
+  /**
+   * "Fälten stämmer" finns bara när något är flaggat.
+   *
+   * Ett kvitto i arkivet är per definition rätt och ska inte behöva hävda sig. Men ett
+   * kvitto som flaggats för svag text kunde tidigare inte bli kvitt flaggan alls: Spara
+   * är avstängd när inget ändrats, så enda vägen var att skriva om alla tre värdena
+   * till något annat och tillbaka.
+   */
+  readonly kanBekrafta = computed(() => {
+    const r = this.receipt();
+    if (!r?.lage || r.lage === 'vantar' || r.lage === 'saknar_falt') return false;
+    return FALT.every((f) => this.varde(f.namn) !== undefined);
+  });
+
+  /** Bekräftar maskinens läsning av alla tre fälten i en enda skrivning. */
+  async bekraftaAlla(): Promise<void> {
+    const rattelser = FALT.filter((f) => this.varde(f.namn) !== undefined).map((f) => ({
+      namn: f.namn,
+      value: this.varde(f.namn)!.value,
+      bekraftat: true,
+    }));
+    await this.skickaOchLadda(`/api/receipts/${this.id()}/falt/flera`, { rattelser });
+  }
+
+  /** Avslutar en fångst telefonen aldrig hann avsluta. */
+  avsluta(): Promise<void> {
+    return this.skickaOchLadda(`/api/receipts/${this.id()}/avsluta`);
+  }
+
+  /** Konstaterar att en utlovad bild är borta. Förlusten skrivs ned i arkivet. */
+  bilderBorta(): Promise<void> {
+    return this.skickaOchLadda(`/api/receipts/${this.id()}/bilder-borta`);
+  }
+
+  private async skickaOchLadda(url: string, kropp?: unknown): Promise<void> {
+    this.sparar.set(true);
+    try {
+      const svar = await fetch(url, {
+        method: 'POST',
+        ...(kropp === undefined
+          ? {}
+          : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(kropp) }),
+      });
+      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (!svar.ok) throw new Error(String(svar.status));
+      await this.load();
+    } catch {
+      this.error.set('Det gick inte att spara.');
+    } finally {
+      this.sparar.set(false);
     }
   }
 

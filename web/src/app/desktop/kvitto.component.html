@@ -52,19 +52,51 @@
       }
 
       <aside class="flex w-full shrink-0 flex-col gap-6 border-t border-base-300 bg-base-100 p-5 xl:w-96 xl:overflow-y-auto xl:border-l xl:border-t-0">
-        @if (oavslutat()) {
-          <div role="alert" class="alert alert-soft alert-warning">
-            <span>Fångsten avslutades inte. Kontrollera att alla delar av kvittot finns.</span>
+        @if (hinder(); as text) {
+          <div role="alert" class="alert alert-soft alert-vertical"
+               [class.alert-error]="r.lage === 'bilder' || r.lage === 'svag_text'"
+               [class.alert-warning]="r.lage !== 'bilder' && r.lage !== 'svag_text'">
+            <span>{{ text }}</span>
+            <div>
+              @switch (r.lage) {
+                @case ('bilder') {
+                  <button type="button" class="btn btn-sm" [disabled]="sparar()" (click)="bilderBorta()">
+                    Bilden är borta
+                  </button>
+                }
+                @case ('ofullstandig') {
+                  <button type="button" class="btn btn-sm" [disabled]="sparar()" (click)="avsluta()">
+                    Kvittot är helt
+                  </button>
+                }
+                @case ('vantar') {
+                  <button type="button" class="btn btn-sm btn-primary" [disabled]="tolkar()" (click)="tolkaNu()">
+                    @if (tolkar()) { <span class="loading loading-spinner loading-xs"></span> }
+                    {{ tolkar() ? (tolkning.snapshot().steg ?? 'Tolkar …') : 'Tolka nu' }}
+                  </button>
+                }
+              }
+              @if (kanBekrafta()) {
+                <button type="button" class="btn btn-sm" [disabled]="sparar()" (click)="bekraftaAlla()">
+                  Fälten stämmer
+                </button>
+              }
+              @if (harText() && r.lage !== 'vantar') {
+                <button type="button" class="btn btn-sm" [disabled]="sparar() || tolkar()" (click)="lasOm()">
+                  @if (tolkar()) { <span class="loading loading-spinner loading-xs"></span> }
+                  {{ tolkar() ? 'Läser …' : 'Läs om bilden' }}
+                </button>
+              }
+            </div>
           </div>
         }
 
-        @if (!harText()) {
-          <div class="flex items-center gap-3 rounded-box border border-base-300 bg-base-200 p-4">
-            <span>Inte tolkat än</span>
-            <button type="button" class="btn btn-sm btn-primary ml-auto" [disabled]="tolkar()" (click)="tolkaNu()">
-              @if (tolkar()) { <span class="loading loading-spinner loading-xs"></span> }
-              {{ tolkar() ? (tolkning.snapshot().steg ?? 'Tolkar …') : 'Tolka nu' }}
-            </button>
+        @if (r.lostSegments; as forlust) {
+          <div role="alert" class="alert alert-soft alert-error">
+            <span class="num">
+              {{ forlust.utlovade - forlust.faktiska }} av {{ forlust.utlovade }} bilder kom aldrig fram
+              och är konstaterat borta.
+            </span>
           </div>
         }
 
@@ -98,13 +130,7 @@
           <button type="button" class="btn btn-primary" [disabled]="!harAndringar() || sparar()" (click)="spara()">
             Spara
           </button>
-          @if (sparat()) { <span class="text-sm text-success">Sparat</span> }
-          @if (harText()) {
-            <button type="button" class="btn btn-sm ml-auto" [disabled]="sparar() || tolkar()" (click)="lasOm()">
-              @if (tolkar()) { <span class="loading loading-spinner loading-xs"></span> }
-              {{ tolkar() ? 'Läser …' : 'Läs om bilden' }}
-            </button>
-          }
+          @if (sparat()) { <span class="text-sm text-success" role="status">Sparat</span> }
         </div>
 
         <div class="divider my-0"></div>
@@ -118,12 +144,12 @@
 
         <div>
           @if (vissRadera()) {
-            <div role="alert" class="alert alert-soft alert-error flex-col items-start">
+            <div role="alert" class="alert alert-soft alert-error alert-vertical">
               <span>
                 Kvittot och alla {{ r.segments.length }}
                 {{ r.segments.length === 1 ? 'bilden' : 'bilderna' }} tas bort för alltid.
               </span>
-              <div class="flex gap-2">
+              <div>
                 <button type="button" class="btn btn-sm btn-error" [disabled]="sparar()" (click)="radera()">
                   Ta bort
                 </button>

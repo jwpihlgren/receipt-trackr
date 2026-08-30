@@ -122,6 +122,52 @@ export class Archive {
     return receipt;
   }
 
+  /**
+   * Avslutar fångsten från datorn, med det antal bilder som faktiskt kom fram.
+   *
+   * Telefonen säger normalt själv hur många bilder ett kvitto har. Vräks fliken ur
+   * minnet medan kameran ligger i förgrunden sägs det aldrig, och kvittot blev
+   * tidigare stående i aktiviteten för alltid — det fanns ingen väg att avsluta det
+   * någon annanstans ifrån.
+   */
+  async avsluta(id: string): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    if (receipt.segments.length === 0) {
+      throw new ConflictError(`Kvittot ${id} har inga bilder och kan inte avslutas.`);
+    }
+    if (receipt.expectedSegments !== null) return receipt;
+    receipt.expectedSegments = receipt.segments.length;
+    receipt.completedAt = new Date().toISOString();
+    await this.persist(receipt);
+    return receipt;
+  }
+
+  /**
+   * En människa konstaterar att en utlovad bild är borta.
+   *
+   * `complete` vägrar med flit att minska antalet — det skulle låta ett halvt kvitto
+   * se helt ut. Men en människa som tittat och sagt "den kommer inte" är något annat
+   * än en klient som räknat fel, och utan den här vägen kunde kvittot bara raderas.
+   * Förlusten skrivs ned i sidecaren i stället för att tystna.
+   */
+  async bilderBorta(id: string): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    const faktiska = receipt.segments.length;
+    if (faktiska === 0) throw new ConflictError(`Kvittot ${id} har inga bilder alls.`);
+    if (receipt.expectedSegments === null || receipt.expectedSegments <= faktiska) return receipt;
+
+    receipt.lostSegments = {
+      at: new Date().toISOString(),
+      utlovade: receipt.expectedSegments,
+      faktiska,
+    };
+    receipt.expectedSegments = faktiska;
+    await this.persist(receipt);
+    return receipt;
+  }
+
   /** Sidecar först, atomiskt. Indexet efteråt, och bara om sidecaren gick igenom. */
   private async persist(receipt: Receipt): Promise<void> {
     await writeSidecar(this.dataDir, receipt);
