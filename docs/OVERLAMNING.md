@@ -275,11 +275,22 @@ ikonerna med `prefetch`, och `tolkningen` — 37 MB modeller plus WASM-runtime �
 `lazy`. En förcachning hade laddat ned 37 MB i butiken.
 
 **Registreringen sker efter två sekunder, inte "när appen är stabil".** Angulars
-standard är `registerWhenStable:30000`, och den här appen blir aldrig stabil: kön har
-en femtonsekunderstimer och tolkningen en på trettio. Standarden föll därför alltid
-tillbaka på sin bortre gräns, och den som öppnade appen och stängde den efter tjugo
-sekunder fick aldrig någon service worker alls. Uppmätt: med `registerWithDelay:2000`
-kontrollerar tjänsten sidan efter tre sekunder.
+standard är `registerWhenStable:30000`. "Stabil" betyder att zone.js inte ser några
+väntande makrotasks, och ett `setInterval` räknas som väntande så länge det inte
+rensats — den här appen har två: `RETRY_MS = 15_000` i `QueueService.start()` och
+pulsen på 30 s i `TolkningService.startaLopande()`. Telefonlistan startar båda i sin
+konstruktor, alltså blir telefonytan **aldrig** stabil.
+
+Uppmätt, kall webbläsarprofil:
+
+| Yta | `registerWhenStable:30000` | `registerWithDelay:2000` |
+| --- | --- | --- |
+| `/telefon/kvitton` (båda timrarna igång) | **~29 s** — bortre gränsen, inte stabilitet | ~3 s |
+| `/dator/kvitton` (inga timers) | ~1 s | ~3 s |
+
+Telefonen är den yta som behöver skalet i cachen, och det var just den som fick vänta
+en halv minut. Den som öppnade appen och stängde den efter tjugo sekunder fick aldrig
+någon service worker alls.
 
 **En ny version tas i bruk tyst**, utan ruta om att en uppdatering finns — men aldrig
 medan man står i fångsten eller på ett kvitto, för de skärmarna bär tillstånd som bara
