@@ -74,10 +74,18 @@ export class ArkivComponent {
     void this.load();
     void this.tolkning.rakna();
 
-    // Ett tolkat kvitto ska synas direkt, inte när passet är slut. Ett långt pass
-    // annars är tio minuter där skärmen påstår att ingenting hänt.
+    // Ett tolkat kvitto ska synas direkt, inte när tolkningen är helt klar — annars
+    // står skärmen och påstår att ingenting hänt i tio minuter.
+    //
+    // Första körningen hoppas över med flit: en effect kör en gång så fort den
+    // skapas, och utan det här hämtade varje sidladdning allt två gånger.
+    let forsta = true;
     effect(() => {
       this.tolkning.klaraTotalt();
+      if (forsta) {
+        forsta = false;
+        return;
+      }
       void this.load();
     });
   }
