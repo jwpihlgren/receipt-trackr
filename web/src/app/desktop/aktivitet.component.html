@@ -3,7 +3,7 @@
     <app-meny [lage]="yta()" />
     <h1 class="text-lg font-semibold">Aktivitet</h1>
     <div class="ml-auto flex items-center gap-2">
-      <button type="button" class="btn btn-sm" [disabled]="arbetar()" (click)="tolkaOmFalt()">Tolka om fälten</button>
+      <button type="button" class="btn btn-sm" [disabled]="arbetar()" (click)="raknaOmFalt()">Räkna om fälten</button>
       <button type="button" class="btn btn-sm btn-ghost" (click)="load()">Uppdatera</button>
     </div>
   </header>
@@ -24,7 +24,7 @@
   } @else if (vantar() > 0) {
     <div class="flex items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
       <span>{{ vantar() }} {{ vantar() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
-      <button type="button" class="btn btn-sm btn-primary ml-auto" (click)="tolka()">Tolka alla här</button>
+      <button type="button" class="btn btn-sm btn-primary ml-auto" (click)="tolka()">Tolka alla</button>
     </div>
   }
 
@@ -58,7 +58,7 @@
               <tr class="hover:bg-base-200">
                 <td>
                   <img
-                    class="h-10 w-8 rounded-sm bg-base-300 object-cover"
+                    class="tumnagel liten"
                     [src]="'/api/receipts/' + rad.id + '/thumbs/1'"
                     alt=""
                     loading="lazy"
@@ -76,7 +76,7 @@
                     <span class="loading loading-spinner loading-xs text-primary" aria-label="Tolkar"></span>
                   } @else if (rad.lage !== 'ofullstandig') {
                     <button type="button" class="btn btn-sm btn-ghost text-primary" [disabled]="arbetar()" (click)="lasOm(rad.id)">
-                      {{ rad.lage === 'vantar' ? 'Tolka nu' : 'Läs om bilden' }}
+                      {{ rad.lage === 'vantar' ? 'Tolka bilden' : 'Tolka bilden igen' }}
                     </button>
                   }
                   <a class="btn btn-sm btn-ghost text-primary" [routerLink]="[yta() === 'mobil' ? '/telefon/kvitto' : '/dator/kvitto', rad.id]">Öppna</a>

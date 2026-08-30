@@ -71,7 +71,7 @@ export class CaptureFlowService {
     this.busy.set(true);
     this.previewWarning.set(null);
     try {
-      const { bytes, blob, width, height, converted } = await normalise(file);
+      const { bytes, blob, width, height, converted, avkodad } = await normalise(file);
       const sha = await sha256(bytes);
       this.receiptId ??= ulid();
       const index = this.shots().length + 1;
@@ -91,6 +91,12 @@ export class CaptureFlowService {
       ]);
       // Skuggremsan klipps efter att bilden ligger säkert — den är en trevlighet.
       void this.cutGhost(index, blob);
+      // Bytesen är arkiverade även när webbläsaren inte kan rita filen. Då visas en
+      // trasig ruta i remsan, och utan de här orden ser det ut som att bilden gått
+      // förlorad. Signalen fanns men sattes aldrig — mallgrenen kunde inte visas.
+      this.previewWarning.set(
+        avkodad ? null : 'Bilden går inte att visa här, men den är sparad och laddas upp. Titta på den vid datorn.',
+      );
       this.saveError.set(null);
       navigator.vibrate?.(20);
       return true;
@@ -190,7 +196,15 @@ export class CaptureFlowService {
   }
 }
 
-type Normalised = { bytes: ArrayBuffer; blob: Blob; width: number; height: number; converted: boolean };
+type Normalised = {
+  bytes: ArrayBuffer;
+  blob: Blob;
+  width: number;
+  height: number;
+  converted: boolean;
+  /** Kunde webbläsaren avkoda filen? Falskt betyder arkiverbar men inte visningsbar. */
+  avkodad: boolean;
+};
 
 /**
  * Telefonens kamera lämnar ifrån sig JPEG på Android och kan lämna HEIC på iPhone.
@@ -209,13 +223,13 @@ async function normalise(file: File): Promise<Normalised> {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
     // Webbläsaren kan inte avkoda filen. Bytesen är fortfarande giltiga att arkivera.
-    return { bytes: original, blob: file, width: 0, height: 0, converted: false };
+    return { bytes: original, blob: file, width: 0, height: 0, converted: false, avkodad: false };
   }
 
   const { width, height } = bitmap;
   if (file.type === 'image/jpeg') {
     bitmap.close();
-    return { bytes: original, blob: file, width, height, converted: false };
+    return { bytes: original, blob: file, width, height, converted: false, avkodad: true };
   }
 
   const canvas = document.createElement('canvas');
@@ -225,6 +239,6 @@ async function normalise(file: File): Promise<Normalised> {
   bitmap.close();
 
   const jpeg = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY));
-  if (!jpeg) return { bytes: original, blob: file, width, height, converted: false };
-  return { bytes: await jpeg.arrayBuffer(), blob: jpeg, width, height, converted: true };
+  if (!jpeg) return { bytes: original, blob: file, width, height, converted: false, avkodad: true };
+  return { bytes: await jpeg.arrayBuffer(), blob: jpeg, width, height, converted: true, avkodad: true };
 }

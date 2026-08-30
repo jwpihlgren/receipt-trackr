@@ -41,10 +41,10 @@
 
   <div class="innehall">
     @if (error(); as message) {
-      <p class="fel" role="alert">
-        {{ message }}
-        <button type="button" (click)="load()">Försök igen</button>
-      </p>
+      <div class="notis illa" role="alert">
+        <p>{{ message }}</p>
+        <button type="button" class="knapp kontur" (click)="load()">Försök igen</button>
+      </div>
     } @else {
       @if (receipts() === null) {
         <p class="tyst">Hämtar …</p>
@@ -108,7 +108,7 @@
     när sparningen var det som misslyckades. Det var ett fel utan mottagare.
   -->
   @if (flow.saveError(); as message) {
-    <div class="sparfel" role="alert">
+    <div class="notis illa svavande" role="alert">
       <p>{{ message }}</p>
       <button type="button" class="knapp kontur" (click)="flow.dismissSaveError()">Jag har läst</button>
     </div>

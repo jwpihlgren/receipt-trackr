@@ -1,9 +1,9 @@
 import { Component, DestroyRef, computed, inject, effect, signal, untracked } from '@angular/core';
 import { ElementRef, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { MenyComponent } from '../shared/meny.component';
 import { QueueService, type Fastnat } from './queue.service';
 import { segmentsFor } from './db';
+import { tidpunktUrUlid } from '../shared/datum';
 
 type Rad = {
   id: string;
@@ -30,7 +30,7 @@ type Rad = {
 @Component({
   selector: 'app-upload',
   host: { 'data-density': 'comfortable' },
-  imports: [RouterLink, MenyComponent],
+  imports: [RouterLink],
   templateUrl: './upload.component.html',
   styleUrl: './upload.component.css',
 })
@@ -48,7 +48,7 @@ export class UploadComponent {
       id,
       kvar: this.state().pending.filter((key) => key.startsWith(`${id}:`)).length,
       fast: this.state().stuck.find((f) => f.id === id) ?? null,
-      tid: tidUrUlid(id),
+      tid: tidpunktUrUlid(id),
       tumnagel: (this.trasiga().has(id) ? null : this.tumnaglar()[id]) ?? null,
     })),
   );
@@ -144,19 +144,4 @@ export class UploadComponent {
     }
     this.tumnaglar.set(kvar);
   }
-}
-
-/** ULID:ens första 48 bitar är millisekunder sedan epoken — tiden finns i id:t. */
-function tidUrUlid(id: string): string {
-  const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-  let ms = 0;
-  for (const char of id.slice(0, 10)) {
-    const value = ALPHABET.indexOf(char);
-    if (value < 0) return '';
-    ms = ms * 32 + value;
-  }
-  const d = new Date(ms);
-  const idag = new Date().toDateString() === d.toDateString();
-  const klocka = d.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-  return idag ? `I dag ${klocka}` : `${d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })} ${klocka}`;
 }

@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MenyComponent } from '../shared/meny.component';
 import { TolkningService } from '../ocr/tolkning.service';
+import { datum, tid } from '../shared/datum';
 
 type Segment = { file: string; sha256: string; bytes: number; width: number; height: number };
 
@@ -381,13 +382,8 @@ export class KvittoComponent {
     return `/api/receipts/${this.id()}/files/${file}`;
   }
 
-  datum(iso: string): string {
-    return new Date(iso).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' });
-  }
-
-  klocka(iso: string): string {
-    return new Date(iso).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-  }
+  readonly datum = datum;
+  readonly klocka = tid;
 
   toggleText(): void {
     this.visaText.update((v) => !v);

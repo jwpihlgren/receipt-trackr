@@ -38,7 +38,6 @@ describe('Kön i telefonen', () => {
     const stored = await allSegments();
     expect(stored).toHaveSize(1);
     expect(stored[0].sha256).toBe('abc');
-    expect(stored[0].confirmedAt).toBeNull();
   });
 
   it('raderar den lokala kopian först när servern svarat med samma sha256', async () => {

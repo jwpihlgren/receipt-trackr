@@ -33,7 +33,12 @@
   }
 
   @if (receipt(); as r) {
-    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto xl:flex-row xl:overflow-hidden">
+    <!--
+      Brytpunkten är lg (1024), inte xl (1280). Vyn staplade sig till en enda kolumn
+      på varje laptop under 1280 px — bilden överst, fälten långt ned utanför skärmen
+      — trots att 1024 räcker gott för bild plus fältpanel.
+    -->
+    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
       <div class="flex flex-1 justify-center overflow-y-auto bg-bildbadd p-6">
         <div class="w-full max-w-md self-start shadow-md">
           <!-- Nyckeln är filnamnet, inte summan: två identiska bilder av samma
@@ -52,7 +57,7 @@
       </div>
 
       @if (visaText() && harText()) {
-        <div class="flex w-full flex-col border-t border-base-300 bg-base-100 xl:w-[34rem] xl:border-l xl:border-t-0">
+        <div class="flex w-full flex-col border-t border-base-300 bg-base-100 lg:w-80 lg:border-l lg:border-t-0 xl:w-[34rem]">
           <div class="border-b border-base-300 px-4 py-3 text-sm tracking-wide text-neutral uppercase">
             Råtexten
           </div>
@@ -60,7 +65,7 @@
         </div>
       }
 
-      <aside class="flex w-full shrink-0 flex-col gap-6 border-t border-base-300 bg-base-100 p-5 xl:w-96 xl:overflow-y-auto xl:border-l xl:border-t-0">
+      <aside class="flex w-full shrink-0 flex-col gap-6 border-t border-base-300 bg-base-100 p-5 lg:w-96 lg:overflow-y-auto lg:border-l lg:border-t-0">
         @if (hinder(); as text) {
           <div role="alert" class="alert alert-soft alert-vertical"
                [class.alert-error]="r.lage === 'bilder' || r.lage === 'svag_text'"
@@ -81,7 +86,7 @@
                 @case ('vantar') {
                   <button type="button" class="btn btn-sm btn-primary" [disabled]="tolkar()" (click)="tolkaNu()">
                     @if (tolkar()) { <span class="loading loading-spinner loading-xs"></span> }
-                    {{ tolkar() ? (tolkning.snapshot().steg ?? 'Tolkar …') : 'Tolka nu' }}
+                    {{ tolkar() ? (tolkning.snapshot().steg ?? 'Tolkar …') : 'Tolka bilden' }}
                   </button>
                 }
               }
@@ -93,7 +98,7 @@
               @if (harText() && r.lage !== 'vantar') {
                 <button type="button" class="btn btn-sm" [disabled]="sparar() || tolkar()" (click)="lasOm()">
                   @if (tolkar()) { <span class="loading loading-spinner loading-xs"></span> }
-                  {{ tolkar() ? 'Läser …' : 'Läs om bilden' }}
+                  {{ tolkar() ? 'Tolkar …' : 'Tolka bilden igen' }}
                 </button>
               }
             </div>

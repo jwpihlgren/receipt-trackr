@@ -20,8 +20,6 @@ export type QueuedSegment = {
   bytes: ArrayBuffer;
   sha256: string;
   capture: Record<string, unknown>;
-  /** Sätts när servern svarat med samma sha256. Först då får bytesen kastas. */
-  confirmedAt: number | null;
   createdAt: number;
 };
 
@@ -30,9 +28,15 @@ export type QueuedReceipt = {
   createdAt: number;
   /** Antalet bilder, satt vid "Klart". `null` medan fångsten pågår. */
   segments: number | null;
-  /** Sätts när servern kvitterat komplettsignalen. */
-  completedAt: number | null;
 };
+
+/*
+ * Det finns inget `confirmedAt` på någondera posten, och det är avsiktligt.
+ * Fälten fanns, lästes — och skrevs aldrig, så de var alltid `null`.
+ * Kvittensen behöver ingen tidsstämpel: **att posten finns kvar är att den inte är
+ * kvitterad.** Servern svarar med samma sha256, och då raderas raden. Ett fält som
+ * säger samma sak en gång till kan bara hamna i otakt med verkligheten.
+ */
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

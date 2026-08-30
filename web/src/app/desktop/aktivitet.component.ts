@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
+import { tidpunkt } from '../shared/datum';
 
 type Lage = 'bilder' | 'ofullstandig' | 'vantar' | 'utan_text' | 'svag_text' | 'saknar_falt';
 
@@ -80,8 +81,12 @@ export class AktivitetComponent {
   /**
    * Räknar om fälten ur texten som redan lästs, för hela arkivet. Billigt: ingen bild
    * öppnas. Det är vägen när utvinningsreglerna blivit bättre sedan kvittot tolkades.
+   *
+   * Heter *räkna om*, inte *tolka om*: **tolka** är att läsa en bild, och det är en
+   * helt annan sak än att räkna om fält ur text som redan finns. Fyra knappar hette
+   * något med "tolka" och menade tre olika operationer.
    */
-  async tolkaOmFalt(): Promise<void> {
+  async raknaOmFalt(): Promise<void> {
     this.arbetar.set(true);
     try {
       const svar = await fetch('/api/falt/omtolka', { method: 'POST' });
@@ -89,7 +94,7 @@ export class AktivitetComponent {
       if (!svar.ok) throw new Error(String(svar.status));
       await this.load();
     } catch {
-      this.error.set('Omtolkningen gick inte att köra.');
+      this.error.set('Fälten gick inte att räkna om.');
     } finally {
       this.arbetar.set(false);
     }
@@ -158,14 +163,7 @@ export class AktivitetComponent {
     return rad.total === null ? '—' : `${rad.total.toFixed(2).replace('.', ',')} kr`;
   }
 
-  fangat(iso: string): string {
-    return new Date(iso).toLocaleString('sv-SE', {
-      day: 'numeric',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
+  readonly fangat = tidpunkt;
 }
 
 const lista = (ord: string[]): string =>

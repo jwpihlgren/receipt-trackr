@@ -116,3 +116,4 @@
  * i hela appen, som då ärvde brödtextens storlek i stället för komponentens. */
 @import "./styles/tokens.css" layer(base);
 @import "./styles/base.css" layer(base);
+@import "./styles/monster.css" layer(base);

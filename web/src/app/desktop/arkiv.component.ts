@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
+import { datum } from '../shared/datum';
 
 type Rad = {
   id: string;
@@ -163,7 +164,5 @@ export class ArkivComponent {
     return rad.total === null ? '—' : rad.total.toFixed(2).replace('.', ',');
   }
 
-  fangat(iso: string): string {
-    return new Date(iso).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' });
-  }
+  readonly fangat = datum;
 }

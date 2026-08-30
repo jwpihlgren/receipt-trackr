@@ -121,6 +121,33 @@ någonstans utom i `styles/tokens.css` och `styles.css`.
 `--text-*`, `--radius-*`, `--font-*` — och skrev över hela verktygsskalan. De heter nu
 `--typ-*`, `--horn-*`, `--typsnitt-*`, `--radavstand-*`, `--teckenavstand-*`.
 
+**Delade mönster bor i `styles/monster.css`.** Notisen, miniatyren och telefonens
+topprad ritades förut i varje komponentfil för sig, och gled isär. Fyra regler gäller:
+
+*En typskala.* Fyra steg på 1,125 från 16 px — 14/16/18/20 — vilket är exakt Tailwinds
+`text-sm/base/lg/xl`, så ytorna delar skala i stället för att ha var sin. Filen påstod
+förut att den var 1,125 medan talen var 12/13/16/18/22/28. `--typ-xl` är ytans egen
+rubrik och ingenting är större; en rubrik **inuti** en yta är `--typ-lg`. Det var
+tvärtom förut: h2 var 22 px och h1 18.
+
+*Ett miniatyrformat.* Kvittots eget, 3:4, i tre storlekar (`--tumnagel-sm/md/lg`).
+Höjden räknas ur bredden med `aspect-ratio` i `.tumnagel`, så en ny plats kan välja
+storlek men inte proportion. Det fanns fyra format.
+
+*En ledande kontroll per telefonskärm.* Menyn på toppnivån, bakåtpilen på en undersida,
+krysset i ett flöde — alltid 48 px, alltid först. Därför står rubriken på 64 px från
+kanten på varje skärm; det var 56, 64 och 16 förut. Menyknappen är `btn-lg` på
+telefonen, vilket är DaisyUIs egen 48, inte ett eget mått: standardknappens 40 px är
+under WCAG:s tryckminimum.
+
+*Ett sätt att visa ett meddelande per yta.* Skrivbordet: DaisyUI-alert. Telefonen:
+`.notis`, med `.illa` eller `.varsam` för nivån och `.svavande` när meddelandet gäller
+något användaren just gjorde i stället för sidans innehåll. Fältfel är något annat och
+står kvar under sitt fält.
+
+Täthetsaxeln (`data-density`) är telefonens. Skrivbordet får sina mått ur DaisyUI, och
+attributet satt på en enda skrivbordsskärm där det bara ändrade radavstånd.
+
 ## Vad som är mätt, och vad siffrorna betyder
 
 Ingenting nedan är gissat. Bryt inte mot det utan att mäta om.
@@ -148,10 +175,9 @@ ingenting, för okänt är inte dåligt.
 
 ## Granskningen 2026-08-30
 
-Tre granskare — frontend, UX och UI — gick över koden och hittade **109 fel**. De
-åtgärdades i sex grupper: datafel och regelbrott, köer utan utgång, telefonytan,
-kanter och tabellmått, texten, och sist de elva buggar som stod kvar. Det som återstår
-av listan är konsekvens och form samt skräp — ingenting av det är en bugg.
+Tre granskare — frontend, UX och UI — gick över koden och hittade **109 fel**. Alla är
+åtgärdade, i sju omgångar: datafel och regelbrott, köer utan utgång, telefonytan,
+kanter och tabellmått, texten, de elva buggarna, och sist formen och skräpet.
 
 Sex mönster är värda att inte återinföra:
 
@@ -204,25 +230,36 @@ sekvensnummer, `refresh()` likaså, "Hämtar …" som betydde "inga rader" i st�
 "en hämtning pågår", "Försök igen nu" utan vetskap om nät eller om det fanns något att
 försöka med, och driftsidans avsaknad av 401. Var och en är en signal som inte fanns.
 
-**Hittat men inte åtgärdat:** `QueueService.start()` kör bara `refresh()`, inte
-`drain()`. En kö som ligger kvar sedan förra sessionen får därför sitt första försök
-först när femtonsekundersklockan slår, inte när appen öppnas. Det syntes när skärmarna
-renderades och är en riktig lucka, men den står inte på granskningens lista och rördes
-därför inte.
+**Hela väggen är tom.** Buggarna, konsekvensen och formen, och skräpet — 2026-08-30.
+Det som stod kvar var inga buggar utom en, och den togs också:
 
-**Konsekvens och form:** fem sätt att visa ett fel, tre laddlägen med två
-formuleringar, fyra verb för samma operation, tre olika vänsterkanter på telefonens
-rubriker, h2 större än h1, fyra miniatyrformat, typskalan som inte följer sin egen
-beskrivning, kvittovyn som staplar sig ända upp till 1280 px.
+**Kön försöker när appen öppnas.** `start()` körde bara `refresh()`, så en kö som legat
+kvar sedan förra sessionen väntade på femtonsekundersklockan innan något hände. Den som
+öppnade sidan just för att se kön fick stillastående som svar.
 
-**Skräp:** 27 döda tokens; täthetsaxeln (`data-density`) saknas på tre av fyra
-skrivbordsskärmar så `--d-*` inte gäller där; `@angular/forms` importeras aldrig;
-`confirmedAt` läses men skrivs aldrig; `previewWarning` har en mallgren som aldrig kan
-visas; datumformatering dubblerad i fyra komponenter med tre olika format.
+**Formen är fyra regler, inte åtta rättelser** — de står i avsnittet om gränssnittet:
+en typskala, ett miniatyrformat, en ledande kontroll per telefonskärm, ett sätt att
+visa ett meddelande per yta. Dessutom: kvittovyn bryter vid **lg (1024)** och inte xl,
+för den staplade sig till en kolumn på varje laptop under 1280 px; laddläget heter
+"Hämtar …" överallt, inte "Läser status …" på driftsidan; och verben är ett per
+operation — **Tolka** läser en bild, **Räkna om** räknar fält ur text som redan finns,
+**Uppdatera** hämtar en frisk sida, **Försök igen** hämtar om efter ett fel. Fyra
+knappar hette något med "tolka" och menade tre olika saker.
 
-**Medvetet inte åtgärdat:** att "saknar datum eller belopp" är en lista att beta av.
-Ett kvitto utan datum går inte att sortera eller filtrera på — det är en verklig lucka,
-inte en kvittering av något som redan fungerar.
+**Skräpet är borta.** 33 döda tokens (granskningen sa 27; mekanisk räkning gav 33),
+`@angular/forms` ur `package.json` och låsfilen, `confirmedAt` som lästes men aldrig
+skrevs — att posten finns kvar *är* att den inte är kvitterad, ett fält till kan bara
+hamna i otakt — och datumformateringen samlad i `web/src/app/shared/datum.ts` med fyra
+former, en per fråga, i stället för fem komponenter med tre format.
+
+`previewWarning` raderades inte utan kopplades in: `normalise()` säger nu om
+webbläsaren kunde avkoda filen, och kan den inte det står det på skärmen att bilden är
+sparad men inte visningsbar. Grenen fanns, signalen sattes aldrig — och utan orden ser
+en trasig ruta i remsan ut som en förlorad bild.
+
+**Medvetet kvar:** att "saknar datum eller belopp" är en lista att beta av. Ett kvitto
+utan datum går inte att sortera eller filtrera på — det är en verklig lucka, inte en
+kvittering av något som redan fungerar. Beslutet står.
 
 ## Vad som inte är prövat
 

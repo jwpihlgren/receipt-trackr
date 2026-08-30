@@ -1,19 +1,7 @@
 .skarm { display: flex; flex-direction: column; height: 100dvh; background: var(--bg); overflow: hidden; }
 
-.topp {
-  display: flex;
-  align-items: center;
-  gap: var(--d-gap-tight);
-  min-height: 56px;
-  padding-inline-end: var(--d-pad-x);
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  flex: 0 0 auto;
-}
+/* `.topp` står i styles/monster.css. */
 
-.tillbaka { display: grid; place-items: center; width: var(--tap-comfort); height: var(--tap-comfort); }
-.tillbaka svg { width: 22px; height: 22px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.topp h1 { font-size: var(--typ-lg); }
 
 .innehall { flex: 1 1 auto; display: grid; align-content: start; gap: var(--d-gap); padding: var(--d-card-pad); overflow-y: auto; }
 .ingress { margin: 0; color: var(--ink-muted); font-size: var(--typ-base); line-height: var(--radavstand-body); }
@@ -22,16 +10,6 @@
 .kort.illa { border-color: var(--danger); background: var(--danger-soft); }
 
 .kortrad { display: flex; align-items: center; gap: var(--d-gap); }
-
-.tumnagel {
-  width: var(--d-thumb-w);
-  height: var(--d-thumb-h);
-  object-fit: cover;
-  border-radius: var(--horn-xs);
-  border: 1px solid var(--line);
-  background: var(--sunken);
-  flex: 0 0 auto;
-}
 
 .korttext { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 auto; }
 .tid { font-size: var(--typ-base); }
@@ -44,7 +22,7 @@
 .tomt { display: grid; gap: var(--space-3); place-items: center; padding: var(--space-8) var(--space-6); text-align: center; }
 .tomt-ikon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: var(--horn-full); background: var(--ok-soft); }
 .tomt-ikon svg { width: 28px; height: 28px; fill: none; stroke: var(--ok); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.tomt h2 { font-size: var(--typ-xl); }
+.tomt h2 { font-size: var(--typ-lg); }
 .tomt p { color: var(--ink-muted); font-size: var(--typ-base); line-height: var(--radavstand-body); }
 
 .handzon {

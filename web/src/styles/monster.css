@@ -1,0 +1,122 @@
+/* web/src/styles/monster.css
+ *
+ * Mönster som mer än en skärm behöver, på ett ställe.
+ *
+ * Filen finns därför att samma sak ritades på flera sätt beroende på vilken fil
+ * någon råkade skriva i: ett fel kunde vara en DaisyUI-alert, en egen `.fel`-rad, en
+ * `.sparfel`-ruta eller en `.varning`; en miniatyr kunde vara 64×84, 48×64 eller
+ * 32×40; och telefonens topprad hade tre olika vänsterkanter.
+ *
+ * **En yta, ett sätt.** Skrivbordet visar ett meddelande som DaisyUI-alert och en
+ * miniatyr med `.tumnagel.liten`. Telefonytan har egna komponenter men samma palett
+ * och samma mått, och de bor här.
+ */
+
+/* ---- Notis: ett meddelande om ytan man tittar på ---------------------- */
+
+.notis {
+  display: grid;
+  gap: var(--d-gap-tight);
+  padding: var(--d-card-pad);
+  border: 1px solid var(--line);
+  border-radius: var(--horn-md);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--typ-base);
+  line-height: var(--radavstand-body);
+}
+
+.notis p {
+  margin: 0;
+}
+
+/* Nivån bärs av kant och fyllnad, aldrig av färgen på texten ensam: en läsare som
+   inte ser skillnad på rött och gult ska ändå kunna läsa vad som står. */
+.notis.illa {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.notis.varsam {
+  border-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+/* Svävande: meddelandet handlar om något användaren just gjorde, inte om innehållet
+   på sidan. Då hör det hemma vid handen och inte i flödet. */
+.notis.svavande {
+  position: fixed;
+  inset: auto var(--space-4) var(--space-4);
+  z-index: var(--z-dialog);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ---- Miniatyr: ett format, tre storlekar ------------------------------ */
+
+/* Höjden räknas ur bredden. Det är hela poängen: en ny plats kan välja storlek men
+   inte proportion, och ett kvitto är alltid högre än det är brett. */
+.tumnagel {
+  width: var(--tumnagel-lg);
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: var(--horn-xs);
+  background: var(--sunken);
+  flex: 0 0 auto;
+}
+
+.tumnagel.liten {
+  width: var(--tumnagel-sm);
+}
+
+.tumnagel.mellan {
+  width: var(--tumnagel-md);
+}
+
+/* ---- Telefonens topprad ----------------------------------------------- */
+
+/* En regel, inte tre. Varje telefonyta har **en** ledande kontroll — menyn på
+   toppnivån, bakåtpilen på en undersida, ingen alls i ett flöde — så rubriken får
+   samma vänsterkant överallt i stället för en per skärm. */
+.topp {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap-tight);
+  min-height: var(--topp-h);
+  padding-inline: var(--d-pad-x);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+/* Ikonknappen får sin tryckyta utanför textkanten, så att glyfen står där rubriken
+   hade stått om knappen inte funnits. */
+.topp > :is(app-meny, .ledande):first-child {
+  margin-inline-start: calc(-1 * var(--space-2));
+}
+
+.topp h1 {
+  font-size: var(--typ-xl);
+}
+
+/* Den ledande kontrollen är alltid lika stor, vare sig den är menyn, en bakåtpil
+   eller ett kryss ut ur ett flöde. Det är den som bestämmer var rubriken börjar. */
+.topp .ledande {
+  display: grid;
+  place-items: center;
+  width: var(--tap-comfort);
+  height: var(--tap-comfort);
+  border: none;
+  background: none;
+  flex: 0 0 auto;
+}
+
+.topp .ledande svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}

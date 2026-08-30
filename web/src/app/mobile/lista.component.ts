@@ -4,6 +4,7 @@ import { QueueService } from './queue.service';
 import { CaptureFlowService } from './capture-flow.service';
 import { MenyComponent } from '../shared/meny.component';
 import { TolkningService } from '../ocr/tolkning.service';
+import { dagrubrik, tid } from '../shared/datum';
 
 export type ReceiptRow = {
   id: string;
@@ -143,9 +144,7 @@ export class ListaComponent {
     }
   }
 
-  klocka(iso: string): string {
-    return new Date(iso).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-  }
+  readonly klocka = tid;
 
   status(rad: ReceiptRow): 'skickas' | 'arkiv' {
     return this.local().has(rad.id) ? 'skickas' : 'arkiv';
@@ -168,14 +167,4 @@ export class ListaComponent {
     for (const file of files) await this.flow.accept(file);
     if (this.flow.shots().length) await this.router.navigateByUrl('/telefon/fanga');
   }
-}
-
-function dagrubrik(iso: string): string {
-  const d = new Date(iso);
-  const idag = new Date();
-  const igar = new Date(idag);
-  igar.setDate(igar.getDate() - 1);
-  if (d.toDateString() === idag.toDateString()) return 'I DAG';
-  if (d.toDateString() === igar.toDateString()) return 'I GÅR';
-  return d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' }).toUpperCase();
 }

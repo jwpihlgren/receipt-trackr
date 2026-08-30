@@ -13,18 +13,9 @@
 .skarm > :not(.innehall) { flex: 0 0 auto; }
 
 /* ---- toppen ---------------------------------------------------------- */
+/* `.topp` och dess rubrik står i styles/monster.css — en regel för alla tre
+   telefonytorna, så att rubriken får samma vänsterkant överallt. */
 
-.topp {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding-inline-end: var(--d-pad-x);
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  min-height: 56px;
-}
-
-.topp h1 { font-size: var(--typ-lg); }
 .topp .antal { margin-inline-start: auto; color: var(--ink-faint); font-size: var(--typ-sm); }
 
 /* Remsan finns bara när något inte är i arkivet. Är allt framme syns ingenting —
@@ -86,16 +77,6 @@
   min-height: var(--tap-comfort);
 }
 
-.tumnagel {
-  width: var(--d-thumb-w);
-  height: var(--d-thumb-h);
-  object-fit: cover;
-  border-radius: var(--horn-xs);
-  border: 1px solid var(--line);
-  background: var(--sunken);
-  flex: 0 0 auto;
-}
-
 .text { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 auto; }
 .huvud { font-size: var(--typ-base); }
 .under { color: var(--ink-faint); font-size: var(--typ-sm); }
@@ -106,21 +87,14 @@
 .lage svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 
 .tomt { display: grid; gap: var(--space-3); place-items: center; padding: var(--space-8) var(--space-6); text-align: center; }
-.tomt h2 { font-size: var(--typ-xl); }
+.tomt h2 { font-size: var(--typ-lg); }
 .tomt p { color: var(--ink-muted); font-size: var(--typ-base); line-height: var(--radavstand-body); }
 
 .tyst { padding: var(--space-6) var(--d-pad-x); color: var(--ink-faint); font-size: var(--typ-base); }
 
-.fel { padding: var(--space-4) var(--d-pad-x); color: var(--danger); font-size: var(--typ-base); }
-.fel button {
-  margin-inline-start: var(--space-2);
-  min-height: var(--tap-min);
-  padding-inline: var(--space-3);
-  border: 1px solid var(--danger);
-  border-radius: var(--horn-sm);
-  background: var(--surface);
-  color: var(--danger);
-}
+/* Felet och sparfelet ritas som `.notis` ur monster.css. Det som står kvar här är
+   bara var de sitter på just den här skärmen. */
+.innehall > .notis { margin: var(--space-4); }
 
 /* ---- handzonen ------------------------------------------------------- */
 /* Samma fält på varje skärm i appen: vit yta, en linje ovanför, en primär. */
@@ -177,7 +151,7 @@
 }
 
 .vantar-ikon svg { width: 30px; height: 30px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.vantar h2 { font-size: var(--typ-xl); }
+.vantar h2 { font-size: var(--typ-xl); }  /* överlägget är sin egen yta */
 .vantar p { max-width: 28ch; color: var(--ink-muted); font-size: var(--typ-base); line-height: var(--radavstand-body); }
 .vantar .kontur { width: 100%; max-width: 20rem; }
 
@@ -237,20 +211,3 @@
   color: var(--ok);
   font-size: var(--typ-base);
 }
-
-/* Sparfelet: samma ruta som i fångstvyn, för samma fel. Den lägger sig över handzonen
-   i stället för att trängas i flödet — den som just tryckt på kameran tittar dit. */
-.sparfel {
-  position: fixed;
-  inset: auto var(--space-4) var(--space-4);
-  z-index: var(--z-dialog);
-  display: grid;
-  gap: var(--d-gap);
-  padding: var(--d-card-pad);
-  border: 1px solid var(--danger);
-  border-radius: var(--horn-md);
-  background: var(--surface);
-  box-shadow: var(--shadow-lg);
-}
-
-.sparfel p { margin: 0; font-size: var(--typ-base); line-height: var(--radavstand-body); }

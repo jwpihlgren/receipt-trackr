@@ -137,8 +137,16 @@ export class QueueService {
    */
   private lasning = 0;
 
+  /**
+   * `drain()` och inte bara `refresh()`: en kö som legat kvar sedan förra sessionen
+   * ska försöka när appen öppnas, inte när femtonsekundersklockan råkar slå. Utan
+   * det stod ett kvitto och såg ut att skickas i upp till femton sekunder innan
+   * något faktiskt hände — och den som öppnat sidan just för att se kön fick
+   * stillastående som svar.
+   */
   start(): void {
     void this.refresh();
+    void this.drain();
     addEventListener('online', this.wake);
     addEventListener('focus', this.wake);
     document.addEventListener('visibilitychange', this.wake);
@@ -167,10 +175,9 @@ export class QueueService {
       bytes,
       sha256: sha,
       capture,
-      confirmedAt: null,
       createdAt: Date.now(),
     });
-    await putReceipt({ id: receiptId, createdAt: Date.now(), segments: null, completedAt: null });
+    await putReceipt({ id: receiptId, createdAt: Date.now(), segments: null });
     await this.refresh();
     void this.drain();
   }
@@ -182,7 +189,6 @@ export class QueueService {
       id: receiptId,
       createdAt: existing?.createdAt ?? Date.now(),
       segments,
-      completedAt: null,
     });
     await this.refresh();
     void this.drain();
@@ -333,7 +339,6 @@ export class QueueService {
       if (this.state().utloggad) this.state.update((s) => ({ ...s, utloggad: false }));
 
       for (const segment of segments) {
-        if (segment.confirmedAt) continue;
         if (this.slangda.has(receipt.id)) return true;
         const form = new FormData();
         // Kameravärdena måste ligga före filen: fälten läses i den ordning de kommer.

@@ -17,28 +17,7 @@
 
 /* ---- toppen ---------------------------------------------------------- */
 
-.topp {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 56px;
-  padding-inline: var(--d-pad-x);
-  background: var(--surface);
-  border-bottom: 1px solid var(--line);
-  flex: 0 0 auto;
-}
-
-.topp h1 { font-size: var(--typ-lg); }
-
-.lank {
-  min-height: var(--tap-min);
-  padding-inline: var(--space-2);
-  margin-inline-end: calc(var(--space-2) * -1);
-  border: none;
-  background: none;
-  color: var(--accent);
-  font-size: var(--typ-base);
-}
+/* `.topp` och `.ledande` står i styles/monster.css. */
 
 /* ---- filmremsan ------------------------------------------------------ */
 
@@ -53,16 +32,8 @@
   flex: 0 0 auto;
 }
 
-.ruta {
-  position: relative;
-  flex: 0 0 auto;
-  width: 48px;
-  height: 64px;
-  border: 1px solid var(--line);
-  border-radius: var(--horn-xs);
-  overflow: hidden;
-  background: var(--sunken);
-}
+/* Rutan är en miniatyr med en bock ovanpå, så måtten kommer ur `.tumnagel`. */
+.ruta { position: relative; overflow: hidden; }
 
 .ruta.aktuell { border: 2px solid var(--accent); }
 /* En omtagen bild stryks inte — den laddas upp ändå. Remsan säger bara vilken
@@ -78,7 +49,7 @@
   border-radius: var(--horn-xs);
   background: var(--surface);
   color: var(--ok);
-  font-size: var(--typ-xs);
+  font-size: var(--typ-sm);
 }
 
 .filmremsa .antal { margin-inline-start: auto; color: var(--ink-faint); font-size: var(--typ-sm); }
@@ -86,7 +57,7 @@
 /* ---- ledtexten ------------------------------------------------------- */
 
 .ledtext { padding: var(--d-pad-y) var(--d-pad-x); display: grid; gap: var(--space-2); flex: 0 0 auto; }
-.ledtext h2 { font-size: var(--typ-xl); }
+.ledtext h2 { font-size: var(--typ-lg); }
 .ledtext p { margin: 0; color: var(--ink-muted); font-size: var(--typ-base); line-height: var(--radavstand-body); }
 
 /* ---- bildbädden ------------------------------------------------------ */
@@ -113,7 +84,7 @@
   padding: var(--space-2) var(--space-3);
   background: var(--sunken);
   color: var(--ink-faint);
-  font-size: var(--typ-xs);
+  font-size: var(--typ-sm);
   letter-spacing: var(--teckenavstand-label);
 }
 
@@ -128,14 +99,8 @@
   text-align: center;
 }
 
-.varning {
-  margin: 0;
-  padding: var(--d-pad-y) var(--d-pad-x);
-  background: var(--warn-soft);
-  color: var(--warn);
-  font-size: var(--typ-base);
-  flex: 0 0 auto;
-}
+/* Varningen och sparfelet ritas som `.notis` ur monster.css. */
+.skarm > .notis { margin: var(--space-4); flex: 0 0 auto; }
 
 /* ---- kortet efter sparat --------------------------------------------- */
 
@@ -153,7 +118,6 @@
 
 .kort.illa { border-color: var(--danger); background: var(--danger-soft); }
 .kortbilder { display: flex; gap: var(--space-1); flex: 0 1 auto; max-width: 55%; overflow-x: auto; }
-.kortbilder img { width: 48px; height: 64px; object-fit: cover; border-radius: var(--horn-xs); border: 1px solid var(--line); background: var(--sunken); }
 .korttext { display: grid; gap: var(--space-1); min-width: 0; }
 .korttext strong { font-size: var(--typ-lg); font-weight: var(--weight-bold); }
 .kort.illa .korttext strong { color: var(--danger); }
@@ -214,21 +178,6 @@
 .vantar h2 { font-size: var(--typ-xl); }
 .vantar p { max-width: 28ch; color: var(--ink-muted); font-size: var(--typ-base); line-height: var(--radavstand-body); }
 .vantar .kontur { width: 100%; max-width: 20rem; }
-
-.sparfel {
-  position: fixed;
-  inset: auto var(--space-4) var(--space-4);
-  z-index: var(--z-dialog);
-  display: grid;
-  gap: var(--d-gap);
-  padding: var(--d-card-pad);
-  border: 1px solid var(--danger);
-  border-radius: var(--horn-md);
-  background: var(--surface);
-  box-shadow: var(--shadow-lg);
-}
-
-.sparfel p { margin: 0; font-size: var(--typ-base); line-height: var(--radavstand-body); }
 
 /* Knappen är en <label> runt ett filinput — ett tryck öppnar telefonens egen kamera.
    Fokus hör till knappen, inte till den osynliga inputen: utan det här ritade

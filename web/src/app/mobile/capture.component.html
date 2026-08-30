@@ -3,6 +3,7 @@
   @if (steg() === 'sparat') {
 
     <header class="topp">
+      <span class="ledande" aria-hidden="true"></span>
       <h1>Kvittot är sparat</h1>
     </header>
 
@@ -10,7 +11,7 @@
       <div class="kort" [class.illa]="sparatStatus().illa">
         <div class="kortbilder">
           @for (bild of sparadeBilder(); track bild.index) {
-            <img [src]="bild.url" [alt]="'Bild ' + bild.index" />
+            <img class="tumnagel mellan" [src]="bild.url" [alt]="'Bild ' + bild.index" />
           }
         </div>
         <div class="korttext">
@@ -40,9 +41,16 @@
 
   } @else if (steg() === 'borjahar') {
 
+    <!--
+      Krysset står först och är lika stort som menyknappen och bakåtpilen på de andra
+      telefonytorna. Det var förut en textlänk längst till höger, vilket gav den här
+      skärmen en egen vänsterkant på rubriken.
+    -->
     <header class="topp">
+      <button type="button" class="ledande" aria-label="Avbryt fångsten" (click)="avbryt()">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+      </button>
       <h1>Bild {{ antal() + 1 }}</h1>
-      <button type="button" class="lank" (click)="avbryt()">Avbryt</button>
     </header>
 
     <div class="ledtext">
@@ -78,14 +86,16 @@
   } @else {
 
     <header class="topp">
+      <button type="button" class="ledande" aria-label="Avbryt fångsten" (click)="avbryt()">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+      </button>
       <h1>Bild {{ antal() }}</h1>
-      <button type="button" class="lank" (click)="avbryt()">Avbryt</button>
     </header>
 
     @if (antal() > 1) {
       <div class="filmremsa" role="list" aria-label="Tagna bilder">
         @for (shot of shots(); track shot.sha) {
-          <div class="ruta" role="listitem" [class.ersatt]="shot.replaced" [class.aktuell]="shot.index === antal()">
+          <div class="ruta tumnagel mellan" role="listitem" [class.ersatt]="shot.replaced" [class.aktuell]="shot.index === antal()">
             <img [src]="shot.url" [alt]="'Bild ' + shot.index" />
             @if (isConfirmed(shot.index)) { <span class="bock" aria-label="i arkivet">✓</span> }
           </div>
@@ -109,7 +119,7 @@
     </div>
 
     @if (flow.previewWarning(); as varning) {
-      <p class="varning" role="status">{{ varning }}</p>
+      <div class="notis varsam" role="status"><p>{{ varning }}</p></div>
     }
 
     <div class="handzon">
@@ -163,7 +173,7 @@
   </dialog>
 
   @if (flow.saveError(); as message) {
-    <div class="sparfel" role="alert">
+    <div class="notis illa svavande" role="alert">
       <p>{{ message }}</p>
       <button type="button" class="knapp kontur" (click)="flow.dismissSaveError()">Jag har läst</button>
     </div>

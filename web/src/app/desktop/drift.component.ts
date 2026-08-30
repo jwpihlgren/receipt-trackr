@@ -28,7 +28,6 @@ export type Health = {
  */
 @Component({
   selector: 'app-drift',
-  host: { 'data-density': 'comfortable' },
   imports: [MenyComponent],
   templateUrl: './drift.component.html',
 })
