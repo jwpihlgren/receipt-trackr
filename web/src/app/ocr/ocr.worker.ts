@@ -139,7 +139,13 @@ addEventListener('message', async (event: MessageEvent<OcrBegaran | { typ: 'varm
     }
     const t2b = performance.now();
 
-    const resultat = (await s.recognize(duk, { flatten: true })) as {
+    /**
+     * `noCache` är inte en detalj här. Biblioteket cachar på bildinnehåll, och kör man
+     * samma bild genom två modellnivåer får den andra tillbaka den förstas svar — med
+     * identisk text och en tolkningstid på tiotals millisekunder. En mätning som
+     * jämför nivåer måste stänga av den, annars mäter den cachen.
+     */
+    const resultat = (await s.recognize(duk, { flatten: true, noCache: true })) as {
       text: string;
       results: { text: string; confidence: number }[];
       confidence: number;
