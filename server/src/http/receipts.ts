@@ -189,7 +189,7 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
         return reply.code(400).send({ error: "missing_value", message: "Ange vad fältet ska bli." });
       }
       const fel = ogiltigt(namn, request.body.value);
-      if (fel) return reply.code(400).send({ error: "ogiltigt_varde", message: fel });
+      if (fel) return reply.code(400).send({ error: "ogiltigt_varde", namn, message: fel });
       const receipt = await archive.rattaFalt(
         request.params.id,
         namn,
@@ -222,7 +222,7 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
           return reply.code(400).send({ error: "missing_value", message: "Ange vad fältet ska bli." });
         }
         const fel = ogiltigt(rattelse.namn, rattelse.value);
-        if (fel) return reply.code(400).send({ error: "ogiltigt_varde", message: fel });
+        if (fel) return reply.code(400).send({ error: "ogiltigt_varde", namn: rattelse.namn, message: fel });
       }
       const receipt = await archive.rattaFalten(
         request.params.id,

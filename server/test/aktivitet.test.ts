@@ -216,6 +216,41 @@ describe("aktiviteten", () => {
     expect(efter.receipts[0]).toMatchObject({ id, lage: "vantar" });
   });
 
+  /**
+   * Felet måste bära fältets namn. Gränssnittet sätter röd kant på det fält som är
+   * fel och skriver meddelandet under det — utan namnet blir felet en larmruta högst
+   * upp på sidan, långt från det som ska rättas.
+   */
+  it("säger vilket fält som var ogiltigt, inte bara att något var det", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, HELT, 11);
+
+    const datum = await app.inject({
+      method: "POST",
+      url: `/api/receipts/${id}/falt`,
+      payload: { namn: "date", value: "sdfsfdf" },
+    });
+    expect(datum.statusCode).toBe(400);
+    expect(datum.json()).toMatchObject({ error: "ogiltigt_varde", namn: "date" });
+
+    // Kalendern förkastar, inte bara mönstret: den 31 juni finns inte.
+    const finns_ej = await app.inject({
+      method: "POST",
+      url: `/api/receipts/${id}/falt`,
+      payload: { namn: "date", value: "2026-06-31" },
+    });
+    expect(finns_ej.statusCode).toBe(400);
+    expect(finns_ej.json().message).toContain("2026-06-31");
+
+    const belopp = await app.inject({
+      method: "POST",
+      url: `/api/receipts/${id}/falt/flera`,
+      payload: { rattelser: [{ namn: "total", value: -12 }] },
+    });
+    expect(belopp.json()).toMatchObject({ error: "ogiltigt_varde", namn: "total" });
+  });
+
   it("bygger om indexet av sig självt när schemaversionen är en annan", async () => {
     const id = ulid();
     await fanga(id, 3);

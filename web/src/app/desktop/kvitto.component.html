@@ -73,6 +73,7 @@
             <label class="label" [attr.for]="'falt-' + f.namn">{{ f.etikett }}</label>
             <input
               class="input w-full"
+              [class.input-error]="faltFel()[f.namn]"
               [class.text-2xl]="f.namn === 'total'"
               [class.font-semibold]="f.namn === 'total'"
               [class.num]="f.namn === 'total'"
@@ -81,9 +82,14 @@
               [value]="utkast()[f.namn]"
               [placeholder]="f.namn === 'date' ? 'ÅÅÅÅ-MM-DD' : ''"
               [attr.inputmode]="f.sort === 'tal' ? 'decimal' : null"
+              [attr.aria-invalid]="faltFel()[f.namn] ? 'true' : null"
+              [attr.aria-describedby]="faltFel()[f.namn] ? 'fel-' + f.namn : null"
               (input)="onUtkast(f.namn, $event)"
               (keydown.enter)="spara()"
             />
+            @if (faltFel()[f.namn]; as fel) {
+              <p class="mt-1 text-sm text-error" [id]="'fel-' + f.namn" role="alert">{{ fel }}</p>
+            }
 
           </div>
         }

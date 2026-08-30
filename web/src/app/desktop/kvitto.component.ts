@@ -74,6 +74,15 @@ export class KvittoComponent {
 
   readonly falt = FALT;
   readonly utkast = signal<Record<string, string>>({ store: '', date: '', total: '' });
+
+  /**
+   * Fel per fält, inte ett larm högst upp på sidan.
+   *
+   * Ett valideringsfel hör till det fält som är fel — röd kant på fältet och
+   * meddelandet direkt under, knutet med aria-describedby. Det är vad varje annat
+   * formulär på webben gör, och det jag redan gjorde på inloggningssidan.
+   */
+  readonly faltFel = signal<Record<string, string>>({});
   readonly sparar = signal(false);
   readonly sparat = signal(false);
 
@@ -94,6 +103,40 @@ export class KvittoComponent {
   onUtkast(namn: string, event: Event): void {
     this.sparat.set(false);
     this.utkast.update((u) => ({ ...u, [namn]: (event.target as HTMLInputElement).value }));
+    // Felet gäller det som stod där, inte det man håller på att skriva.
+    if (this.faltFel()[namn]) this.faltFel.update(({ [namn]: _, ...kvar }) => kvar);
+  }
+
+  /**
+   * Samma regler som servern, körda innan anropet.
+   *
+   * Dubbleringen är avsiktlig: servern äger arkivets innehåll och måste pröva,
+   * men att skicka iväg något man redan vet är fel — och vänta på svaret — är en
+   * sämre upplevelse än att säga till direkt.
+   */
+  private prova(): Record<string, string> {
+    const fel: Record<string, string> = {};
+    for (const f of FALT) {
+      const skrivet = (this.utkast()[f.namn] ?? '').trim();
+      if (!skrivet) continue;
+      if (f.namn === 'date') {
+        const träff = /^(\d{4})-(\d{2})-(\d{2})$/.exec(skrivet);
+        if (!träff) {
+          fel[f.namn] = 'Skriv datumet som ÅÅÅÅ-MM-DD.';
+          continue;
+        }
+        const [år, månad, dag] = [Number(träff[1]), Number(träff[2]), Number(träff[3])];
+        const d = new Date(Date.UTC(år, månad - 1, dag));
+        if (d.getUTCFullYear() !== år || d.getUTCMonth() !== månad - 1 || d.getUTCDate() !== dag) {
+          fel[f.namn] = `Det finns ingen ${skrivet}.`;
+        }
+      } else if (f.sort === 'tal') {
+        const tal = Number(skrivet.replace(',', '.'));
+        if (!Number.isFinite(tal)) fel[f.namn] = 'Beloppet ska vara ett tal.';
+        else if (tal < 0) fel[f.namn] = 'Beloppet kan inte vara negativt.';
+      }
+    }
+    return fel;
   }
 
   /** Vad som skiljer formuläret från det som ligger i arkivet. Tomma fält hoppas över. */
@@ -124,6 +167,10 @@ export class KvittoComponent {
   });
 
   async spara(): Promise<void> {
+    const fel = this.prova();
+    this.faltFel.set(fel);
+    if (Object.keys(fel).length > 0) return;
+
     const rattelser = this.andringar();
     if (rattelser.length === 0) return;
     this.sparar.set(true);
@@ -135,8 +182,11 @@ export class KvittoComponent {
       });
       if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
       if (svar.status === 400) {
-        const { message } = (await svar.json()) as { message?: string };
-        this.error.set(message ?? 'Värdet gick inte att spara.');
+        // Servern säger vilket fält som var fel; meddelandet hör hemma vid det.
+        const { namn, message } = (await svar.json()) as { namn?: string; message?: string };
+        const text = message ?? 'Värdet gick inte att spara.';
+        if (namn) this.faltFel.update((f) => ({ ...f, [namn]: text }));
+        else this.error.set(text);
         return;
       }
       if (!svar.ok) throw new Error(String(svar.status));
