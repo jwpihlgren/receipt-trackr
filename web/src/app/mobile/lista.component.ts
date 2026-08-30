@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { QueueService } from './queue.service';
 import { CaptureFlowService } from './capture-flow.service';
 import { MenyComponent } from './meny.component';
+import { TolkningService } from '../ocr/tolkning.service';
 
 export type ReceiptRow = {
   id: string;
@@ -38,6 +39,13 @@ export class ListaComponent {
   private readonly router = inject(Router);
   private readonly queue = inject(QueueService);
   readonly flow = inject(CaptureFlowService);
+  /**
+   * Telefonen tolkar av sig själv så länge appen är öppen. Det var hela poängen med
+   * att fånga och tolka på samma enhet — och M5a visade att den orkar: två sekunder
+   * per bild, snabbare än datorn, eftersom den når appen över https och därmed får
+   * flertrådad WASM.
+   */
+  readonly tolkning = inject(TolkningService);
 
   readonly receipts = signal<ReceiptRow[] | null>(null);
   readonly total = signal(0);
@@ -76,6 +84,7 @@ export class ListaComponent {
   constructor() {
     this.queue.start();
     void this.load();
+    this.tolkning.startaLopande();
   }
 
   async load(): Promise<void> {

@@ -1,7 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import type { Niva, OcrSvar, Rotation, Tider } from './ocr.worker';
+import type { Niva, Rotation, Tider } from './ocr.worker';
 import type { Orientering } from './orientering';
+import { OcrService } from './ocr.service';
 
 type Kalla = 'arkiv' | 'filer';
 
@@ -41,10 +42,11 @@ type Rad = {
 })
 export class MatningComponent {
   private readonly router = inject(Router);
-  private worker: Worker | null = null;
-  private readonly vantande = new Map<string, (svar: OcrSvar) => void>();
+  /** Samma worker som tolkningen använder: modellen ska laddas en gång, inte två. */
+  private readonly ocr = inject(OcrService);
 
-  readonly isolerad = signal(crossOriginIsolated);
+  readonly isolerad = this.ocr.isolerad;
+  readonly uppvarmning = this.ocr.uppvarmning;
   readonly kalla = signal<Kalla>('arkiv');
   readonly nivaer = signal<Niva[]>(['tiny']);
   readonly rotation = signal<Rotation>('auto');
@@ -52,7 +54,6 @@ export class MatningComponent {
 
   readonly arkivet = signal<{ id: string; capturedAt: string; segments: number }[] | null>(null);
   readonly korande = signal<string | null>(null);
-  readonly uppvarmning = signal<Record<string, number>>({});
   readonly rader = signal<Rad[]>([]);
   readonly fel = signal<string[]>([]);
 
@@ -91,30 +92,6 @@ export class MatningComponent {
       this.arkivet.set([]);
       this.fel.update((f) => [...f, 'Kunde inte läsa arkivet.']);
     }
-  }
-
-  private starta(): Worker {
-    this.worker ??= new Worker(new URL('./ocr.worker', import.meta.url), { type: 'module' });
-    this.worker.onmessage = ({ data }: MessageEvent<OcrSvar>) => {
-      if (data.typ === 'redo') {
-        this.uppvarmning.update((u) => ({ ...u, [data.niva]: data.ms }));
-        this.vantande.get(`varm:${data.niva}`)?.(data);
-        return;
-      }
-      this.vantande.get(data.id)?.(data);
-    };
-    return this.worker;
-  }
-
-  private fraga(nyckel: string, meddelande: unknown, overfor?: Transferable[]): Promise<OcrSvar> {
-    const worker = this.starta();
-    return new Promise((resolve) => {
-      this.vantande.set(nyckel, (svar) => {
-        this.vantande.delete(nyckel);
-        resolve(svar);
-      });
-      worker.postMessage(meddelande, overfor ?? []);
-    });
   }
 
   vaxla(niva: Niva): void {
@@ -188,7 +165,7 @@ export class MatningComponent {
   private async kor(bilder: Bild[]): Promise<void> {
     for (const niva of this.nivaer()) {
       this.korande.set(`Laddar modellen (${niva}) …`);
-      await this.fraga(`varm:${niva}`, { typ: 'varm', niva });
+      await this.ocr.varm(niva);
     }
 
     let n = 0;
@@ -196,35 +173,30 @@ export class MatningComponent {
       n++;
       for (const niva of this.nivaer()) {
         this.korande.set(`${niva} · bild ${n} av ${bilder.length} · ${bild.namn}`);
-        // Bytesen överförs, inte kopieras — därför en egen kopia per nivå.
-        const kopia = bild.bytes.slice(0);
-        const id = `${bild.namn}:${niva}:${n}`;
-        const svar = await this.fraga(id, { id, niva, bytes: kopia, rotation: this.rotation() }, [kopia]);
-
-        if (svar.typ !== 'klar') {
-          const skäl = svar.typ === 'fel' ? svar.meddelande : 'oväntat svar från workern';
-          this.fel.update((f) => [...f, `${bild.namn} (${niva}): ${skäl}`]);
-          continue;
+        // Bytesen överförs till workern, inte kopieras — därför en egen kopia per nivå.
+        try {
+          const utfall = await this.ocr.tolka(bild.bytes.slice(0), niva, this.rotation());
+          const konf = utfall.rader.map((r) => r.confidence).sort((a, b) => a - b);
+          const tecken = utfall.text.length;
+          this.rader.update((r) => [
+            ...r,
+            {
+              fil: bild.namn,
+              niva,
+              tecken,
+              rader: utfall.rader.length,
+              teckenPerRad: utfall.rader.length ? tecken / utfall.rader.length : 0,
+              median: kvantil(konf, 0.5),
+              p10: kvantil(konf, 0.1),
+              ms: utfall.ms,
+              bild: utfall.bild,
+              orientering: utfall.orientering,
+              text: utfall.text,
+            },
+          ]);
+        } catch (fel) {
+          this.fel.update((f) => [...f, `${bild.namn} (${niva}): ${(fel as Error).message}`]);
         }
-
-        const konf = svar.rader.map((r) => r.confidence).sort((a, b) => a - b);
-        const tecken = svar.text.length;
-        this.rader.update((r) => [
-          ...r,
-          {
-            fil: bild.namn,
-            niva,
-            tecken,
-            rader: svar.rader.length,
-            teckenPerRad: svar.rader.length ? tecken / svar.rader.length : 0,
-            median: kvantil(konf, 0.5),
-            p10: kvantil(konf, 0.1),
-            ms: svar.ms,
-            bild: svar.bild,
-            orientering: svar.orientering,
-            text: svar.text,
-          },
-        ]);
       }
     }
     this.korande.set(null);

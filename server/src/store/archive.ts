@@ -148,6 +148,23 @@ export class Archive {
   }
 
   /** Sökvägen till en fil i kvittots katalog. Namnet valideras av anroparen. */
+  /**
+   * Skriver in tolkningen. Samma ordning som allt annat: sidecar först, index efteråt.
+   *
+   * `text` är råtexten som söks i; `ocr` är hela utfallet — rad för rad med konfidens,
+   * vilken modell som läste, och hur uppräteningen gick. Det senare är inte prydnad:
+   * en bild som lästes tecken för tecken ska gå att hitta i efterhand, och konfidensen
+   * per rad är det granskningsurvalet vilar på.
+   */
+  async saveOcr(id: string, text: string, ocr: unknown): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    receipt.text = text;
+    receipt.ocr = ocr;
+    await this.persist(receipt);
+    return receipt;
+  }
+
   fileIn(id: string, name: string): string {
     return join(receiptDir(this.dataDir, id), name);
   }

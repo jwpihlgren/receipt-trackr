@@ -1,6 +1,6 @@
 .skarm {
   display: grid;
-  grid-template-rows: auto auto auto 1fr auto;
+  grid-template-rows: auto auto auto auto 1fr auto;
   height: 100dvh;
   background: var(--bg);
   overflow: hidden;
@@ -174,3 +174,33 @@
 .vantar h2 { font-size: var(--text-xl); }
 .vantar p { max-width: 28ch; color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
 .vantar .kontur { width: 100%; max-width: 20rem; }
+
+/* Tolkningen syns, men tar ingen plats och kräver ingenting. Den sköter sig själv
+   så länge appen är öppen; går fliken i bakgrunden pausar den, och reservationen
+   går ut av sig själv på servern. */
+.tolkar {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap-tight);
+  padding: var(--space-2) var(--d-pad-x);
+  background: var(--sunken);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+}
+
+.prick {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .prick { animation: puls 1600ms var(--ease-both) infinite; }
+  @keyframes puls {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 1; }
+  }
+}

@@ -13,6 +13,8 @@ import { registerAuth, registerOpenSession } from "./http/auth.js";
 import { openAuth } from "./auth.js";
 import { registerReceipts } from "./http/receipts.js";
 import { registerBackup } from "./http/backup.js";
+import { registerJobb } from "./http/jobb.js";
+import { Reservationer } from "./jobb.js";
 import { BackupJob } from "./backup/job.js";
 import { Archive } from "./store/archive.js";
 
@@ -39,6 +41,7 @@ export async function buildApp(config: Config, options: FastifyServerOptions = {
   }
 
   registerReceipts(app, archive);
+  registerJobb(app, archive, new Reservationer());
   // Utan monterad katalog finns ingen säkerhetskopiering — rutterna svarar då 503
   // med ett begripligt skäl i stället för att saknas.
   registerBackup(app, config.backupDir ? new BackupJob(config.dataDir, config.backupDir) : null, config.dataDir);

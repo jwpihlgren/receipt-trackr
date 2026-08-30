@@ -114,8 +114,23 @@
 
 /* ---- övrigt ---------------------------------------------------------- */
 
-.tolkremsa { display: grid; gap: var(--space-1); padding: var(--d-card-pad); border-radius: var(--radius-md); background: var(--sel); }
-.tolktext { font-size: var(--text-base); }
+.tolkremsa { display: grid; gap: var(--space-2); padding: var(--d-card-pad); border-radius: var(--radius-md); background: var(--sel); }
+.tolkrad { display: flex; align-items: center; gap: var(--d-gap); }
+.tolktext { font-size: var(--text-base); flex: 1 1 auto; }
+
+.tolkknapp {
+  min-height: var(--tap-comfort);
+  padding-inline: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-base);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.tolkknapp.primar { border: none; background: var(--accent); color: var(--on-accent); font-weight: var(--weight-bold); }
 
 .tomt { display: grid; gap: var(--space-3); place-items: center; padding: var(--space-8); text-align: center; }
 .tomt h2 { font-size: var(--text-xl); }

@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../shared/auth.service';
+import { TolkningService } from '../ocr/tolkning.service';
 
 type Rad = {
   id: string;
@@ -35,6 +36,12 @@ type Grupp = { rubrik: string; rader: Rad[] };
 export class ArkivComponent {
   private readonly router = inject(Router);
   private readonly auth = inject(AuthService);
+  /**
+   * Tolkningen på skrivbordet startas bara av ett tryck här. Ingen schemaläggning,
+   * ingen automatik: den här datorn arbetar när dess ägare säger till, och det är ett
+   * uttryckligt krav och inte en inställning.
+   */
+  readonly tolkning = inject(TolkningService);
 
   readonly rader = signal<Rad[] | null>(null);
   readonly total = signal(0);
@@ -57,11 +64,18 @@ export class ArkivComponent {
     return out;
   });
 
-  /** Hur många kvitton som ännu inte har någon text att söka i. */
-  readonly otolkade = computed(() => (this.rader() ?? []).filter((r) => r.store === null).length);
+  /** Serverns siffra, inte listans: kön kan vara längre än de hundra senaste. */
+  readonly otolkade = computed(() => this.tolkning.snapshot().vantande);
 
   constructor() {
     void this.load();
+    void this.tolkning.rakna();
+  }
+
+  async tolka(): Promise<void> {
+    await this.tolkning.kor();
+    // Texten finns nu i indexet — listan ska visa det utan att någon laddar om.
+    await this.load();
   }
 
   async load(): Promise<void> {

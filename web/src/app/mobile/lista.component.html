@@ -27,6 +27,13 @@
     </div>
   }
 
+  @if (tolkning.snapshot().kor) {
+    <div class="tolkar" role="status">
+      <span class="prick" aria-hidden="true"></span>
+      <span>Tolkar i bakgrunden · {{ tolkning.snapshot().steg ?? 'arbetar' }}</span>
+    </div>
+  }
+
   <div class="innehall">
     @if (error(); as message) {
       <p class="fel" role="alert">

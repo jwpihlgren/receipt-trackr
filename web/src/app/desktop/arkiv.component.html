@@ -63,11 +63,28 @@
 
     } @else {
 
-      @if (otolkade() > 0) {
+      @if (tolkning.snapshot().kor) {
         <div class="tolkremsa">
-          <span class="tolktext">{{ otolkade() }} {{ otolkade() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
-          <span class="tyst">Textutläsningen byggs i M5. Fram till dess står fälten tomma, och det är ärligare än en gissning.</span>
+          <div class="tolkrad">
+            <span class="tolktext">
+              Tolkar här · {{ tolkning.snapshot().klaraIPasset }} klara, {{ otolkade() }} kvar
+            </span>
+            <button type="button" class="tolkknapp" (click)="tolkning.stanna()">Sluta efter det här</button>
+          </div>
+          <span class="tyst">{{ tolkning.snapshot().steg ?? 'Arbetar …' }} · datorn tolkar bara medan den här fliken är öppen.</span>
         </div>
+      } @else if (otolkade() > 0) {
+        <div class="tolkremsa">
+          <div class="tolkrad">
+            <span class="tolktext">{{ otolkade() }} {{ otolkade() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
+            <button type="button" class="tolkknapp primar" (click)="tolka()">Tolka här</button>
+          </div>
+          <span class="tyst">Ordet <em>här</em> bär hela regeln: den här datorn arbetar bara när du säger till.</span>
+        </div>
+      }
+
+      @if (tolkning.snapshot().fel; as fel) {
+        <p class="fel" role="alert">Tolkningen stannade: {{ fel }}</p>
       }
 
       @if (rader() === null) {

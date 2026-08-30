@@ -76,6 +76,36 @@ export function remove(db: ReceiptIndex, id: string): void {
   db.prepare("DELETE FROM receipts_fts WHERE id = ?").run(id);
 }
 
+/**
+ * Kvitton som ännu inte har någon text. Det är kön, härledd ur indexet i stället för
+ * lagrad någonstans — precis som allt annat sökbart. En reservation är däremot inte
+ * härledd och hör inte hemma här; den lever i minnet, se jobb.ts.
+ *
+ * FTS-raden finns alltid, även tom: `upsert` skriver in den vid varje skrivning. Så
+ * frågan blir "vilken rad har tom text", inte "vilken rad saknas".
+ */
+export function pendingOcr(db: ReceiptIndex, limit = 50): { id: string; capturedAt: string }[] {
+  return db
+    .prepare(
+      `SELECT r.id AS id, r.captured_at AS capturedAt
+         FROM receipts r
+         JOIN receipts_fts f ON f.id = r.id
+        WHERE length(f.text) = 0
+        ORDER BY r.captured_at DESC
+        LIMIT ?`,
+    )
+    .all(limit) as { id: string; capturedAt: string }[];
+}
+
+export function pendingOcrCount(db: ReceiptIndex): number {
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM receipts r JOIN receipts_fts f ON f.id = r.id WHERE length(f.text) = 0`,
+    )
+    .get() as { n: number };
+  return row.n;
+}
+
 export type SearchHit = {
   id: string;
   capturedAt: string;
