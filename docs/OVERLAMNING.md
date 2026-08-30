@@ -126,9 +126,10 @@ och det arbetet görs inte om. Temat heter `kvitto`/`kvitto-morkt` och står i
 `web/src/styles.css`. Tailwind och DaisyUI ligger i node_modules och bakas in; sidan
 är cross-origin isolerad och kan inte hämta något utifrån ändå.
 
-Datorytan är omgjord. **Telefonytan är inte omritad**, men den delar palett: dess
-tokens i `styles/tokens.css` bär nu samma mörka värden. Att den ser rätt ut i mörkt
-läge är **inte verifierat** — fångstflödet ritades för ljust.
+Datorytan är omgjord med DaisyUI. Telefonytan behåller sina egna komponenter men
+**delar palett**: den har aldrig haft egna färger — dess CSS läser bara tokens, och
+tokens är värde för värde identiska med DaisyUI-temat. Kontrollerat med grep: inga
+literala färger finns någonstans utom i `styles/tokens.css` och `styles.css`.
 
 **Namngivning: ett ställe, ett namn.** Ytan står först i adressen
 (`/telefon/kvitton`, `/dator/kvitton`), appen heter Kvittoarkiv, platsen heter
