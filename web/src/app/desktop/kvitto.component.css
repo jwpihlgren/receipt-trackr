@@ -111,3 +111,81 @@
   .textspalt,
   .faltpanel { width: 100%; border-inline-start: none; border-top: 1px solid var(--line); }
 }
+
+/* ---- fälten ---------------------------------------------------------- */
+/*
+ * Proveniens är ett tillstånd, inte en grad, och tillstånd får bära färg. Men aldrig
+ * färg ensam: varje skillnad här är kodad tre gånger — i formen (prickad
+ * understrykning eller inte), i ord ("Maskinläst — inte granskat" mot "Bekräftat av
+ * dig"), och i färg. Ta bort färgen och betydelsen står kvar; det är provet.
+ *
+ * Konfidensgraden är däremot fortfarande neutral, och det är en annan sak: en siffra
+ * mellan noll och ett har inga tillstånd att koda, och en färgskala över den skulle
+ * påstå en gräns som ingen mätt. Immich har landat i samma sak från andra hållet —
+ * deras OCR-rutor bär ett konfidensfält som medvetet aldrig ritas ut.
+ */
+
+.vardrad { display: flex; align-items: baseline; gap: var(--d-gap); flex-wrap: wrap; }
+
+.varde {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font-size: var(--text-base);
+  text-align: start;
+  cursor: text;
+}
+
+.varde.stor { font-size: var(--text-2xl); font-weight: var(--weight-bold); }
+.varde.maskin { border-bottom: 1px dotted var(--warn); padding-block-end: 2px; }
+.varde:hover { color: var(--accent); }
+
+.konfidens { color: var(--ink-faint); font-size: var(--text-xs); }
+.sparat { color: var(--ok); font-size: var(--text-sm); }
+
+.liten {
+  min-height: 36px;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  margin-inline-start: auto;
+}
+
+.liten.primar { border: none; background: var(--accent); color: var(--on-accent); margin-inline-start: 0; }
+
+.ratta {
+  min-height: var(--d-control-h);
+  padding-inline: var(--d-pad-x);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: var(--text-base);
+}
+
+.rattrad { display: flex; align-items: center; gap: var(--d-gap-tight); }
+.rattrad .fotnot { margin-inline-start: auto; }
+
+/* Kandidaterna är OCR:ens övriga läsningar, inte förslag vi hittat på. Att klicka en
+   av dem är en rättelse som vilken annan som helst. */
+.kandidater { display: flex; align-items: baseline; gap: var(--d-gap-tight); flex-wrap: wrap; }
+
+.kandidat {
+  min-height: 28px;
+  padding-inline: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface);
+  color: var(--accent);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.proveniens { display: flex; align-items: center; gap: var(--space-1); font-size: var(--text-sm); }
+.proveniens svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.proveniens.maskinell { color: var(--warn); }
+.proveniens.bekraftad { color: var(--ok); }

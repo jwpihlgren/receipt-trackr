@@ -134,5 +134,32 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
     return { query, hits: search(archive.db, query) };
   });
 
+  const FALT = new Set(["store", "date", "total", "currency"]);
+
+  app.post<{ Params: { id: string }; Body: { namn?: string; value?: unknown; bekraftat?: boolean } }>(
+    "/api/receipts/:id/falt",
+    async (request, reply) => {
+      const namn = request.body?.namn;
+      if (!namn || !FALT.has(namn)) {
+        return reply.code(400).send({ error: "okant_falt", message: `Fältet ska vara ett av ${[...FALT].join(", ")}.` });
+      }
+      if (request.body?.value === undefined) {
+        return reply.code(400).send({ error: "missing_value", message: "Ange vad fältet ska bli." });
+      }
+      const receipt = await archive.rattaFalt(
+        request.params.id,
+        namn,
+        request.body.value,
+        request.body.bekraftat === true,
+      );
+      return reply.send(receipt);
+    },
+  );
+
   app.post("/api/reindex", async () => archive.reindex());
+
+  // Omtolkning är inte samma sak som omindexering. `reindex` bygger om det härledda
+  // indexet ur sidecarerna; det här räknar om *fälten* ur texten som redan lästs, och
+  // är vägen att låta förbättrade regler nå kvitton som tolkades i går.
+  app.post("/api/falt/omtolka", async () => archive.reextract());
 }

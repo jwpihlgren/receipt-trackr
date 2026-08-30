@@ -4,6 +4,20 @@ import { MenyComponent } from '../shared/meny.component';
 
 type Segment = { file: string; sha256: string; bytes: number; width: number; height: number };
 
+export type Falt = {
+  value: string | number;
+  confidence: number;
+  source: 'ocr' | 'manual' | 'confirmed';
+  candidates?: { value: string | number; confidence: number }[];
+};
+
+/** Fälten i den ordning de läses på ett kvitto, inte i den ordning de utvinns. */
+const FALT: { namn: 'store' | 'date' | 'total'; etikett: string; sort: 'text' | 'tal' }[] = [
+  { namn: 'store', etikett: 'BUTIK', sort: 'text' },
+  { namn: 'date', etikett: 'DATUM', sort: 'text' },
+  { namn: 'total', etikett: 'BELOPP', sort: 'tal' },
+];
+
 type Receipt = {
   id: string;
   capturedAt: string;
@@ -11,7 +25,7 @@ type Receipt = {
   segments: Segment[];
   expectedSegments: number | null;
   completedAt: string | null;
-  fields: Record<string, unknown>;
+  fields: Record<string, Falt | undefined>;
   text: string;
   tags: { user: string[]; auto: string[] };
 };
@@ -56,6 +70,82 @@ export class KvittoComponent {
   });
 
   readonly harText = computed(() => (this.receipt()?.text ?? '').trim().length > 0);
+
+  readonly falt = FALT;
+  readonly redigerar = signal<string | null>(null);
+  readonly utkast = signal<string>('');
+  readonly sparar = signal<string | null>(null);
+  readonly sparat = signal<string | null>(null);
+
+  /** Har någon utvinning körts alls? Skiljer "inga fält" från "inget läst". */
+  readonly harFalt = computed(() => FALT.some((f) => this.varde(f.namn) !== undefined));
+
+  varde(namn: string): Falt | undefined {
+    return this.receipt()?.fields?.[namn];
+  }
+
+  /** Maskinläst värde markeras. Bekräftat gör det inte — det tysta är det säkra. */
+  maskinlast(namn: string): boolean {
+    return this.varde(namn)?.source === 'ocr';
+  }
+
+  visaVarde(namn: string): string {
+    const f = this.varde(namn);
+    if (f === undefined) return '—';
+    return namn === 'total' ? `${f.value} kr` : String(f.value);
+  }
+
+  borjaRedigera(namn: string): void {
+    const f = this.varde(namn);
+    this.utkast.set(f === undefined ? '' : String(f.value));
+    this.redigerar.set(namn);
+  }
+
+  onUtkast(event: Event): void {
+    this.utkast.set((event.target as HTMLInputElement).value);
+  }
+
+  avbryt(): void {
+    this.redigerar.set(null);
+  }
+
+  async bekrafta(namn: string): Promise<void> {
+    const f = this.varde(namn);
+    if (f === undefined) return;
+    await this.skicka(namn, f.value, true);
+  }
+
+  async spara(namn: string): Promise<void> {
+    const sort = FALT.find((f) => f.namn === namn)?.sort;
+    const ratt = this.utkast().trim();
+    if (!ratt) return;
+    await this.skicka(namn, sort === 'tal' ? Number(ratt.replace(',', '.')) : ratt, false);
+    this.redigerar.set(null);
+  }
+
+  async valjKandidat(namn: string, value: string | number): Promise<void> {
+    await this.skicka(namn, value, false);
+  }
+
+  private async skicka(namn: string, value: unknown, bekraftat: boolean): Promise<void> {
+    this.sparar.set(namn);
+    try {
+      const svar = await fetch(`/api/receipts/${this.id()}/falt`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ namn, value, bekraftat }),
+      });
+      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (!svar.ok) throw new Error(String(svar.status));
+      this.receipt.set((await svar.json()) as Receipt);
+      this.sparat.set(namn);
+      setTimeout(() => this.sparat.update((v) => (v === namn ? null : v)), 2000);
+    } catch {
+      this.error.set('Rättelsen gick inte att spara.');
+    } finally {
+      this.sparar.set(null);
+    }
+  }
 
   constructor() {
     void this.load();

@@ -9,6 +9,7 @@ import { indexPath, receiptDir, RECEIPTS_DIR } from "./paths.js";
 import { newReceipt, readSidecar, writeSidecar, type Receipt, type Segment } from "./sidecar.js";
 import { saveSegment, ImageError } from "./images.js";
 import { openIndex, upsert, type ReceiptIndex } from "./index-db.js";
+import { utvinnUtanAttSkrivaOver, type Falten } from "../falt/index.js";
 
 export class ConflictError extends Error {}
 export { ImageError };
@@ -161,8 +162,80 @@ export class Archive {
     if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
     receipt.text = text;
     receipt.ocr = ocr;
+    // Fälten faller ut ur texten direkt. Utvinningen är några reguljära uttryck och
+    // lite räkning — den hör hemma här och inte i ett andra steg någon måste komma
+    // ihåg att starta.
+    receipt.fields = utvinnUtanAttSkrivaOver(text, receipt.capturedAt, receipt.fields as Falten);
     await this.persist(receipt);
     return receipt;
+  }
+
+  /**
+   * En människa rättar eller bekräftar ett fält.
+   *
+   * Bekräftelsen skriver också en post i `corrections`, med samma värde före och efter.
+   * Det ser onödigt ut men är hela mätningen: utan en post för "maskinen hade rätt" går
+   * det inte att skilja ett fält ingen tittat på från ett någon granskat och godkänt,
+   * och då säger felfrekvensen ingenting.
+   */
+  async rattaFalt(id: string, namn: string, value: unknown, bekraftat: boolean): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+
+    const falt = (receipt.fields as Record<string, { value?: unknown; confidence?: number } | undefined>)[namn];
+    receipt.corrections = [
+      ...receipt.corrections,
+      {
+        at: new Date().toISOString(),
+        field: namn,
+        from: falt?.value ?? null,
+        to: value,
+        fromConfidence: falt?.confidence ?? null,
+        action: bekraftat ? "confirmed" : "corrected",
+      },
+    ];
+    (receipt.fields as Record<string, unknown>)[namn] = {
+      value,
+      // En människa som tittat på bilden är inte 90 % säker, hon vet.
+      confidence: 1,
+      source: bekraftat ? "confirmed" : "manual",
+    };
+    await this.persist(receipt);
+    return receipt;
+  }
+
+  /**
+   * Räknar om fälten ur texten som redan finns, för alla kvitton.
+   *
+   * Det här är hela vinsten med att utvinningen bor på servern: blir reglerna bättre
+   * får varje kvitto nytta av det utan att en enda bild läses om. Rättelser står kvar
+   * — se `utvinnUtanAttSkrivaOver`, som är den regel som gör en omtolkning ofarlig.
+   */
+  async reextract(): Promise<{ omtolkade: number; utanText: number }> {
+    const root = join(this.dataDir, RECEIPTS_DIR);
+    // Samma vandring som `reindex`: katalogen är partitionerad på år, så nivån under
+    // roten är inte ett kvitto-id utan ett årtal.
+    const entries = await readdir(root, { recursive: true }).catch(() => [] as string[]);
+
+    let omtolkade = 0;
+    let utanText = 0;
+    for (const entry of entries) {
+      if (!entry.endsWith("receipt.json")) continue;
+      let receipt: Receipt;
+      try {
+        receipt = JSON.parse(await readFile(join(root, entry), "utf8")) as Receipt;
+      } catch {
+        continue;
+      }
+      if (!receipt.text?.trim()) {
+        utanText++;
+        continue;
+      }
+      receipt.fields = utvinnUtanAttSkrivaOver(receipt.text, receipt.capturedAt, receipt.fields as Falten);
+      await this.persist(receipt);
+      omtolkade++;
+    }
+    return { omtolkade, utanText };
   }
 
   fileIn(id: string, name: string): string {
