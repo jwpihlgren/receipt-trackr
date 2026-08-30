@@ -61,30 +61,30 @@
 
   /* Systemfont. Inget webbfontanrop: burken är offline-först och en fontfil är
      100–300 kB som telefonen inte ska hämta i en butik. */
-  --font-sans:
+  --typsnitt-sans:
     system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   /* Rå OCR-text visas monospaced: den är radbruten maskinutdata, inte prosa. */
-  --font-mono:
+  --typsnitt-mono:
     ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
 
   /* Skalan är 1,125 (major second) från 16 px. Ett stillsamt gränssnitt behöver
      små steg — den enda stora texten i systemet är ett belopp. */
-  --text-xs:   0.75rem;    /* 12 px  fotnot, tidsstämpel, konfidenssiffra */
-  --text-sm:   0.8125rem;  /* 13 px  etikett, metadata */
-  --text-base: 1rem;       /* 16 px  brödtext, fältvärde. Aldrig under på mobil. */
-  --text-lg:   1.125rem;   /* 18 px  kortrubrik */
-  --text-xl:   1.375rem;   /* 22 px  vyrubrik */
-  --text-2xl:  1.75rem;    /* 28 px  totalbelopp i kvittovyn */
+  --typ-xs:   0.75rem;    /* 12 px  fotnot, tidsstämpel, konfidenssiffra */
+  --typ-sm:   0.8125rem;  /* 13 px  etikett, metadata */
+  --typ-base: 1rem;       /* 16 px  brödtext, fältvärde. Aldrig under på mobil. */
+  --typ-lg:   1.125rem;   /* 18 px  kortrubrik */
+  --typ-xl:   1.375rem;   /* 22 px  vyrubrik */
+  --typ-2xl:  1.75rem;    /* 28 px  totalbelopp i kvittovyn */
 
-  --leading-tight: 1.25;
-  --leading-body:  1.55;
+  --radavstand-tight: 1.25;
+  --radavstand-body:  1.55;
 
   --weight-normal: 400;
   --weight-medium: 500;
   --weight-bold:   600;   /* 700 används inte: för hårt mot det här innehållet */
 
   /* Etikettspårning: versalgemener med lite luft läser bättre i små storlekar. */
-  --tracking-label: 0.02em;
+  --teckenavstand-label: 0.02em;
 
   /* ---- Mellanrum ------------------------------------------------------ */
   /* 4 px-bas. Hoppet 6→8 är avsiktligt: mellan 40 och 64 px finns inget
@@ -100,11 +100,11 @@
   --space-8:  4rem;      /* 64 */
 
   /* ---- Radier --------------------------------------------------------- */
-  --radius-xs:   3px;    /* konfidensremsa, taggar */
-  --radius-sm:   6px;    /* knapp, input */
-  --radius-md:   10px;   /* kort, panel */
-  --radius-lg:   16px;   /* bildruta, ark på mobil */
-  --radius-full: 999px;  /* avtryckare, räknarbricka */
+  --horn-xs:   3px;    /* konfidensremsa, taggar */
+  --horn-sm:   6px;    /* knapp, input */
+  --horn-md:   10px;   /* kort, panel */
+  --horn-lg:   16px;   /* bildruta, ark på mobil */
+  --horn-full: 999px;  /* avtryckare, räknarbricka */
 
   /* ---- Skuggor -------------------------------------------------------- */
   /* Sparsamt. Djup bärs i första hand av linje och yta, inte av skugga —
@@ -222,7 +222,7 @@
   --d-gap-tight:   var(--space-2);     /*  8 — inom en grupp */
   --d-card-pad:    var(--space-4);     /* 16 */
   --d-section-gap: var(--space-5);     /* 24 — mellan grupper i en panel */
-  --d-leading:     var(--leading-body);   /* 1,55 — se §2.6.2 */
+  --d-leading:     var(--radavstand-body);   /* 1,55 — se §2.6.2 */
   --d-control-h:   var(--tap-comfort); /* 48 — synlig höjd på knapp, fält, listrad */
   --d-thumb-w:     64px;
   --d-thumb-h:     84px;
@@ -252,7 +252,7 @@
   --d-gap-tight:   var(--space-2);
   --d-card-pad:    var(--space-4);
   --d-section-gap: var(--space-5);
-  --d-leading:     var(--leading-body);
+  --d-leading:     var(--radavstand-body);
   --d-control-h:   var(--tap-comfort);
   --d-thumb-w:     64px;
   --d-thumb-h:     84px;

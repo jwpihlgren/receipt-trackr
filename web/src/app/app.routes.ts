@@ -56,14 +56,6 @@ export const routes: Routes = [
     loadComponent: () => import('./desktop/drift.component').then((m) => m.DriftComponent),
   },
 
-  // Mätverktyget från OCR-arbetet. Står inte i menyn — det är inte en del av appen,
-  // men siffrorna den ger är underlaget för modellvalet och tas därför inte bort.
-  {
-    path: 'matning',
-    title: 'Mätning',
-    loadComponent: () => import('./ocr/matning.component').then((m) => m.MatningComponent),
-  },
-
   // Gamla adresser. Någon kan ha dem sparade.
   { path: 'kvitton', redirectTo: 'telefon/kvitton' },
   { path: 'fanga', redirectTo: 'telefon/fanga' },

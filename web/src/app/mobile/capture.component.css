@@ -21,7 +21,7 @@
   flex: 0 0 auto;
 }
 
-.topp h1 { font-size: var(--text-lg); }
+.topp h1 { font-size: var(--typ-lg); }
 
 .lank {
   min-height: var(--tap-min);
@@ -30,7 +30,7 @@
   border: none;
   background: none;
   color: var(--accent);
-  font-size: var(--text-base);
+  font-size: var(--typ-base);
 }
 
 /* ---- filmremsan ------------------------------------------------------ */
@@ -52,7 +52,7 @@
   width: 48px;
   height: 64px;
   border: 1px solid var(--line);
-  border-radius: var(--radius-xs);
+  border-radius: var(--horn-xs);
   overflow: hidden;
   background: var(--sunken);
 }
@@ -68,19 +68,19 @@
   inset-block-start: 2px;
   inset-inline-end: 2px;
   padding-inline: 3px;
-  border-radius: var(--radius-xs);
+  border-radius: var(--horn-xs);
   background: var(--surface);
   color: var(--ok);
-  font-size: var(--text-xs);
+  font-size: var(--typ-xs);
 }
 
-.filmremsa .antal { margin-inline-start: auto; color: var(--ink-faint); font-size: var(--text-sm); }
+.filmremsa .antal { margin-inline-start: auto; color: var(--ink-faint); font-size: var(--typ-sm); }
 
 /* ---- ledtexten ------------------------------------------------------- */
 
 .ledtext { padding: var(--d-pad-y) var(--d-pad-x); display: grid; gap: var(--space-2); flex: 0 0 auto; }
-.ledtext h2 { font-size: var(--text-xl); }
-.ledtext p { margin: 0; color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
+.ledtext h2 { font-size: var(--typ-xl); }
+.ledtext p { margin: 0; color: var(--ink-muted); font-size: var(--typ-base); line-height: var(--radavstand-body); }
 
 /* ---- bildbädden ------------------------------------------------------ */
 /* Bakom kvittot ligger något mörkare än sidan, så att papperets kant syns även
@@ -105,18 +105,18 @@
   padding: var(--space-2) var(--space-3);
   background: var(--sunken);
   color: var(--ink-faint);
-  font-size: var(--text-xs);
-  letter-spacing: var(--tracking-label);
+  font-size: var(--typ-xs);
+  letter-spacing: var(--teckenavstand-label);
 }
 
 .ingenremsa {
   margin: 0;
   padding: var(--d-card-pad);
-  border-radius: var(--radius-sm);
+  border-radius: var(--horn-sm);
   background: var(--surface);
   color: var(--ink-muted);
-  font-size: var(--text-base);
-  line-height: var(--leading-body);
+  font-size: var(--typ-base);
+  line-height: var(--radavstand-body);
   text-align: center;
 }
 
@@ -125,7 +125,7 @@
   padding: var(--d-pad-y) var(--d-pad-x);
   background: var(--warn-soft);
   color: var(--warn);
-  font-size: var(--text-base);
+  font-size: var(--typ-base);
   flex: 0 0 auto;
 }
 
@@ -139,19 +139,19 @@
   gap: var(--d-gap);
   padding: var(--d-card-pad);
   border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  border-radius: var(--horn-md);
   background: var(--surface);
 }
 
 .kort.illa { border-color: var(--danger); background: var(--danger-soft); }
 .kortbilder { display: flex; gap: var(--space-1); flex: 0 0 auto; }
-.kortbilder img { width: 48px; height: 64px; object-fit: cover; border-radius: var(--radius-xs); border: 1px solid var(--line); background: var(--sunken); }
+.kortbilder img { width: 48px; height: 64px; object-fit: cover; border-radius: var(--horn-xs); border: 1px solid var(--line); background: var(--sunken); }
 .korttext { display: grid; gap: var(--space-1); min-width: 0; }
-.korttext strong { font-size: var(--text-lg); font-weight: var(--weight-bold); }
+.korttext strong { font-size: var(--typ-lg); font-weight: var(--weight-bold); }
 .kort.illa .korttext strong { color: var(--danger); }
-.korttext span { color: var(--ink-faint); font-size: var(--text-sm); }
+.korttext span { color: var(--ink-faint); font-size: var(--typ-sm); }
 
-.lugn { margin: 0; color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
+.lugn { margin: 0; color: var(--ink-muted); font-size: var(--typ-base); line-height: var(--radavstand-body); }
 
 /* ---- handzonen ------------------------------------------------------- */
 /* Samma fält på varje skärm: en primär på 56 px, och högst en rad med två på 48. */
@@ -173,8 +173,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--d-gap-tight);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-base);
+  border-radius: var(--horn-sm);
+  font-size: var(--typ-base);
   text-decoration: none;
   cursor: pointer;
 }
@@ -201,10 +201,10 @@
   text-align: center;
 }
 
-.vantar-ikon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: var(--radius-full); background: var(--accent-soft); }
+.vantar-ikon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: var(--horn-full); background: var(--accent-soft); }
 .vantar-ikon svg { width: 30px; height: 30px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.vantar h2 { font-size: var(--text-xl); }
-.vantar p { max-width: 28ch; color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
+.vantar h2 { font-size: var(--typ-xl); }
+.vantar p { max-width: 28ch; color: var(--ink-muted); font-size: var(--typ-base); line-height: var(--radavstand-body); }
 .vantar .kontur { width: 100%; max-width: 20rem; }
 
 .sparfel {
@@ -215,9 +215,9 @@
   gap: var(--d-gap);
   padding: var(--d-card-pad);
   border: 1px solid var(--danger);
-  border-radius: var(--radius-md);
+  border-radius: var(--horn-md);
   background: var(--surface);
   box-shadow: var(--shadow-lg);
 }
 
-.sparfel p { margin: 0; font-size: var(--text-base); line-height: var(--leading-body); }
+.sparfel p { margin: 0; font-size: var(--typ-base); line-height: var(--radavstand-body); }

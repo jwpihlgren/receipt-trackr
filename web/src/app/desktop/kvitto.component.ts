@@ -81,11 +81,6 @@ export class KvittoComponent {
     return this.receipt()?.fields?.[namn];
   }
 
-  /** Maskinläst och orört. Bekräftat eller rättat markeras inte — det tysta är det säkra. */
-  maskinlast(namn: string): boolean {
-    return this.varde(namn)?.source === 'ocr';
-  }
-
   private text(namn: string): string {
     const f = this.varde(namn);
     if (f === undefined) return '';
@@ -99,11 +94,6 @@ export class KvittoComponent {
   onUtkast(namn: string, event: Event): void {
     this.sparat.set(false);
     this.utkast.update((u) => ({ ...u, [namn]: (event.target as HTMLInputElement).value }));
-  }
-
-  valjKandidat(namn: string, value: string | number): void {
-    this.sparat.set(false);
-    this.utkast.update((u) => ({ ...u, [namn]: String(value).replace('.', ',') }));
   }
 
   /** Vad som skiljer formuläret från det som ligger i arkivet. Tomma fält hoppas över. */

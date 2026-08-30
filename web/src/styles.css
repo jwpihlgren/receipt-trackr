@@ -103,7 +103,12 @@
   :root { --color-bildbadd: #08080a; }
 }
 
-/* Kvarvarande egna regler: tokens för de skärmar som ännu inte är omgjorda, och
-   grunden (fokusstil, tabulära siffror, OCR-textens radbrytning). */
-@import "./styles/tokens.css";
-@import "./styles/base.css";
+/* Kvarvarande egna regler: tokens för telefonytan, som inte är omgjord, och grunden
+   (fokusstil, tabulära siffror, OCR-textens radbrytning).
+ *
+ * `layer(base)` är inte prydnad. Oskiktad CSS vinner över allt som ligger i ett
+ * @layer, oavsett specificitet — och DaisyUIs komponenter ligger i ett. Utan det här
+ * slog `button, input { font: inherit }` här nedanför igenom på varje knapp och fält
+ * i hela appen, som då ärvde brödtextens storlek i stället för komponentens. */
+@import "./styles/tokens.css" layer(base);
+@import "./styles/base.css" layer(base);

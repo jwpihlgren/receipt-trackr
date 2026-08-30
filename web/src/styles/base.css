@@ -12,9 +12,9 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-sans);
-  font-size: var(--text-base);
-  line-height: var(--leading-body);
+  font-family: var(--typsnitt-sans);
+  font-size: var(--typ-base);
+  line-height: var(--radavstand-body);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -23,7 +23,7 @@ body {
 [data-density] { line-height: var(--d-leading); }
 
 h1, h2, h3, p, dl, dd, figure { margin: 0; }
-h1, h2, h3 { line-height: var(--leading-tight); font-weight: var(--weight-bold); }
+h1, h2, h3 { line-height: var(--radavstand-tight); font-weight: var(--weight-bold); }
 
 /* Alla siffror i systemet är belopp, datum eller konfidens. De ska ligga i kolumn. */
 :is(td, th, dd, output, .num, [data-num]) { font-variant-numeric: tabular-nums; }
@@ -36,15 +36,15 @@ img, svg, video, canvas { display: block; max-width: 100%; }
 :focus-visible {
   outline: var(--focus-width) solid var(--focus-color);
   outline-offset: var(--focus-offset);
-  border-radius: var(--radius-xs);
+  border-radius: var(--horn-xs);
 }
 :focus:not(:focus-visible) { outline: none; }
 
 /* OCR-text kan innehålla ordlängder som inte finns i svenska. Den får aldrig
    spränga sin behållare i sidled. */
 .ocr-text {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-family: var(--typsnitt-mono);
+  font-size: var(--typ-sm);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

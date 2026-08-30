@@ -85,28 +85,6 @@
               (keydown.enter)="spara()"
             />
 
-            @if (varde(f.namn); as v) {
-              <div class="mt-1 flex flex-wrap items-baseline gap-2 text-sm">
-                @if (v.source === 'ocr') {
-                  <span class="badge badge-sm badge-warning">Maskinläst</span>
-                  <span class="num text-xs text-base-content/60">{{ v.confidence }}</span>
-                  @if (v.candidates?.length) {
-                    <span class="text-base-content/60">Även läst som</span>
-                    @for (k of v.candidates; track k.value) {
-                      <button type="button" class="btn btn-xs" (click)="valjKandidat(f.namn, k.value)">
-                        {{ k.value }}
-                      </button>
-                    }
-                  }
-                } @else {
-                  <span class="badge badge-sm badge-success">
-                    {{ v.source === 'confirmed' ? 'Bekräftat av dig' : 'Rättat av dig' }}
-                  </span>
-                }
-              </div>
-            } @else {
-              <div class="mt-1 text-sm text-base-content/60">Maskinen hittade inget här</div>
-            }
           </div>
         }
 
