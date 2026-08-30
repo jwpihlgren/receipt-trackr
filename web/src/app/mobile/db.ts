@@ -52,8 +52,32 @@ function open(): Promise<IDBDatabase> {
   });
 }
 
+/**
+ * Anslutningen delas.
+ *
+ * `open()` per operation gav en ny anslutning var femtonde sekund som aldrig stängdes,
+ * och varje öppen anslutning blockerar dessutom en framtida höjning av DB_VERSION.
+ * `onversionchange` stänger vår anslutning när en annan flik vill uppgradera, och
+ * nästa anrop öppnar en ny.
+ */
+let anslutning: Promise<IDBDatabase> | null = null;
+
+function delad(): Promise<IDBDatabase> {
+  anslutning ??= open().then((db) => {
+    db.onversionchange = () => {
+      db.close();
+      anslutning = null;
+    };
+    db.onclose = () => {
+      anslutning = null;
+    };
+    return db;
+  });
+  return anslutning;
+}
+
 async function tx<T>(store: string, mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  const db = await open();
+  const db = await delad();
   return new Promise<T>((resolve, reject) => {
     const transaction = db.transaction(store, mode);
     const request = run(transaction.objectStore(store));

@@ -31,6 +31,7 @@
     <div class="tolkar" role="status">
       <span class="prick" aria-hidden="true"></span>
       <span>Tolkar i bakgrunden · {{ tolkning.snapshot().steg ?? 'arbetar' }}</span>
+      <button type="button" class="stoppa" (click)="tolkning.stanna()">Sluta</button>
     </div>
   }
 
@@ -55,7 +56,7 @@
           <ul class="lista">
             @for (rad of grupp.rader; track rad.id) {
               <li>
-                <a class="rad" [routerLink]="['/dator/kvitto', rad.id]">
+                <a class="rad" [routerLink]="['/telefon/kvitto', rad.id]">
                   <img class="tumnagel" [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
                   <span class="text">
                     <span class="huvud">{{ rad.store ?? klocka(rad.capturedAt) }}</span>
@@ -91,12 +92,10 @@
       <input type="file" accept="image/*" capture="environment" (click)="openCamera()" (change)="onFiles($event)" />
     </label>
 
-    @if (grupper().length === 0 && receipts() !== null) {
-      <label class="knapp kontur">
-        Lägg till från bilder
-        <input type="file" accept="image/*" multiple (change)="onFiles($event)" />
-      </label>
-    }
+    <label class="knapp kontur">
+      Lägg till från bilder
+      <input type="file" accept="image/*" multiple (change)="onFiles($event)" />
+    </label>
   </div>
 
   @if (flow.awaiting()) {

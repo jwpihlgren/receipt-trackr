@@ -3,9 +3,16 @@
 .skarm {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
+  min-height: 100dvh;
   background: var(--bg);
-  overflow: hidden;
+}
+
+/* Låst höjd med `overflow: hidden` fungerar i porträtt och kollapsar i landskap: topp,
+   filmremsa, ledtext och handzon äter hela höjden, och bilden man ska bedöma får ett
+   par pixlar utan möjlighet att skrolla fram den. Under 520px höjd får sidan därför
+   växa och skrollas i stället — handzonen följer med ned, som på vilken sida som helst. */
+@media (min-height: 520px) {
+  .skarm { height: 100dvh; overflow: hidden; }
 }
 
 /* ---- toppen ---------------------------------------------------------- */
@@ -90,6 +97,7 @@
   flex: 1 1 auto;
   display: grid;
   place-items: center;
+  min-height: 0;
   padding: var(--d-card-pad);
   background: var(--image-bed);
   overflow: hidden;
@@ -144,7 +152,7 @@
 }
 
 .kort.illa { border-color: var(--danger); background: var(--danger-soft); }
-.kortbilder { display: flex; gap: var(--space-1); flex: 0 0 auto; }
+.kortbilder { display: flex; gap: var(--space-1); flex: 0 1 auto; max-width: 55%; overflow-x: auto; }
 .kortbilder img { width: 48px; height: 64px; object-fit: cover; border-radius: var(--horn-xs); border: 1px solid var(--line); background: var(--sunken); }
 .korttext { display: grid; gap: var(--space-1); min-width: 0; }
 .korttext strong { font-size: var(--typ-lg); font-weight: var(--weight-bold); }
@@ -221,3 +229,11 @@
 }
 
 .sparfel p { margin: 0; font-size: var(--typ-base); line-height: var(--radavstand-body); }
+
+/* Knappen är en <label> runt ett filinput — ett tryck öppnar telefonens egen kamera.
+   Fokus hör till knappen, inte till den osynliga inputen: utan det här ritade
+   tangentbordsfokus en ring runt en punkt på 1×1 px någonstans i kanten. */
+.knapp:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}

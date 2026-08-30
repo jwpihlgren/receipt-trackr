@@ -66,6 +66,16 @@ export class KvittoComponent {
 
   readonly id = computed(() => this.route.snapshot.paramMap.get('id') ?? '');
 
+  /**
+   * Vilken yta kvittot öppnades från. Samma skärm, men bakåtlänken och menyn ska
+   * leda tillbaka dit man kom ifrån — tidigare kastades den som tryckte på ett
+   * kvitto i telefonen permanent in i datorläget.
+   */
+  readonly yta = computed<'mobil' | 'dator'>(() =>
+    this.route.snapshot.url.some((s) => s.path === 'telefon') ? 'mobil' : 'dator',
+  );
+  readonly tillbakaLank = computed(() => (this.yta() === 'mobil' ? '/telefon/kvitton' : '/dator/kvitton'));
+
   /** Fångsten är oavslutad om klienten aldrig hann säga hur många bilder kvittot har. */
   readonly oavslutat = computed(() => this.receipt()?.completedAt === null);
 
@@ -332,7 +342,7 @@ export class KvittoComponent {
       const svar = await fetch(`/api/receipts/${this.id()}`, { method: 'DELETE' });
       if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
       if (!svar.ok && svar.status !== 404) throw new Error(String(svar.status));
-      await this.router.navigateByUrl('/dator/kvitton');
+      await this.router.navigateByUrl(this.tillbakaLank());
     } catch {
       this.error.set('Kvittot gick inte att ta bort.');
       this.sparar.set(false);

@@ -30,6 +30,16 @@ export const routes: Routes = [
     loadComponent: () => import('./mobile/capture.component').then((m) => m.CaptureComponent),
   },
   {
+    path: 'telefon/kvitto/:id',
+    title: 'Kvitto',
+    loadComponent: () => import('./desktop/kvitto.component').then((m) => m.KvittoComponent),
+  },
+  {
+    path: 'telefon/aktivitet',
+    title: 'Aktivitet',
+    loadComponent: () => import('./desktop/aktivitet.component').then((m) => m.AktivitetComponent),
+  },
+  {
     path: 'telefon/uppladdning',
     title: 'På väg till arkivet',
     loadComponent: () => import('./mobile/upload.component').then((m) => m.UploadComponent),

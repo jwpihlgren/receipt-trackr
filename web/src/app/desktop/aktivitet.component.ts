@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
 
@@ -35,7 +35,13 @@ type Aktivitet = { total: number; vantar: number; receipts: Rad[] };
 })
 export class AktivitetComponent {
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   readonly tolkning = inject(TolkningService);
+
+  /** Samma skärm på båda ytorna; menyn och länkarna följer den man kom ifrån. */
+  readonly yta = computed<'mobil' | 'dator'>(() =>
+    this.route.snapshot.url.some((s) => s.path === 'telefon') ? 'mobil' : 'dator',
+  );
 
   readonly data = signal<Aktivitet | null>(null);
   readonly error = signal<string | null>(null);

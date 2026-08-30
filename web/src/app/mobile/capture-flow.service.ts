@@ -126,7 +126,10 @@ export class CaptureFlowService {
     // segment som aldrig kommer, och kvittot ser oavslutat ut för alltid.
     const total = this.shots().length;
     if (!id || total === 0) return null;
-    this.reset(false);
+    // `revoke: true`: bilderna ska inte visas mer, och blobbarna hör inte hemma i
+    // minnet efteråt. Den lokala kopian ligger kvar i IndexedDB tills servern
+    // kvitterat samma sha256 — det är den som är säkerheten, inte förhandsvisningen.
+    this.reset(true);
     navigator.vibrate?.([20, 40, 20]);
     // Efter nollställningen: användaren väntar inte på skrivningen.
     await this.queue.completeReceipt(id, total);

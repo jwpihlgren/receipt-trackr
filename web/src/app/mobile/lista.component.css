@@ -1,10 +1,16 @@
 .skarm {
-  display: grid;
-  grid-template-rows: auto auto auto auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   height: 100dvh;
   background: var(--bg);
   overflow: hidden;
 }
+
+/* Innehållet är det enda som växer. Rutnätet som stod här räknade sex rader medan
+   mallen har tre till sex barn — remsorna är villkorade — så `1fr` hamnade på en tom
+   rad och listan fick `auto`. Följden var en handzon mitt på skärmen med tomrum
+   under, eller en handzon utanför skärmens nederkant när listan blev lång. */
+.skarm > :not(.innehall) { flex: 0 0 auto; }
 
 /* ---- toppen ---------------------------------------------------------- */
 
@@ -58,7 +64,7 @@
 
 /* ---- listan ---------------------------------------------------------- */
 
-.innehall { overflow-y: auto; }
+.innehall { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
 .dag {
   padding: var(--space-4) var(--d-pad-x) var(--space-2);
@@ -203,4 +209,23 @@
     0%, 100% { opacity: 0.35; }
     50% { opacity: 1; }
   }
+}
+
+/* Knappen är en <label> runt ett filinput — ett tryck öppnar telefonens egen kamera.
+   Fokus hör till knappen, inte till den osynliga inputen: utan det här ritade
+   tangentbordsfokus en ring runt en punkt på 1×1 px någonstans i kanten. */
+.knapp:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
+
+.tolkar .stoppa {
+  margin-inline-start: auto;
+  min-height: var(--tap-min);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--horn-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--typ-sm);
 }

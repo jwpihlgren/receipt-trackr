@@ -1,7 +1,7 @@
 <div class="flex h-dvh flex-col overflow-hidden bg-base-200">
   <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-2 sm:px-4">
-    <app-meny lage="dator" />
-    <a class="btn btn-sm btn-ghost" routerLink="/dator/kvitton">
+    <app-meny [lage]="yta()" />
+    <a class="btn btn-sm btn-ghost" [routerLink]="tillbakaLank()">
       <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
       Kvitton
     </a>
