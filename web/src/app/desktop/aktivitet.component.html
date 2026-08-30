@@ -9,7 +9,7 @@
   </header>
 
   @if (error(); as message) {
-    <div role="alert" class="alert alert-error mx-4 mt-4 w-auto">
+    <div role="alert" class="alert alert-soft alert-error mx-4 mt-4 w-auto">
       <span>{{ message }}</span>
       <button type="button" class="btn btn-sm" (click)="load()">Försök igen</button>
     </div>
@@ -29,7 +29,7 @@
   }
 
   @if (tolkning.snapshot().fel; as fel) {
-    <div role="alert" class="alert alert-error mx-4 mt-4 w-auto"><span>Tolkningen stannade: {{ fel }}</span></div>
+    <div role="alert" class="alert alert-soft alert-error mx-4 mt-4 w-auto"><span>Tolkningen stannade: {{ fel }}</span></div>
   }
 
   <main class="p-4">
@@ -42,7 +42,7 @@
         <table class="table table-sm">
           <thead>
             <tr>
-              <th class="w-20"><span class="sr-only">Bild</span></th>
+              <th class="w-14"><span class="sr-only">Bild</span></th>
               <th>Butik</th>
               <th class="text-right">Belopp</th>
               <th>Datum</th>
@@ -56,7 +56,7 @@
               <tr class="hover:bg-base-200">
                 <td>
                   <img
-                    class="h-16 w-12 rounded bg-base-200 object-cover"
+                    class="h-10 w-8 rounded-sm bg-base-300 object-cover"
                     [src]="'/api/receipts/' + rad.id + '/thumbs/1'"
                     alt=""
                     loading="lazy"
@@ -73,11 +73,11 @@
                   @if (arbetarMed() === rad.id) {
                     <span class="loading loading-spinner loading-xs text-primary" aria-label="Tolkar"></span>
                   } @else if (rad.lage !== 'ofullstandig') {
-                    <button type="button" class="btn btn-xs btn-ghost" [disabled]="arbetar()" (click)="lasOm(rad.id)">
+                    <button type="button" class="btn btn-xs btn-ghost text-primary" [disabled]="arbetar()" (click)="lasOm(rad.id)">
                       {{ rad.lage === 'vantar' ? 'Tolka nu' : 'Läs om bilden' }}
                     </button>
                   }
-                  <a class="btn btn-xs btn-ghost" [routerLink]="['/dator/kvitto', rad.id]">Öppna</a>
+                  <a class="btn btn-xs btn-ghost text-primary" [routerLink]="['/dator/kvitto', rad.id]">Öppna</a>
                 </td>
               </tr>
             }

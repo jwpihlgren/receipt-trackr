@@ -106,6 +106,19 @@ start och byggs om ur `receipts/`.
 
 ## Gränssnittet
 
+**Mörk arbetsbänk — riktning A, vald 2026-08-30.** Ett läge, inte två: ljusa läget
+och `prefers-color-scheme` är borta, och `<html data-theme="kvitto">` är satt. Ytorna
+är äkta grå (#1f1e23 paneler mot #17161a sida), aldrig svart, med höjd som
+ljushetsskillnad; bildbädden ligger på #0e0d10 så att papperets kant syns även när
+fotot är överexponerat. Accenten är varm bärnsten #e2b04a, inte blå — närmast papperet
+i ton, syns mot mörkret utan att skrika, och krockar inte med felrött eller
+varningsgult. Tätheten kommer ur typografin: 44 px rader, 13 px text, versala
+kolumnrubriker på 11 px, linjer bara där de skiljer två ting åt.
+
+Valet gjordes mot tre riktningar i duken som skilde sig i **vad de gör till
+huvudsak** — raden, fotografiet eller beloppet. Första försöket var tre färgställningar
+av samma layout och underkändes med rätta.
+
 **DaisyUI, med husets egen palett.** Knappar, tabeller, fält och paneler var
 handskrivna och gled isär mellan skärmarna. Nu är komponenterna DaisyUIs, medan
 färgerna är samma som förut — de valdes mot kvittobilder och prövades i mörkt läge,
@@ -113,8 +126,9 @@ och det arbetet görs inte om. Temat heter `kvitto`/`kvitto-morkt` och står i
 `web/src/styles.css`. Tailwind och DaisyUI ligger i node_modules och bakas in; sidan
 är cross-origin isolerad och kan inte hämta något utifrån ändå.
 
-Datorytan är omgjord. **Telefonytan är det inte** — fångstflödet är egenritat och har
-inga DaisyUI-motsvarigheter, så `styles/tokens.css` ligger kvar för den.
+Datorytan är omgjord. **Telefonytan är inte omritad**, men den delar palett: dess
+tokens i `styles/tokens.css` bär nu samma mörka värden. Att den ser rätt ut i mörkt
+läge är **inte verifierat** — fångstflödet ritades för ljust.
 
 **Namngivning: ett ställe, ett namn.** Ytan står först i adressen
 (`/telefon/kvitton`, `/dator/kvitton`), appen heter Kvittoarkiv, platsen heter

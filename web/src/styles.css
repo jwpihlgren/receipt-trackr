@@ -15,36 +15,46 @@
 @import "tailwindcss";
 
 @plugin "daisyui" {
-  themes: kvitto --default, kvitto-morkt --prefersdark;
+  themes: kvitto --default;
 }
 
+/**
+ * Riktning A ur designduken: mörk arbetsbänk.
+ *
+ * Ett läge, inte två. Kvittobilder lyser mot en mörk yta i stället för att smälta in
+ * i pappersfärgen, och ytorna är äkta grå — aldrig svart — med höjd som
+ * ljushetsskillnad. base-200 är sidan, base-100 är panelerna ovanpå den.
+ *
+ * Accenten är varm bärnsten, inte blå: den är närmast papperet i ton, syns mot
+ * mörkret utan att skrika, och krockar inte med felrött eller varningsgult.
+ */
 @plugin "daisyui/theme" {
   name: "kvitto";
   default: true;
-  color-scheme: light;
+  color-scheme: dark;
 
-  --color-base-100: #ffffff;   /* kort, paneler, tabeller */
-  --color-base-200: #f6f4f1;   /* sidan bakom dem */
-  --color-base-300: #dcd7d0;   /* linjer och spår */
-  --color-base-content: #1b1917;
+  --color-base-100: #1f1e23;   /* paneler, tabeller, fält */
+  --color-base-200: #17161a;   /* sidan bakom dem */
+  --color-base-300: #2b2a31;   /* linjer */
+  --color-base-content: #ece9e4;
 
-  --color-primary: #1d5a7a;
-  --color-primary-content: #ffffff;
-  --color-secondary: #57514a;
-  --color-secondary-content: #ffffff;
-  --color-accent: #1d5a7a;
-  --color-accent-content: #ffffff;
-  --color-neutral: #57514a;
-  --color-neutral-content: #ffffff;
+  --color-primary: #e2b04a;
+  --color-primary-content: #17161a;
+  --color-secondary: #9d968d;
+  --color-secondary-content: #17161a;
+  --color-accent: #e2b04a;
+  --color-accent-content: #17161a;
+  --color-neutral: #9d968d;
+  --color-neutral-content: #17161a;
 
-  --color-info: #1d5a7a;
-  --color-info-content: #ffffff;
-  --color-success: #2c6b3f;
-  --color-success-content: #ffffff;
-  --color-warning: #8a5a08;
-  --color-warning-content: #ffffff;
-  --color-error: #a32b1c;
-  --color-error-content: #ffffff;
+  --color-info: #8ec4e6;
+  --color-info-content: #17161a;
+  --color-success: #83c99b;
+  --color-success-content: #17161a;
+  --color-warning: #e5b168;
+  --color-warning-content: #17161a;
+  --color-error: #f0938a;
+  --color-error-content: #17161a;
 
   --radius-selector: 0.375rem;
   --radius-field: 0.375rem;
@@ -56,41 +66,34 @@
   --noise: 0;
 }
 
-@plugin "daisyui/theme" {
-  name: "kvitto-morkt";
-  color-scheme: dark;
+/* Bakgrunden bakom ett kvittofoto. Nästan svart, så att papperets kant syns även
+   när fotot är överexponerat i hörnen. */
+@theme {
+  --color-bildbadd: #0e0d10;
+}
 
-  --color-base-100: #1d1c20;
-  --color-base-200: #141316;
-  --color-base-300: #33313a;
-  --color-base-content: #eae7e2;
+/**
+ * Tabellen, satt efter duken: tätheten kommer ur typografin, inte ur ramar.
+ * Radhöjd 44px, 13px text, versala kolumnrubriker på 11px, hårfina linjer.
+ */
+@layer components {
+  .table :where(th) {
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding-block: 0 0.625rem;
+  }
 
-  --color-primary: #8ec4e6;
-  --color-primary-content: #141316;
-  --color-secondary: #a8a29a;
-  --color-secondary-content: #141316;
-  --color-accent: #8ec4e6;
-  --color-accent-content: #141316;
-  --color-neutral: #a8a29a;
-  --color-neutral-content: #141316;
+  .table :where(td) {
+    height: 44px;
+    padding-block: 0;
+    font-size: 0.8125rem;
+  }
 
-  --color-info: #8ec4e6;
-  --color-info-content: #141316;
-  --color-success: #83c99b;
-  --color-success-content: #141316;
-  --color-warning: #e5b168;
-  --color-warning-content: #141316;
-  --color-error: #f0938a;
-  --color-error-content: #141316;
-
-  --radius-selector: 0.375rem;
-  --radius-field: 0.375rem;
-  --radius-box: 0.5rem;
-  --size-selector: 0.25rem;
-  --size-field: 0.25rem;
-  --border: 1px;
-  --depth: 0;
-  --noise: 0;
+  .table :where(th, td) {
+    padding-inline: 1.25rem;
+  }
 }
 
 /* DaisyUI dämpar tabellhuvud och platshållare till 60 respektive 20 procent av
@@ -113,15 +116,7 @@
 
 /* Bakgrunden bakom ett kvittofoto: något mörkare än sidan, så att papperets kant
    syns även när fotot är överexponerat i hörnen. DaisyUI har ingen motsvarighet. */
-@theme {
-  --color-bildbadd: #d9d5cf;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root { --color-bildbadd: #08080a; }
-}
-
-/* Kvarvarande egna regler: tokens för telefonytan, som inte är omgjord, och grunden
+/* Tokens för telefonytan och grunden
    (fokusstil, tabulära siffror, OCR-textens radbrytning).
  *
  * `layer(base)` är inte prydnad. Oskiktad CSS vinner över allt som ligger i ett

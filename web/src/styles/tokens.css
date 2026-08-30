@@ -2,86 +2,89 @@
  *
  * Enda filen i web/src som får innehålla literala färgvärden.
  *
- * Tre teman-tillstånd: ljust är standard på bar :root; mörkt läge när systemet vill det
- * och användaren inte sagt emot; mörkt läge när användaren valt det. Ett explicit val
- * skrivs som data-theme på <html>.
+ * **Ett läge, inte två.** Arkivet är mörkt — riktning A i designduken: kvittobilder
+ * lyser mot en mörk yta i stället för att smälta in i pappersfärgen, och ytorna är
+ * äkta grå, aldrig svart, med höjd som ljushetsskillnad. Ljusa läget och
+ * mediefrågan är borta: två paletter som glider isär var en av skarvarna som gjorde
+ * gränssnittet ojämnt.
+ *
+ * De här tokens bär telefonytan. Skrivbordet går genom DaisyUIs tema i styles.css,
+ * som har samma färger.
  */
 
 :root {
-  /* ---- Färg: ljust läge ---------------------------------------------- */
+  /* ---- Färg ---------------------------------------------- */
 
   /* Ytor. --bg är sidan, --surface är kort och paneler ovanpå den,
      --sunken är rännor och spår som ligger under (bildbakgrund, mätarspår). */
-  --bg:            #f6f4f1;
-  --surface:       #ffffff;
-  --sunken:        #eceae6;
+  --bg: #17161a;
+  --surface: #1f1e23;
+  --sunken: #0e0d10;
 
   /* Linjer. --line är dekorativ avgränsning, --line-strong är kanten på något
      man kan peka på (input, knapp) och håller 3:1 mot alla tre ytorna. */
-  --line:          #dcd7d0;
-  --line-strong:   #847b72;
+  --line: #2b2a31;
+  --line-strong: #3a3841;
 
   /* Bläck. Tre nivåer, inte fem: värde, etikett, fotnot. */
-  --ink:           #1b1917;
-  --ink-muted:     #57514a;
-  --ink-faint:     #6e675e;
+  --ink: #ece9e4;
+  --ink-muted: #9d968d;
+  --ink-faint: #8a837b;
 
   /* Accent. --accent-soft är fyllnad bakom accentfärgad text, --sel är markerad rad. */
-  --accent:        #1d5a7a;
-  --accent-hover:  #164a66;
-  --accent-soft:   #e4eef4;
-  --on-accent:     #ffffff;
-  --sel:           #dbe8f0;
+  --accent: #e2b04a;
+  --accent-hover: #f0c469;
+  --accent-soft: #3a3320;
+  --on-accent: #17161a;
+  --sel: #211f19;
 
   /* Semantik. Används för tillstånd i systemet, aldrig för konfidensgrad. */
-  --ok:            #2c6b3f;
-  --ok-soft:       #e6f1e9;
-  --warn:          #8a5a08;
-  --warn-soft:     #fbf0dc;
-  --danger:        #a32b1c;
-  --danger-soft:   #fbeae7;
-  --on-danger:     #ffffff;
+  --ok: #83c99b;
+  --ok-soft: #16251b;
+  --warn: #e5b168;
+  --warn-soft: #3a3320;
+  --danger: #f0938a;
+  --danger-soft: #3b1f1c;
+  --on-danger: #17161a;
 
   /* Konfidens. Neutralt bläck med flit — se §5. */
-  --conf-track:    #ddd8d1;
-  --conf-fill:     var(--ink-muted);
-  --conf-mark:     var(--line-strong);   /* punktlinjen under maskinläst värde */
+  --conf-track: #2f2e35;
+  --conf-fill: var(--ink-muted);
+  --conf-mark: var(--line-strong);   /* punktlinjen under maskinläst värde */
 
   /* Bildyta. Bakom ett kvittofoto ligger något mörkare än sidan, så att papperets
      kant syns även när fotot är överexponerat i hörnen. */
-  --image-bed:     #d9d5cf;
+  --image-bed: #0e0d10;
 
   /* Överlägg (kamera). Alltid mörkt, i båda lägena — se §4.8. */
-  --scrim:         rgb(0 0 0 / 0.55);
-  --scrim-strong:  rgb(0 0 0 / 0.78);
-  --on-scrim:      #ffffff;
-  --on-scrim-dim:  #d7d3ce;
+  --scrim: rgb(0 0 0 / 0.55);
+  --scrim-strong: rgb(0 0 0 / 0.78);
+  --on-scrim: #ffffff;
+  --on-scrim-dim: #d7d3ce;
 
   /* ---- Typografi ------------------------------------------------------ */
 
   /* Systemfont. Inget webbfontanrop: burken är offline-först och en fontfil är
      100–300 kB som telefonen inte ska hämta i en butik. */
-  --typsnitt-sans:
-    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --typsnitt-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   /* Rå OCR-text visas monospaced: den är radbruten maskinutdata, inte prosa. */
-  --typsnitt-mono:
-    ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  --typsnitt-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
 
   /* Skalan är 1,125 (major second) från 16 px. Ett stillsamt gränssnitt behöver
      små steg — den enda stora texten i systemet är ett belopp. */
-  --typ-xs:   0.75rem;    /* 12 px  fotnot, tidsstämpel, konfidenssiffra */
-  --typ-sm:   0.8125rem;  /* 13 px  etikett, metadata */
+  --typ-xs: 0.75rem;    /* 12 px  fotnot, tidsstämpel, konfidenssiffra */
+  --typ-sm: 0.8125rem;  /* 13 px  etikett, metadata */
   --typ-base: 1rem;       /* 16 px  brödtext, fältvärde. Aldrig under på mobil. */
-  --typ-lg:   1.125rem;   /* 18 px  kortrubrik */
-  --typ-xl:   1.375rem;   /* 22 px  vyrubrik */
-  --typ-2xl:  1.75rem;    /* 28 px  totalbelopp i kvittovyn */
+  --typ-lg: 1.125rem;   /* 18 px  kortrubrik */
+  --typ-xl: 1.375rem;   /* 22 px  vyrubrik */
+  --typ-2xl: 1.75rem;    /* 28 px  totalbelopp i kvittovyn */
 
   --radavstand-tight: 1.25;
-  --radavstand-body:  1.55;
+  --radavstand-body: 1.55;
 
   --weight-normal: 400;
   --weight-medium: 500;
-  --weight-bold:   600;   /* 700 används inte: för hårt mot det här innehållet */
+  --weight-bold: 600;   /* 700 används inte: för hårt mot det här innehållet */
 
   /* Etikettspårning: versalgemener med lite luft läser bättre i små storlekar. */
   --teckenavstand-label: 0.02em;
@@ -89,130 +92,64 @@
   /* ---- Mellanrum ------------------------------------------------------ */
   /* 4 px-bas. Hoppet 6→8 är avsiktligt: mellan 40 och 64 px finns inget
      mellanrum som ser rätt ut. */
-  --space-0:  0;
-  --space-1:  0.25rem;   /*  4 */
-  --space-2:  0.5rem;    /*  8 */
-  --space-3:  0.75rem;   /* 12 */
-  --space-4:  1rem;      /* 16 */
-  --space-5:  1.5rem;    /* 24 */
-  --space-6:  2rem;      /* 32 */
-  --space-7:  2.5rem;    /* 40 */
-  --space-8:  4rem;      /* 64 */
+  --space-0: 0;
+  --space-1: 0.25rem;   /*  4 */
+  --space-2: 0.5rem;    /*  8 */
+  --space-3: 0.75rem;   /* 12 */
+  --space-4: 1rem;      /* 16 */
+  --space-5: 1.5rem;    /* 24 */
+  --space-6: 2rem;      /* 32 */
+  --space-7: 2.5rem;    /* 40 */
+  --space-8: 4rem;      /* 64 */
 
   /* ---- Radier --------------------------------------------------------- */
-  --horn-xs:   3px;    /* konfidensremsa, taggar */
-  --horn-sm:   6px;    /* knapp, input */
-  --horn-md:   10px;   /* kort, panel */
-  --horn-lg:   16px;   /* bildruta, ark på mobil */
+  --horn-xs: 3px;    /* konfidensremsa, taggar */
+  --horn-sm: 6px;    /* knapp, input */
+  --horn-md: 10px;   /* kort, panel */
+  --horn-lg: 16px;   /* bildruta, ark på mobil */
   --horn-full: 999px;  /* avtryckare, räknarbricka */
 
   /* ---- Skuggor -------------------------------------------------------- */
   /* Sparsamt. Djup bärs i första hand av linje och yta, inte av skugga —
      skuggor på varm neutral gråar snabbt ned intrycket. */
   --shadow-none: none;
-  --shadow-sm:   0 1px 2px rgb(28 25 23 / 0.06);
-  --shadow-md:   0 2px 4px rgb(28 25 23 / 0.06), 0 6px 16px rgb(28 25 23 / 0.08);
-  --shadow-lg:   0 8px 32px rgb(28 25 23 / 0.16);   /* endast dialog och överlägg */
+  --shadow-sm: none;
+  --shadow-md: 0 2px 8px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 10px 40px rgb(0 0 0 / 0.6);   /* endast dialog och överlägg */
 
   /* ---- Rörelse -------------------------------------------------------- */
   /* Fyra varaktigheter, och en av dem används nästan aldrig. */
   --dur-instant: 80ms;    /* nedtryckning, hover */
-  --dur-fast:    140ms;   /* tillståndsbyte på plats */
-  --dur-base:    220ms;   /* in-/utträde av panel eller ark */
-  --dur-slow:    1600ms;  /* bara nyanländ-blinket, se §4.4 */
+  --dur-fast: 140ms;   /* tillståndsbyte på plats */
+  --dur-base: 220ms;   /* in-/utträde av panel eller ark */
+  --dur-slow: 1600ms;  /* bara nyanländ-blinket, se §4.4 */
 
-  --ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in:   cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-both: cubic-bezier(0.65, 0, 0.35, 1);
 
   /* ---- Fokus ---------------------------------------------------------- */
-  --focus-color:  var(--accent);
-  --focus-width:  2px;
+  --focus-color: var(--accent);
+  --focus-width: 2px;
   --focus-offset: 2px;
 
   /* ---- Mått ----------------------------------------------------------- */
-  --tap-min:        44px;   /* absolut golv, WCAG 2.5.8 / 2.5.5 */
-  --tap-comfort:    48px;   /* standard i mobilläget */
-  --tap-primary:    56px;   /* enhandsprimär åtgärd */
-  --shutter-size:   76px;
-  --measure:        68ch;   /* max radlängd för löptext */
-  --panel-fields:   26rem;  /* fältpanelens bredd i datorläget */
+  --tap-min: 44px;   /* absolut golv, WCAG 2.5.8 / 2.5.5 */
+  --tap-comfort: 48px;   /* standard i mobilläget */
+  --tap-primary: 56px;   /* enhandsprimär åtgärd */
+  --shutter-size: 76px;
+  --measure: 68ch;   /* max radlängd för löptext */
+  --panel-fields: 26rem;  /* fältpanelens bredd i datorläget */
   --panel-worklist: 20rem;  /* arbetslistans bredd */
-  --thumb-w:        56px;   /* segmentremsans miniatyr */
-  --thumb-h:        74px;
+  --thumb-w: 56px;   /* segmentremsans miniatyr */
+  --thumb-h: 74px;
 
-  --z-sticky:  10;
+  --z-sticky: 10;
   --z-overlay: 100;
-  --z-dialog:  200;
-  --z-toast:   300;
+  --z-dialog: 200;
+  --z-toast: 300;
 
   color-scheme: light dark;
-}
-
-/* ---- Mörkt läge -------------------------------------------------------
- * Definieras två gånger med samma innehåll: en gång för systemets val (utan att
- * skriva över ett uttryckligt ljust val), en gång för användarens val. Det är
- * dubbleringen som gör att en växlare vinner åt båda hållen.
- */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg:           #141316;
-    --surface:      #1d1c20;
-    --sunken:       #0f0e11;
-    --line:         #33313a;
-    --line-strong:  #767381;
-    --ink:          #eae7e2;
-    --ink-muted:    #a8a29a;
-    --ink-faint:    #8d8780;
-    --accent:       #8ec4e6;
-    --accent-hover: #a8d4f0;
-    --accent-soft:  #1a2c38;
-    --on-accent:    #141316;
-    --sel:          #22323d;
-    --ok:           #83c99b;
-    --ok-soft:      #17281d;
-    --warn:         #e5b168;
-    --warn-soft:    #2e2415;
-    --danger:       #f0938a;
-    --danger-soft:  #33191a;
-    --on-danger:    #141316;
-    --conf-track:   #3a3842;
-    --image-bed:    #08080a;
-
-    /* Skuggor bär inte djup mot mörk botten. Djupet bärs av ytan i stället:
-       --surface är ljusare än --bg, och dialogen får en linje. */
-    --shadow-sm: none;
-    --shadow-md: 0 2px 8px rgb(0 0 0 / 0.4);
-    --shadow-lg: 0 10px 40px rgb(0 0 0 / 0.6);
-  }
-}
-
-:root[data-theme="dark"] {
-  --bg:           #141316;
-  --surface:      #1d1c20;
-  --sunken:       #0f0e11;
-  --line:         #33313a;
-  --line-strong:  #767381;
-  --ink:          #eae7e2;
-  --ink-muted:    #a8a29a;
-  --ink-faint:    #8d8780;
-  --accent:       #8ec4e6;
-  --accent-hover: #a8d4f0;
-  --accent-soft:  #1a2c38;
-  --on-accent:    #141316;
-  --sel:          #22323d;
-  --ok:           #83c99b;
-  --ok-soft:      #17281d;
-  --warn:         #e5b168;
-  --warn-soft:    #2e2415;
-  --danger:       #f0938a;
-  --danger-soft:  #33191a;
-  --on-danger:    #141316;
-  --conf-track:   #3a3842;
-  --image-bed:    #08080a;
-  --shadow-sm: none;
-  --shadow-md: 0 2px 8px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 10px 40px rgb(0 0 0 / 0.6);
 }
 :root {
   --d-row-h:       56px;               /* listradens totala höjd, linjen inräknad */
@@ -257,3 +194,4 @@
   --d-thumb-w:     64px;
   --d-thumb-h:     84px;
 }
+

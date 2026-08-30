@@ -7,11 +7,11 @@
 
   <main class="mx-auto w-full max-w-3xl p-4">
     @if (error(); as message) {
-      <div role="alert" class="alert alert-error"><span>{{ message }}</span></div>
+      <div role="alert" class="alert alert-soft alert-error"><span>{{ message }}</span></div>
     } @else {
       <!-- `as`-alias går bara på @if, inte på @else if — därav den nästlade formen. -->
       @if (health(); as h) {
-      <div role="alert" class="alert mb-4" [class.alert-error]="h.data.belowFloor" [class.alert-success]="!h.data.belowFloor">
+      <div role="alert" class="alert alert-soft mb-4" [class.alert-error]="h.data.belowFloor" [class.alert-success]="!h.data.belowFloor">
         <span>{{ h.data.belowFloor ? 'För lite utrymme kvar' : 'Arkivet mår bra' }}</span>
       </div>
 

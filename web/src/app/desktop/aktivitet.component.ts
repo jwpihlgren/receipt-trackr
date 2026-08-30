@@ -139,9 +139,9 @@ export class AktivitetComponent {
    * tas färgen bort står det fortfarande vad som saknas.
    */
   badge(rad: Rad): string {
-    if (rad.lage === 'bilder' || rad.lage === 'svag_text') return 'badge-error';
+    if (rad.lage === 'bilder' || rad.lage === 'svag_text') return 'badge-soft badge-error';
     if (rad.lage === 'vantar') return 'badge-ghost';
-    return 'badge-warning';
+    return 'badge-soft badge-warning';
   }
 
   butik(rad: Rad): string {

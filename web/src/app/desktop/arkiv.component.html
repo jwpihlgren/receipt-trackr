@@ -49,7 +49,7 @@
   </form>
 
   @if (error(); as message) {
-    <div role="alert" class="alert alert-error mx-4 mt-4 w-auto">
+    <div role="alert" class="alert alert-soft alert-error mx-4 mt-4 w-auto">
       <span>{{ message }}</span>
       <button type="button" class="btn btn-sm" (click)="load()">Försök igen</button>
     </div>
@@ -70,7 +70,7 @@
         <table class="table table-sm">
           <thead>
             <tr>
-              <th class="w-20"><span class="sr-only">Bild</span></th>
+              <th class="w-14"><span class="sr-only">Bild</span></th>
               <th>Datum</th>
               <th>Butik</th>
               <th class="text-right">Belopp</th>
@@ -84,7 +84,7 @@
               <tr class="hover:bg-base-200">
                 <td>
                   <img
-                    class="h-16 w-12 rounded bg-base-200 object-cover"
+                    class="h-10 w-8 rounded-sm bg-base-300 object-cover"
                     [src]="'/api/receipts/' + rad.id + '/thumbs/1'"
                     alt=""
                     loading="lazy"
@@ -101,7 +101,7 @@
                 <td class="num">{{ rad.segments }}</td>
                 <td class="num whitespace-nowrap text-neutral">{{ fangat(rad.capturedAt) }}</td>
                 <td class="text-right">
-                  <a class="btn btn-xs btn-ghost" [routerLink]="['/dator/kvitto', rad.id]">Öppna</a>
+                  <a class="btn btn-xs btn-ghost text-primary" [routerLink]="['/dator/kvitto', rad.id]">Öppna</a>
                 </td>
               </tr>
             }

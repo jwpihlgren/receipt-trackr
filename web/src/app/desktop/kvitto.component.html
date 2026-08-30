@@ -20,7 +20,7 @@
   </header>
 
   @if (error(); as message) {
-    <div role="alert" class="alert alert-error m-4 w-auto">
+    <div role="alert" class="alert alert-soft alert-error m-4 w-auto">
       <span>{{ message }}</span>
       <button type="button" class="btn btn-sm" (click)="load()">Försök igen</button>
     </div>
@@ -53,7 +53,7 @@
 
       <aside class="flex w-full shrink-0 flex-col gap-6 border-t border-base-300 bg-base-100 p-5 xl:w-96 xl:overflow-y-auto xl:border-l xl:border-t-0">
         @if (oavslutat()) {
-          <div role="alert" class="alert alert-warning">
+          <div role="alert" class="alert alert-soft alert-warning">
             <span>Fångsten avslutades inte. Kontrollera att alla delar av kvittot finns.</span>
           </div>
         }
@@ -112,7 +112,7 @@
 
         <div>
           @if (vissRadera()) {
-            <div role="alert" class="alert alert-error flex-col items-start">
+            <div role="alert" class="alert alert-soft alert-error flex-col items-start">
               <span>
                 Kvittot och alla {{ r.segments.length }}
                 {{ r.segments.length === 1 ? 'bilden' : 'bilderna' }} tas bort för alltid.
