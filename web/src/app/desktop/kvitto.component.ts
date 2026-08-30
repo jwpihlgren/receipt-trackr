@@ -45,10 +45,8 @@ type Receipt = {
  */
 @Component({
   selector: 'app-kvitto',
-  host: { 'data-density': 'comfortable' },
   imports: [RouterLink, MenyComponent],
   templateUrl: './kvitto.component.html',
-  styleUrl: './kvitto.component.css',
 })
 export class KvittoComponent {
   private readonly route = inject(ActivatedRoute);

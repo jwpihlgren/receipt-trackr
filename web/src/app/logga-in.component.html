@@ -1,30 +1,32 @@
-<main class="ark">
-  <form class="kort" (submit)="submit($event)">
-    <div class="rubrik">
-      <h1>Kvittoarkiv</h1>
-      <p>Hemma hos er, på er egen burk.</p>
+<main class="flex min-h-dvh items-center justify-center bg-base-200 p-6">
+  <form class="card w-full max-w-sm border border-base-300 bg-base-100 shadow-sm" (submit)="submit($event)">
+    <div class="card-body gap-5">
+      <h1 class="card-title">Kvittoarkiv</h1>
+
+      <div>
+        <label class="label" for="fras">Lösenordsfras</label>
+        <input
+          id="fras"
+          type="password"
+          name="password"
+          class="input w-full"
+          [class.input-error]="error()"
+          autocomplete="current-password"
+          [value]="password()"
+          (input)="onInput($event)"
+          [attr.aria-invalid]="error() ? 'true' : null"
+        />
+        @if (error(); as message) {
+          <p class="mt-1 text-sm text-error" role="alert">{{ message }}</p>
+        }
+      </div>
+
+      <button type="submit" class="btn btn-primary" [disabled]="busy() || !password()">
+        @if (busy()) { <span class="loading loading-spinner loading-sm"></span> }
+        {{ busy() ? 'Loggar in …' : 'Logga in' }}
+      </button>
+
+      <p class="text-sm text-base-content/60">Samma fras för hela hushållet.</p>
     </div>
-
-    <div class="falt">
-      <label for="fras">Lösenordsfras</label>
-      <input
-        id="fras"
-        type="password"
-        name="password"
-        autocomplete="current-password"
-        [value]="password()"
-        (input)="onInput($event)"
-        [attr.aria-invalid]="error() ? 'true' : null"
-      />
-      @if (error(); as message) {
-        <p class="fel" role="alert">{{ message }}</p>
-      }
-    </div>
-
-    <button type="submit" class="primar" [disabled]="busy() || !password()">
-      {{ busy() ? 'Loggar in …' : 'Logga in' }}
-    </button>
-
-    <p class="fotnot">Samma fras för hela hushållet. Telefonen förblir inloggad tills du loggar ut.</p>
   </form>
 </main>

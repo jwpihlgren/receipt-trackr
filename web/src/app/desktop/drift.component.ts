@@ -31,7 +31,6 @@ export type Health = {
   host: { 'data-density': 'comfortable' },
   imports: [RouterLink, MenyComponent],
   templateUrl: './drift.component.html',
-  styleUrl: './drift.component.css',
 })
 export class DriftComponent {
   private readonly http = inject(HttpClient);

@@ -12,7 +12,6 @@ import { AuthService } from './shared/auth.service';
   host: { 'data-density': 'comfortable' },
   imports: [],
   templateUrl: './logga-in.component.html',
-  styleUrl: './logga-in.component.css',
 })
 export class LoggaInComponent {
   private readonly auth = inject(AuthService);

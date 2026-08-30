@@ -1,4 +1,109 @@
-/* Enda globala ingången. Tokens först, sedan grunden — inget annat får ligga här:
-   allt utseende hör hemma i sin komponent, och alla färger i tokens.css. */
+/* Enda globala ingången.
+ *
+ * Gränssnittet byggs med DaisyUI, som är Tailwind-klasser med färdiga komponenter.
+ * Skälet är prosaiskt: handskrivna knappar, tabeller och paneler gled isär mellan
+ * skärmarna, och den som ska använda appen ska slippa se skarvarna.
+ *
+ * Paletten är däremot **inte** DaisyUIs. Den är samma färger som förut, inlagda som
+ * ett eget tema — färgvalen är gjorda mot kvittobilder och prövade i mörkt läge, och
+ * det arbetet finns ingen anledning att göra om.
+ *
+ * Både Tailwind och DaisyUI ligger i node_modules och bakas in i bygget. Ingenting
+ * hämtas över nätet: burken ska fungera utan internet, och sidan är dessutom
+ * cross-origin isolerad, vilket gör att en extern resurs bara skulle tystna.
+ */
+@import "tailwindcss";
+
+@plugin "daisyui" {
+  themes: kvitto --default, kvitto-morkt --prefersdark;
+}
+
+@plugin "daisyui/theme" {
+  name: "kvitto";
+  default: true;
+  color-scheme: light;
+
+  --color-base-100: #ffffff;   /* kort, paneler, tabeller */
+  --color-base-200: #f6f4f1;   /* sidan bakom dem */
+  --color-base-300: #dcd7d0;   /* linjer och spår */
+  --color-base-content: #1b1917;
+
+  --color-primary: #1d5a7a;
+  --color-primary-content: #ffffff;
+  --color-secondary: #57514a;
+  --color-secondary-content: #ffffff;
+  --color-accent: #1d5a7a;
+  --color-accent-content: #ffffff;
+  --color-neutral: #57514a;
+  --color-neutral-content: #ffffff;
+
+  --color-info: #1d5a7a;
+  --color-info-content: #ffffff;
+  --color-success: #2c6b3f;
+  --color-success-content: #ffffff;
+  --color-warning: #8a5a08;
+  --color-warning-content: #ffffff;
+  --color-error: #a32b1c;
+  --color-error-content: #ffffff;
+
+  --radius-selector: 0.375rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "kvitto-morkt";
+  color-scheme: dark;
+
+  --color-base-100: #1d1c20;
+  --color-base-200: #141316;
+  --color-base-300: #33313a;
+  --color-base-content: #eae7e2;
+
+  --color-primary: #8ec4e6;
+  --color-primary-content: #141316;
+  --color-secondary: #a8a29a;
+  --color-secondary-content: #141316;
+  --color-accent: #8ec4e6;
+  --color-accent-content: #141316;
+  --color-neutral: #a8a29a;
+  --color-neutral-content: #141316;
+
+  --color-info: #8ec4e6;
+  --color-info-content: #141316;
+  --color-success: #83c99b;
+  --color-success-content: #141316;
+  --color-warning: #e5b168;
+  --color-warning-content: #141316;
+  --color-error: #f0938a;
+  --color-error-content: #141316;
+
+  --radius-selector: 0.375rem;
+  --radius-field: 0.375rem;
+  --radius-box: 0.5rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* Bakgrunden bakom ett kvittofoto: något mörkare än sidan, så att papperets kant
+   syns även när fotot är överexponerat i hörnen. DaisyUI har ingen motsvarighet. */
+@theme {
+  --color-bildbadd: #d9d5cf;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root { --color-bildbadd: #08080a; }
+}
+
+/* Kvarvarande egna regler: tokens för de skärmar som ännu inte är omgjorda, och
+   grunden (fokusstil, tabulära siffror, OCR-textens radbrytning). */
 @import "./styles/tokens.css";
 @import "./styles/base.css";

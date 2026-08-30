@@ -104,6 +104,22 @@ ingen skärm**. Det är ett mätverktyg, inte en uppgift i appen, och var det sk
 Indexet bär en **schemaversion**. Stämmer den inte med koden kastas tabellerna vid
 start och byggs om ur `receipts/`.
 
+## Gränssnittet
+
+**DaisyUI, med husets egen palett.** Knappar, tabeller, fält och paneler var
+handskrivna och gled isär mellan skärmarna. Nu är komponenterna DaisyUIs, medan
+färgerna är samma som förut — de valdes mot kvittobilder och prövades i mörkt läge,
+och det arbetet görs inte om. Temat heter `kvitto`/`kvitto-morkt` och står i
+`web/src/styles.css`. Tailwind och DaisyUI ligger i node_modules och bakas in; sidan
+är cross-origin isolerad och kan inte hämta något utifrån ändå.
+
+Datorytan är omgjord. **Telefonytan är det inte** — fångstflödet är egenritat och har
+inga DaisyUI-motsvarigheter, så `styles/tokens.css` ligger kvar för den.
+
+**Namngivning: ett ställe, ett namn.** Ytan står först i adressen
+(`/telefon/kvitton`, `/dator/kvitton`), appen heter Kvittoarkiv, platsen heter
+Kvitton, och samma ord står i menyn, i rubriken och i webbläsarfliken.
+
 ## Vad som är mätt, och vad siffrorna betyder
 
 Ingenting nedan är gissat. Bryt inte mot det utan att mäta om.

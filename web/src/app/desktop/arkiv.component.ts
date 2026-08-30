@@ -25,10 +25,8 @@ type Svar = { total: number; receipts: Rad[]; butiker: string[] };
  */
 @Component({
   selector: 'app-arkiv',
-  host: { 'data-density': 'compact' },
   imports: [RouterLink, MenyComponent],
   templateUrl: './arkiv.component.html',
-  styleUrl: './arkiv.component.css',
 })
 export class ArkivComponent {
   private readonly router = inject(Router);

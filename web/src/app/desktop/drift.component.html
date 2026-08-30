@@ -1,42 +1,46 @@
-<div class="yta">
-  <header class="topp">
+<div class="min-h-dvh bg-base-200">
+  <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-2 sm:px-4">
     <app-meny lage="dator" />
-    <a class="tillbaka" routerLink="/dator/kvitton">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+    <a class="btn btn-sm btn-ghost" routerLink="/dator/kvitton">
+      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
       Kvitton
     </a>
-    <h1>Utrymme och drift</h1>
+    <h1 class="text-lg font-semibold">Drift</h1>
+    <button type="button" class="btn btn-sm btn-ghost ml-auto" (click)="refresh()">Uppdatera</button>
   </header>
 
-  <main class="kolumn">
+  <main class="mx-auto w-full max-w-3xl p-4">
     @if (error(); as message) {
-      <p class="fel" role="alert">{{ message }}</p>
+      <div role="alert" class="alert alert-error"><span>{{ message }}</span></div>
     } @else {
+      <!-- `as`-alias går bara på @if, inte på @else if — därav den nästlade formen. -->
       @if (health(); as h) {
-        <div class="lage" [class.illa]="h.data.belowFloor">
-          @if (h.data.belowFloor) {
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
-            <span>För lite utrymme kvar</span>
-          } @else {
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5 5L20 7" /></svg>
-            <span>Arkivet mår bra</span>
-          }
-        </div>
+      <div role="alert" class="alert mb-4" [class.alert-error]="h.data.belowFloor" [class.alert-success]="!h.data.belowFloor">
+        <span>{{ h.data.belowFloor ? 'För lite utrymme kvar' : 'Arkivet mår bra' }}</span>
+      </div>
 
-        <dl class="tabell">
-          <div><dt>Arkivet ligger på</dt><dd>{{ h.data.path }}</dd></div>
-          <div><dt>Monteringspunkt</dt><dd>{{ h.data.mount ?? 'okänd' }} <span class="tyst">({{ h.data.filesystem ?? 'okänt filsystem' }})</span></dd></div>
-          <div><dt>Ledigt</dt><dd>{{ h.data.free }} av {{ h.data.total }} <span class="tyst">· golv {{ h.data.minFree }}</span></dd></div>
-          <div><dt>Säkerhetskopior</dt><dd>{{ h.backupDir ?? 'ingen katalog monterad' }}</dd></div>
-          <div><dt>Version</dt><dd>{{ h.version }}</dd></div>
-        </dl>
+      <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
+        <table class="table">
+          <tbody>
+            <tr><th class="w-56 font-normal text-base-content/60">Arkivet ligger på</th><td>{{ h.data.path }}</td></tr>
+            <tr>
+              <th class="font-normal text-base-content/60">Monteringspunkt</th>
+              <td>{{ h.data.mount ?? 'okänd' }} <span class="text-base-content/60">({{ h.data.filesystem ?? 'okänt filsystem' }})</span></td>
+            </tr>
+            <tr>
+              <th class="font-normal text-base-content/60">Ledigt</th>
+              <td class="num">{{ h.data.free }} av {{ h.data.total }} <span class="text-base-content/60">· golv {{ h.data.minFree }}</span></td>
+            </tr>
+            <tr><th class="font-normal text-base-content/60">Säkerhetskopior</th><td>{{ h.backupDir ?? 'ingen katalog monterad' }}</td></tr>
+            <tr><th class="font-normal text-base-content/60">Version</th><td class="num">{{ h.version }}</td></tr>
+          </tbody>
+        </table>
+      </div>
       } @else {
-        <p class="tyst">Läser status …</p>
+        <div class="flex items-center gap-3 text-base-content/60">
+          <span class="loading loading-spinner loading-sm"></span> Läser status …
+        </div>
       }
     }
-
-    <div class="atgarder">
-      <button type="button" (click)="refresh()">Uppdatera</button>
-    </div>
   </main>
 </div>

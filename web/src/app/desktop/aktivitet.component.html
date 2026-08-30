@@ -1,82 +1,89 @@
-<div class="yta">
-  <header class="topp">
+<div class="min-h-dvh bg-base-200">
+  <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-2 sm:px-4">
     <app-meny lage="dator" />
-    <a class="tillbaka" routerLink="/dator/kvitton">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
-      Kvitton
-    </a>
-    <h1>Aktivitet</h1>
-    <button type="button" class="knapp" [disabled]="arbetar()" (click)="tolkaOmFalt()">Tolka om fälten</button>
-    <button type="button" class="knapp" (click)="load()">Uppdatera</button>
+    <h1 class="text-lg font-semibold">Aktivitet</h1>
+    <div class="ml-auto flex items-center gap-2">
+      <button type="button" class="btn btn-sm" [disabled]="arbetar()" (click)="tolkaOmFalt()">Tolka om fälten</button>
+      <button type="button" class="btn btn-sm btn-ghost" (click)="load()">Uppdatera</button>
+    </div>
   </header>
 
   @if (error(); as message) {
-    <p class="fel" role="alert">{{ message }} <button type="button" (click)="load()">Försök igen</button></p>
+    <div role="alert" class="alert alert-error mx-4 mt-4 w-auto">
+      <span>{{ message }}</span>
+      <button type="button" class="btn btn-sm" (click)="load()">Försök igen</button>
+    </div>
   }
 
   @if (tolkning.snapshot().kor) {
-    <div class="remsa">
-      <span class="snurra" aria-hidden="true"></span>
-      <span class="remstext">{{ tolkasNu() ?? 'Tolkar …' }}</span>
-      <button type="button" class="knapp" (click)="tolkning.stanna()">Sluta efter det här</button>
+    <div class="flex items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
+      <span class="loading loading-spinner loading-sm text-primary"></span>
+      <span>{{ tolkasNu() ?? 'Tolkar …' }}</span>
+      <button type="button" class="btn btn-sm ml-auto" (click)="tolkning.stanna()">Sluta efter det här</button>
     </div>
   } @else if (vantar() > 0) {
-    <div class="remsa">
-      <span class="remstext">{{ vantar() }} {{ vantar() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
-      <button type="button" class="knapp primar" (click)="tolka()">Tolka här</button>
+    <div class="flex items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
+      <span>{{ vantar() }} {{ vantar() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
+      <button type="button" class="btn btn-sm btn-primary ml-auto" (click)="tolka()">Tolka alla här</button>
     </div>
   }
 
   @if (tolkning.snapshot().fel; as fel) {
-    <p class="fel" role="alert">Tolkningen stannade: {{ fel }}</p>
+    <div role="alert" class="alert alert-error mx-4 mt-4 w-auto"><span>Tolkningen stannade: {{ fel }}</span></div>
   }
 
-  <main class="innehall">
+  <main class="p-4">
     @if (data() === null) {
-      <p class="tyst">Hämtar …</p>
+      <div class="flex items-center gap-3 p-4 text-base-content/60">
+        <span class="loading loading-spinner loading-sm"></span> Hämtar …
+      </div>
     } @else {
-      <table>
-        <thead>
-          <tr>
-            <th scope="col" class="bildkol"><span class="sr-only">Bild</span></th>
-            <th scope="col">Butik</th>
-            <th scope="col" class="talkol">Belopp</th>
-            <th scope="col">Datum</th>
-            <th scope="col">Status</th>
-            <th scope="col">Fångat</th>
-            <th scope="col"><span class="sr-only">Öppna</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (rad of rader(); track rad.id) {
-            <tr [class.vald]="false">
-              <td class="bildkol">
-                <img [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
-              </td>
-              <td>{{ butik(rad) }}</td>
-              <td class="talkol num">{{ belopp(rad) }}</td>
-              <td class="num">{{ rad.date ?? '—' }}</td>
-              <td>
-                <span class="lage" [class.illa]="grad(rad) === 'illa'" [class.obs]="grad(rad) === 'obs'">
-                  <span class="prick" aria-hidden="true"></span>
-                  {{ status(rad) }}
-                </span>
-              </td>
-              <td class="tyst num">{{ fangat(rad.capturedAt) }}</td>
-              <td class="atgard">
-                @if (arbetarMed() === rad.id) {
-                  <span class="snurra liten" aria-label="Tolkar"></span>
-                } @else if (rad.lage !== 'ofullstandig') {
-                  <button type="button" [disabled]="arbetar()" (click)="lasOm(rad.id)">
-                    {{ rad.lage === 'vantar' ? 'Tolka nu' : 'Läs om bilden' }}
-                  </button>
-                }
-                <a [routerLink]="['/dator/kvitto', rad.id]">Öppna</a>
-              </td>
+      <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th class="w-20"><span class="sr-only">Bild</span></th>
+              <th>Butik</th>
+              <th class="text-right">Belopp</th>
+              <th>Datum</th>
+              <th>Status</th>
+              <th>Fångat</th>
+              <th class="text-right"><span class="sr-only">Åtgärd</span></th>
             </tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @for (rad of rader(); track rad.id) {
+              <tr class="hover:bg-base-200">
+                <td>
+                  <img
+                    class="h-16 w-12 rounded bg-base-200 object-cover"
+                    [src]="'/api/receipts/' + rad.id + '/thumbs/1'"
+                    alt=""
+                    loading="lazy"
+                  />
+                </td>
+                <td>{{ butik(rad) }}</td>
+                <td class="text-right num">{{ belopp(rad) }}</td>
+                <td class="num">{{ rad.date ?? '—' }}</td>
+                <td>
+                  <span class="badge badge-sm whitespace-nowrap" [class]="badge(rad)">{{ status(rad) }}</span>
+                </td>
+                <td class="num text-base-content/60">{{ fangat(rad.capturedAt) }}</td>
+                <td class="text-right whitespace-nowrap">
+                  @if (arbetarMed() === rad.id) {
+                    <span class="loading loading-spinner loading-xs text-primary" aria-label="Tolkar"></span>
+                  } @else if (rad.lage !== 'ofullstandig') {
+                    <button type="button" class="btn btn-xs btn-ghost" [disabled]="arbetar()" (click)="lasOm(rad.id)">
+                      {{ rad.lage === 'vantar' ? 'Tolka nu' : 'Läs om bilden' }}
+                    </button>
+                  }
+                  <a class="btn btn-xs btn-ghost" [routerLink]="['/dator/kvitto', rad.id]">Öppna</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     }
   </main>
 </div>

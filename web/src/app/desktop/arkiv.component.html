@@ -1,88 +1,113 @@
-<div class="yta">
-  <header class="topp">
+<div class="min-h-dvh bg-base-200">
+  <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-2 sm:px-4">
     <app-meny lage="dator" />
-    <h1>Kvitton</h1>
-    <span class="tyst num">{{ total() }}{{ filtrerat() ? ' träffar' : ' kvitton' }}</span>
+    <h1 class="text-lg font-semibold">Kvitton</h1>
+    <span class="num text-sm text-base-content/60">{{ total() }}{{ filtrerat() ? ' träffar' : ' kvitton' }}</span>
   </header>
 
   @if (ofardiga() > 0) {
-    <div class="remsa">
-      <span class="remstext">
-        {{ ofardiga() }} {{ ofardiga() === 1 ? 'kvitto är' : 'kvitton är' }} inte klara
-      </span>
-      <a class="knapp primar" routerLink="/dator/aktivitet">Aktivitet</a>
+    <div class="flex items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
+      <span>{{ ofardiga() }} {{ ofardiga() === 1 ? 'kvitto är' : 'kvitton är' }} inte klara</span>
+      <a class="btn btn-sm btn-primary ml-auto" routerLink="/dator/aktivitet">Aktivitet</a>
     </div>
   }
 
-  <form class="filter" (submit)="sok($event)">
-    <div class="falt sokfalt">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-      <input type="search" [value]="fraga()" (input)="onFraga($event)" placeholder="Sök i texten" aria-label="Sök i kvittonas text" />
-    </div>
+  <form class="flex flex-wrap items-end gap-3 border-b border-base-300 bg-base-100 px-4 py-3" (submit)="sok($event)">
+    <label class="floating-label">
+      <span>Sök i texten</span>
+      <input
+        type="search"
+        class="input input-sm w-64"
+        placeholder="Sök i texten"
+        [value]="fraga()"
+        (input)="onFraga($event)"
+      />
+    </label>
 
-    <label class="falt">
-      <span class="etikett">Butik</span>
-      <select [value]="butik()" (change)="valjButik($event)">
-        <option value="">Alla</option>
+    <label class="floating-label">
+      <span>Butik</span>
+      <select class="select select-sm w-48" [value]="butik()" (change)="valjButik($event)">
+        <option value="">Alla butiker</option>
         @for (b of butiker(); track b) { <option [value]="b">{{ b }}</option> }
       </select>
     </label>
 
-    <label class="falt">
-      <span class="etikett">Från</span>
-      <input type="date" [value]="fran()" (change)="onFran($event)" />
+    <label class="floating-label">
+      <span>Från</span>
+      <input type="date" class="input input-sm" [value]="fran()" (change)="onFran($event)" />
     </label>
 
-    <label class="falt">
-      <span class="etikett">Till</span>
-      <input type="date" [value]="till()" (change)="onTill($event)" />
+    <label class="floating-label">
+      <span>Till</span>
+      <input type="date" class="input input-sm" [value]="till()" (change)="onTill($event)" />
     </label>
 
-    <button type="submit" class="knapp">Sök</button>
-    @if (filtrerat()) { <button type="button" class="knapp" (click)="rensa()">Rensa</button> }
+    <button type="submit" class="btn btn-sm btn-primary">Sök</button>
+    @if (filtrerat()) {
+      <button type="button" class="btn btn-sm btn-ghost" (click)="rensa()">Rensa</button>
+    }
   </form>
 
   @if (error(); as message) {
-    <p class="fel" role="alert">{{ message }} <button type="button" (click)="load()">Försök igen</button></p>
+    <div role="alert" class="alert alert-error mx-4 mt-4 w-auto">
+      <span>{{ message }}</span>
+      <button type="button" class="btn btn-sm" (click)="load()">Försök igen</button>
+    </div>
   }
 
-  <main class="innehall">
+  <main class="p-4">
     @if (rader() === null) {
-      <p class="tyst">Hämtar …</p>
-    } @else if (rader()!.length === 0) {
-      <p class="tyst">{{ filtrerat() ? 'Inget kvitto matchar filtret.' : 'Inga klara kvitton än.' }}</p>
+      <div class="flex items-center gap-3 p-4 text-base-content/60">
+        <span class="loading loading-spinner loading-sm"></span> Hämtar …
+      </div>
     } @else {
-      <table>
-        <thead>
-          <tr>
-            <th scope="col" class="bildkol"><span class="sr-only">Bild</span></th>
-            <th scope="col">Datum</th>
-            <th scope="col">Butik</th>
-            <th scope="col" class="talkol">Belopp</th>
-            <th scope="col">Bilder</th>
-            <th scope="col">Fångat</th>
-            <th scope="col"><span class="sr-only">Öppna</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (rad of rader(); track rad.id) {
+      @if (rader()!.length === 0) {
+        <p class="p-4 text-base-content/60">
+          {{ filtrerat() ? 'Inget kvitto matchar filtret.' : 'Inga klara kvitton än.' }}
+        </p>
+      }
+      <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
+        <table class="table table-sm">
+          <thead>
             <tr>
-              <td class="bildkol">
-                <img [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
-              </td>
-              <td class="num">{{ rad.date }}</td>
-              <td>
-                {{ rad.store }}
-                @if (rad.snippet) { <span class="snippet ocr-text">{{ rad.snippet }}</span> }
-              </td>
-              <td class="talkol num">{{ belopp(rad) }} kr</td>
-              <td class="num">{{ rad.segments }}</td>
-              <td class="tyst num">{{ fangat(rad.capturedAt) }}</td>
-              <td class="atgard"><a [routerLink]="['/dator/kvitto', rad.id]">Öppna</a></td>
+              <th class="w-20"><span class="sr-only">Bild</span></th>
+              <th>Datum</th>
+              <th>Butik</th>
+              <th class="text-right">Belopp</th>
+              <th>Bilder</th>
+              <th>Fångat</th>
+              <th class="text-right"><span class="sr-only">Öppna</span></th>
             </tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @for (rad of rader(); track rad.id) {
+              <tr class="hover:bg-base-200">
+                <td>
+                  <img
+                    class="h-16 w-12 rounded bg-base-200 object-cover"
+                    [src]="'/api/receipts/' + rad.id + '/thumbs/1'"
+                    alt=""
+                    loading="lazy"
+                  />
+                </td>
+                <td class="num whitespace-nowrap">{{ rad.date }}</td>
+                <td>
+                  {{ rad.store }}
+                  @if (rad.snippet) {
+                    <span class="ocr-text mt-0.5 block text-base-content/60">{{ rad.snippet }}</span>
+                  }
+                </td>
+                <td class="num whitespace-nowrap text-right">{{ belopp(rad) }} kr</td>
+                <td class="num">{{ rad.segments }}</td>
+                <td class="num whitespace-nowrap text-base-content/60">{{ fangat(rad.capturedAt) }}</td>
+                <td class="text-right">
+                  <a class="btn btn-xs btn-ghost" [routerLink]="['/dator/kvitto', rad.id]">Öppna</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     }
   </main>
 </div>

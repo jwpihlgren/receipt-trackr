@@ -20,7 +20,6 @@ import { AuthService } from './auth.service';
   selector: 'app-meny',
   imports: [RouterLink],
   templateUrl: './meny.component.html',
-  styleUrl: './meny.component.css',
 })
 export class MenyComponent {
   private readonly queue = inject(QueueService);

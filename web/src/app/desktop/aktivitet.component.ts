@@ -30,10 +30,8 @@ type Aktivitet = { total: number; vantar: number; receipts: Rad[] };
  */
 @Component({
   selector: 'app-aktivitet',
-  host: { 'data-density': 'compact' },
   imports: [RouterLink, MenyComponent],
   templateUrl: './aktivitet.component.html',
-  styleUrl: './aktivitet.component.css',
 })
 export class AktivitetComponent {
   private readonly router = inject(Router);
@@ -136,11 +134,14 @@ export class AktivitetComponent {
     }
   }
 
-  /** Tre grader, och var och en har både en färg och ett eget ord i statusen. */
-  grad(rad: Rad): 'illa' | 'obs' | 'vantan' {
-    if (rad.lage === 'bilder' || rad.lage === 'svag_text') return 'illa';
-    if (rad.lage === 'vantar') return 'vantan';
-    return 'obs';
+  /**
+   * Färgen på statusmärket. Alltid tillsammans med ordet, aldrig i stället för det:
+   * tas färgen bort står det fortfarande vad som saknas.
+   */
+  badge(rad: Rad): string {
+    if (rad.lage === 'bilder' || rad.lage === 'svag_text') return 'badge-error';
+    if (rad.lage === 'vantar') return 'badge-ghost';
+    return 'badge-warning';
   }
 
   butik(rad: Rad): string {

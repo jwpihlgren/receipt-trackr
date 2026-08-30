@@ -1,12 +1,14 @@
-<button type="button" class="hamburgare" (click)="toggle()" [attr.aria-expanded]="open()" aria-label="Meny">
-  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18" /><path d="M3 12h18" /><path d="M3 18h18" /></svg>
+<button type="button" class="btn btn-square btn-ghost btn-sm" [attr.aria-expanded]="open()" aria-label="Meny" (click)="toggle()">
+  <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+    <path d="M3 6h18" /><path d="M3 12h18" /><path d="M3 18h18" />
+  </svg>
 </button>
 
 @if (open()) {
-  <div class="overlagg">
-    <nav class="panel" aria-label="Meny">
-      <div class="huvud">
-        <strong>Kvittoarkiv</strong>
+  <div class="fixed inset-0 z-50 flex">
+    <nav class="flex h-full w-72 flex-col bg-base-100 shadow-xl" aria-label="Meny">
+      <div class="border-b border-base-300 px-4 py-4">
+        <strong class="text-base">Kvittoarkiv</strong>
       </div>
 
       <!--
@@ -14,64 +16,80 @@
         här även i datorläget, men den kön bor i telefonens egen webbläsare — på
         datorn var raden alltid tom och ledde till en skärm som inte hörde hemma där.
       -->
-      <div class="grupp">
+      <ul class="menu w-full flex-nowrap gap-1 p-2">
         @if (lage() === 'mobil') {
-          <a routerLink="/telefon/kvitton" (click)="close()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
-            <span>Kvitton</span>
-          </a>
-          <a routerLink="/telefon/uppladdning" (click)="close()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
-            <span>På väg till arkivet</span>
-            @if (pavag() > 0) { <em class="bricka">{{ pavag() }}</em> }
-          </a>
-          @if (fast() > 0) {
-            <a class="illa" routerLink="/telefon/uppladdning" (click)="close()">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
-              <span>Kom inte fram</span>
-              <em class="bricka farlig">{{ fast() }}</em>
+          <li>
+            <a routerLink="/telefon/kvitton" (click)="close()">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
+              Kvitton
             </a>
+          </li>
+          <li>
+            <a routerLink="/telefon/uppladdning" (click)="close()">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
+              På väg till arkivet
+              @if (pavag() > 0) { <span class="badge badge-sm">{{ pavag() }}</span> }
+            </a>
+          </li>
+          @if (fast() > 0) {
+            <li>
+              <a class="text-error" routerLink="/telefon/uppladdning" (click)="close()">
+                <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
+                Kom inte fram
+                <span class="badge badge-sm badge-error">{{ fast() }}</span>
+              </a>
+            </li>
           }
         } @else {
-          <a routerLink="/dator/kvitton" (click)="close()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
-            <span>Kvitton</span>
-          </a>
-          <a routerLink="/dator/aktivitet" (click)="close()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>
-            <span>Aktivitet</span>
-          </a>
+          <li>
+            <a routerLink="/dator/kvitton" (click)="close()">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
+              Kvitton
+            </a>
+          </li>
+          <li>
+            <a routerLink="/dator/aktivitet" (click)="close()">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>
+              Aktivitet
+            </a>
+          </li>
         }
-      </div>
+      </ul>
 
-      <div class="avdelare"></div>
+      <div class="divider my-0"></div>
 
-      <div class="grupp">
+      <ul class="menu w-full flex-nowrap gap-1 p-2">
         @if (lage() === 'mobil') {
-          <a routerLink="/dator/kvitton" (click)="close()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
-            <span>Datorläge</span>
-          </a>
+          <li>
+            <a routerLink="/dator/kvitton" (click)="close()">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
+              Datorläge
+            </a>
+          </li>
         } @else {
-          <a routerLink="/telefon/kvitton" (click)="close()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></svg>
-            <span>Telefonläge</span>
-          </a>
+          <li>
+            <a routerLink="/telefon/kvitton" (click)="close()">
+              <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></svg>
+              Telefonläge
+            </a>
+          </li>
         }
-        <a routerLink="/dator/drift" (click)="close()">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="7" rx="2" /><rect x="2" y="13" width="20" height="7" rx="2" /><path d="M6 7.5h.01" /><path d="M6 16.5h.01" /></svg>
-          <span>Utrymme och drift</span>
-        </a>
-      </div>
+        <li>
+          <a routerLink="/dator/drift" (click)="close()">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="7" rx="2" /><rect x="2" y="13" width="20" height="7" rx="2" /><path d="M6 7.5h.01" /><path d="M6 16.5h.01" /></svg>
+            Drift
+          </a>
+        </li>
+      </ul>
 
-      <div class="botten">
-        <button type="button" (click)="logout()">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></svg>
-          <span>Logga ut</span>
+      <div class="mt-auto border-t border-base-300 p-2">
+        <button type="button" class="btn btn-ghost w-full justify-start" (click)="logout()">
+          <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></svg>
+          Logga ut
         </button>
       </div>
     </nav>
 
-    <button type="button" class="skugga" (click)="close()" aria-label="Stäng menyn"></button>
+    <button type="button" class="flex-1 bg-black/40" aria-label="Stäng menyn" (click)="close()"></button>
   </div>
 }

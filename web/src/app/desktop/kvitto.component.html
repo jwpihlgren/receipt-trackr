@@ -1,34 +1,40 @@
-<div class="yta">
-  <header class="topp">
+<div class="flex h-dvh flex-col overflow-hidden bg-base-200">
+  <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-2 sm:px-4">
     <app-meny lage="dator" />
-    <a class="tillbaka" routerLink="/dator/kvitton">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+    <a class="btn btn-sm btn-ghost" routerLink="/dator/kvitton">
+      <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
       Kvitton
     </a>
 
     @if (receipt(); as r) {
-      <h1>{{ datum(r.capturedAt) }} · {{ klocka(r.capturedAt) }}</h1>
-      <span class="tyst">{{ r.segments.length }} {{ r.segments.length === 1 ? 'bild' : 'bilder' }}</span>
+      <h1 class="text-lg font-semibold">{{ datum(r.capturedAt) }}</h1>
+      <span class="text-sm text-base-content/60">
+        {{ r.segments.length }} {{ r.segments.length === 1 ? 'bild' : 'bilder' }}
+      </span>
       @if (harText()) {
-        <button type="button" class="knapp" [class.aktiv]="visaText()" (click)="toggleText()">Visa texten</button>
+        <button type="button" class="btn btn-sm ml-auto" [class.btn-active]="visaText()" (click)="toggleText()">
+          Visa texten
+        </button>
       }
     }
   </header>
 
   @if (error(); as message) {
-    <p class="fel" role="alert">{{ message }} <button type="button" (click)="load()">Försök igen</button></p>
-  } @else {
-    <!-- `as`-alias går bara på @if, inte på @else if — därav den nästlade formen. -->
-    @if (receipt(); as r) {
+    <div role="alert" class="alert alert-error m-4 w-auto">
+      <span>{{ message }}</span>
+      <button type="button" class="btn btn-sm" (click)="load()">Försök igen</button>
+    </div>
+  }
 
-    <div class="kropp">
-      <div class="bildbadd">
-        <div class="papper">
+  @if (receipt(); as r) {
+    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto xl:flex-row xl:overflow-hidden">
+      <div class="flex flex-1 justify-center overflow-y-auto bg-bildbadd p-6">
+        <div class="w-full max-w-md self-start shadow-md">
           @for (segment of r.segments; track segment.sha256) {
-            <img [src]="bild(segment.file)" [alt]="'Bild ' + ($index + 1)" loading="lazy" />
+            <img class="block w-full" [src]="bild(segment.file)" [alt]="'Bild ' + ($index + 1)" loading="lazy" />
           }
           @if (saknade() > 0) {
-            <p class="lucka">
+            <p class="bg-error/15 p-4 leading-relaxed text-error">
               {{ saknade() }} {{ saknade() === 1 ? 'bild' : 'bilder' }} kom aldrig fram.
               Kvittot är ofullständigt — leta upp originalet innan du kastar det.
             </p>
@@ -37,125 +43,120 @@
       </div>
 
       @if (visaText() && harText()) {
-        <div class="textspalt">
-          <div class="spalthuvud">
-            <span class="etikett">RÅTEXTEN</span>
-            <span class="tyst">Så här läste maskinen kvittot. Den går inte att ändra här.</span>
+        <div class="flex w-full flex-col border-t border-base-300 bg-base-100 xl:w-[34rem] xl:border-l xl:border-t-0">
+          <div class="border-b border-base-300 px-4 py-3 text-sm tracking-wide text-base-content/60 uppercase">
+            Råtexten
           </div>
-          <pre class="ocr-text">{{ r.text }}</pre>
+          <pre class="ocr-text overflow-auto p-4">{{ r.text }}</pre>
         </div>
       }
 
-      <aside class="faltpanel">
+      <aside class="flex w-full shrink-0 flex-col gap-6 border-t border-base-300 bg-base-100 p-5 xl:w-96 xl:overflow-y-auto xl:border-l xl:border-t-0">
         @if (oavslutat()) {
-          <div class="notis varning">
-            <strong>Fångsten är inte avslutad</strong>
-            <span>Telefonen hann aldrig säga hur många bilder kvittot har. Kontrollera att alla delar finns.</span>
+          <div role="alert" class="alert alert-warning">
+            <span>Fångsten avslutades inte. Kontrollera att alla delar av kvittot finns.</span>
           </div>
         }
 
         @if (!harText()) {
-          <div class="notis">
-            <strong>Inte tolkat än</strong>
-            <div class="sparrad">
-              <button type="button" class="primar" [disabled]="tolkar()" (click)="tolkaNu()">
-                @if (tolkar()) { <span class="snurra" aria-hidden="true"></span> }
-                {{ tolkar() ? (tolkning.snapshot().steg ?? 'Tolkar …') : 'Tolka nu' }}
-              </button>
-            </div>
+          <div class="flex items-center gap-3 rounded-box border border-base-300 bg-base-200 p-4">
+            <span>Inte tolkat än</span>
+            <button type="button" class="btn btn-sm btn-primary ml-auto" [disabled]="tolkar()" (click)="tolkaNu()">
+              @if (tolkar()) { <span class="loading loading-spinner loading-xs"></span> }
+              {{ tolkar() ? (tolkning.snapshot().steg ?? 'Tolkar …') : 'Tolka nu' }}
+            </button>
           </div>
         }
 
-        <div class="formular">
-          @for (f of falt; track f.namn) {
-            <div class="falt">
-              <label class="etikett" [attr.for]="'falt-' + f.namn">{{ f.etikett }}</label>
-              <input
-                class="ratta"
-                [class.stor]="f.namn === 'total'"
-                [id]="'falt-' + f.namn"
-                type="text"
-                [value]="utkast()[f.namn]"
-                [placeholder]="f.namn === 'date' ? 'ÅÅÅÅ-MM-DD' : ''"
-                [attr.inputmode]="f.sort === 'tal' ? 'decimal' : null"
-                (input)="onUtkast(f.namn, $event)"
-                (keydown.enter)="spara()"
-              />
+        @for (f of falt; track f.namn) {
+          <div>
+            <label class="label" [attr.for]="'falt-' + f.namn">{{ f.etikett }}</label>
+            <input
+              class="input w-full"
+              [class.text-2xl]="f.namn === 'total'"
+              [class.font-semibold]="f.namn === 'total'"
+              [class.num]="f.namn === 'total'"
+              [id]="'falt-' + f.namn"
+              type="text"
+              [value]="utkast()[f.namn]"
+              [placeholder]="f.namn === 'date' ? 'ÅÅÅÅ-MM-DD' : ''"
+              [attr.inputmode]="f.sort === 'tal' ? 'decimal' : null"
+              (input)="onUtkast(f.namn, $event)"
+              (keydown.enter)="spara()"
+            />
 
-              @if (varde(f.namn); as v) {
+            @if (varde(f.namn); as v) {
+              <div class="mt-1 flex flex-wrap items-baseline gap-2 text-sm">
                 @if (v.source === 'ocr') {
-                  <div class="undertext">
-                    <span class="proveniens maskinell">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M8 9h8" /><path d="M8 13h5" /></svg>
-                      Maskinläst
-                    </span>
-                    <span class="konfidens num">{{ v.confidence }}</span>
-                    @if (v.candidates?.length) {
-                      <span class="fotnot">Även läst som</span>
-                      @for (k of v.candidates; track k.value) {
-                        <button type="button" class="kandidat" (click)="valjKandidat(f.namn, k.value)">{{ k.value }}</button>
-                      }
+                  <span class="badge badge-sm badge-warning">Maskinläst</span>
+                  <span class="num text-xs text-base-content/60">{{ v.confidence }}</span>
+                  @if (v.candidates?.length) {
+                    <span class="text-base-content/60">Även läst som</span>
+                    @for (k of v.candidates; track k.value) {
+                      <button type="button" class="btn btn-xs" (click)="valjKandidat(f.namn, k.value)">
+                        {{ k.value }}
+                      </button>
                     }
-                  </div>
+                  }
                 } @else {
-                  <span class="proveniens bekraftad">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5 5L20 7" /></svg>
+                  <span class="badge badge-sm badge-success">
                     {{ v.source === 'confirmed' ? 'Bekräftat av dig' : 'Rättat av dig' }}
                   </span>
                 }
-              } @else {
-                <span class="fotnot">Maskinen hittade inget här</span>
-              }
-            </div>
-          }
-
-          <div class="sparrad">
-            <button type="button" class="primar" [disabled]="!harAndringar() || sparar()" (click)="spara()">
-              Spara
-            </button>
-            @if (sparat()) { <span class="sparat">Sparat</span> }
-            @if (harText()) {
-              <button type="button" class="liten" [disabled]="sparar() || tolkar()" (click)="lasOm()">
-                @if (tolkar()) { <span class="snurra" aria-hidden="true"></span> }
-                {{ tolkar() ? 'Läser …' : 'Läs om bilden' }}
-              </button>
+              </div>
+            } @else {
+              <div class="mt-1 text-sm text-base-content/60">Maskinen hittade inget här</div>
             }
           </div>
-        </div>
+        }
 
-        <div class="avdelare"></div>
-
-        <div class="radera">
-          @if (vissRadera()) {
-            <p class="varning">
-              Kvittot och alla {{ r.segments.length }}
-              {{ r.segments.length === 1 ? 'bilden' : 'bilderna' }} tas bort för alltid.
-            </p>
-            <div class="sparrad">
-              <button type="button" class="farlig" [disabled]="sparar()" (click)="radera()">Ta bort</button>
-              <button type="button" class="liten" (click)="avbrytRadera()">Avbryt</button>
-            </div>
-          } @else {
-            <button type="button" class="lankknapp" (click)="fragaRadera()">Ta bort kvittot</button>
+        <div class="flex items-center gap-3">
+          <button type="button" class="btn btn-primary" [disabled]="!harAndringar() || sparar()" (click)="spara()">
+            Spara
+          </button>
+          @if (sparat()) { <span class="text-sm text-success">Sparat</span> }
+          @if (harText()) {
+            <button type="button" class="btn btn-sm ml-auto" [disabled]="sparar() || tolkar()" (click)="lasOm()">
+              @if (tolkar()) { <span class="loading loading-spinner loading-xs"></span> }
+              {{ tolkar() ? 'Läser …' : 'Läs om bilden' }}
+            </button>
           }
         </div>
 
-        <div class="falt">
-          <span class="etikett">FÅNGAT</span>
-          <span>{{ datum(r.capturedAt) }} · {{ klocka(r.capturedAt) }}</span>
-        </div>
-        <div class="falt">
-          <span class="etikett">BILDER</span>
-          <span>
-            {{ r.segments.length }}@if (r.expectedSegments !== null) { av {{ r.expectedSegments }} }
-          </span>
-        </div>
+        <div class="divider my-0"></div>
 
+        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+          <dt class="text-base-content/60">Fångat</dt>
+          <dd>{{ datum(r.capturedAt) }} · {{ klocka(r.capturedAt) }}</dd>
+          <dt class="text-base-content/60">Bilder</dt>
+          <dd>{{ r.segments.length }}@if (r.expectedSegments !== null) { av {{ r.expectedSegments }} }</dd>
+        </dl>
+
+        <div>
+          @if (vissRadera()) {
+            <div role="alert" class="alert alert-error flex-col items-start">
+              <span>
+                Kvittot och alla {{ r.segments.length }}
+                {{ r.segments.length === 1 ? 'bilden' : 'bilderna' }} tas bort för alltid.
+              </span>
+              <div class="flex gap-2">
+                <button type="button" class="btn btn-sm btn-error" [disabled]="sparar()" (click)="radera()">
+                  Ta bort
+                </button>
+                <button type="button" class="btn btn-sm" (click)="avbrytRadera()">Avbryt</button>
+              </div>
+            </div>
+          } @else {
+            <button type="button" class="link text-sm text-base-content/60 hover:text-error" (click)="fragaRadera()">
+              Ta bort kvittot
+            </button>
+          }
+        </div>
       </aside>
     </div>
-
-    } @else {
-      <p class="tyst laddar">Hämtar …</p>
-    }
+  } @else if (!error()) {
+    <div class="flex items-center gap-3 p-6 text-base-content/60">
+      <span class="loading loading-spinner loading-sm"></span> Hämtar …
+    </div>
   }
 </div>
