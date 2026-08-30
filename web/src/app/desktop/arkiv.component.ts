@@ -5,80 +5,57 @@ import { MenyComponent } from '../shared/meny.component';
 
 type Rad = {
   id: string;
-  capturedAt: string;
-  segments: number;
-  store: string | null;
   date: string | null;
+  store: string | null;
   total: number | null;
   currency: string | null;
-  tecken: number;
+  capturedAt: string;
+  segments: number;
+  snippet: string | null;
 };
 
-type Traff = { id: string; capturedAt: string; store: string | null; total: number | null; snippet: string };
-
-type Grupp = { rubrik: string; rader: Rad[] };
+type Svar = { total: number; receipts: Rad[]; butiker: string[] };
 
 /**
- * Skrivbordets startsida. En centrerad kolumn, inte tre paneler.
+ * Arkivet: klara kvitton i en tabell, sorterade på kvittots eget datum.
  *
- * Trepanelslayouten — arbetslista, bild, fältpanel — förutsätter en kö som aldrig
- * sinar. Här är kön tom nio dagar av tio, och en tom vänsterspalt som står och skäller
- * är det värsta ett stillsamt gränssnitt kan göra. Arbetslistan hör hemma i ett
- * rättningspass, som man går in i med avsikt, och den byggs när det finns fält att
- * rätta.
+ * Det var tidigare en lista grupperad på fångstdag, vilket är fel datum att ordna ett
+ * kvittoarkiv efter — man minns när man handlade, inte när man råkade fotografera.
+ * Ofärdiga kvitton står inte här utan i aktiviteten.
  */
 @Component({
   selector: 'app-arkiv',
-  host: { 'data-density': 'comfortable' },
+  host: { 'data-density': 'compact' },
   imports: [RouterLink, MenyComponent],
   templateUrl: './arkiv.component.html',
   styleUrl: './arkiv.component.css',
 })
 export class ArkivComponent {
   private readonly router = inject(Router);
-  /**
-   * Tolkningen på skrivbordet startas bara av ett tryck här. Ingen schemaläggning,
-   * ingen automatik: den här datorn arbetar när dess ägare säger till, och det är ett
-   * uttryckligt krav och inte en inställning.
-   */
   readonly tolkning = inject(TolkningService);
 
   readonly rader = signal<Rad[] | null>(null);
   readonly total = signal(0);
+  readonly butiker = signal<string[]>([]);
   readonly error = signal<string | null>(null);
 
-  /** Hur många kvitton som inte är klara. Bara siffran — tabellen bor i aktiviteten. */
+  readonly fraga = signal('');
+  readonly butik = signal('');
+  readonly fran = signal('');
+  readonly till = signal('');
+
+  /** Hur många kvitton som inte är klara. Siffran leder vidare, tabellen bor där. */
   readonly ofardiga = signal(0);
 
-  readonly fraga = signal('');
-  readonly traffar = signal<Traff[] | null>(null);
-  readonly soker = signal(false);
-
-  readonly grupper = computed<Grupp[]>(() => {
-    const list = this.rader();
-    if (!list) return [];
-    const out: Grupp[] = [];
-    for (const rad of list) {
-      const rubrik = dagrubrik(rad.capturedAt);
-      const sista = out.at(-1);
-      if (sista?.rubrik === rubrik) sista.rader.push(rad);
-      else out.push({ rubrik, rader: [rad] });
-    }
-    return out;
-  });
-
-  /** Serverns siffra, inte listans: kön kan vara längre än de hundra senaste. */
-  readonly otolkade = computed(() => this.tolkning.snapshot().vantande);
+  readonly filtrerat = computed(() => !!(this.fraga() || this.butik() || this.fran() || this.till()));
 
   constructor() {
     void this.load();
     void this.tolkning.rakna();
 
-    // Ett tolkat kvitto ska synas direkt, inte när tolkningen är helt klar — annars
-    // står skärmen och påstår att ingenting hänt i tio minuter.
-    //
-    // Första körningen hoppas över med flit: en effect kör en gång så fort den
-    // skapas, och utan det här hämtade varje sidladdning allt två gånger.
+    // Ett tolkat kvitto kan bli klart och ska då dyka upp här. Första körningen
+    // hoppas över: en effect kör en gång när den skapas, och utan det hämtade varje
+    // sidladdning allt två gånger.
     let forsta = true;
     effect(() => {
       this.tolkning.klaraTotalt();
@@ -90,19 +67,21 @@ export class ArkivComponent {
     });
   }
 
-  tolka(): Promise<void> {
-    return this.tolkning.kor();
-  }
-
   async load(): Promise<void> {
     this.error.set(null);
+    const p = new URLSearchParams();
+    if (this.fraga().trim()) p.set('q', this.fraga().trim());
+    if (this.butik()) p.set('butik', this.butik());
+    if (this.fran()) p.set('fran', this.fran());
+    if (this.till()) p.set('till', this.till());
     try {
-      const response = await fetch('/api/receipts?limit=100');
-      if (response.status === 401) return void this.router.navigateByUrl('/logga-in');
-      if (!response.ok) throw new Error(String(response.status));
-      const body = (await response.json()) as { total: number; receipts: Rad[] };
+      const svar = await fetch(`/api/receipts?${p.toString()}`);
+      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (!svar.ok) throw new Error(String(svar.status));
+      const body = (await svar.json()) as Svar;
       this.rader.set(body.receipts);
       this.total.set(body.total);
+      this.butiker.set(body.butiker);
       await this.raknaOfardiga();
     } catch {
       this.error.set('Kunde inte hämta kvittona. Är servern igång?');
@@ -119,48 +98,43 @@ export class ArkivComponent {
     this.fraga.set((event.target as HTMLInputElement).value);
   }
 
-  async sok(event: Event): Promise<void> {
+  valjButik(event: Event): void {
+    this.butik.set((event.target as HTMLSelectElement).value);
+    void this.load();
+  }
+
+  onFran(event: Event): void {
+    this.fran.set((event.target as HTMLInputElement).value);
+    void this.load();
+  }
+
+  onTill(event: Event): void {
+    this.till.set((event.target as HTMLInputElement).value);
+    void this.load();
+  }
+
+  sok(event: Event): void {
     event.preventDefault();
-    const q = this.fraga().trim();
-    if (!q) return this.rensa();
-    this.soker.set(true);
-    try {
-      const response = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      if (response.status === 401) return void this.router.navigateByUrl('/logga-in');
-      if (!response.ok) {
-        this.traffar.set([]);
-        return;
-      }
-      const body = (await response.json()) as { hits: Traff[] };
-      this.traffar.set(body.hits);
-    } catch {
-      this.error.set('Sökningen gick inte att köra.');
-    } finally {
-      this.soker.set(false);
-    }
+    void this.load();
   }
 
   rensa(): void {
     this.fraga.set('');
-    this.traffar.set(null);
+    this.butik.set('');
+    this.fran.set('');
+    this.till.set('');
+    void this.load();
   }
 
-  klocka(iso: string): string {
-    return new Date(iso).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+  tolka(): Promise<void> {
+    return this.tolkning.kor();
   }
 
-  datum(iso: string): string {
-    return new Date(iso).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' });
+  belopp(rad: Rad): string {
+    return rad.total === null ? '—' : rad.total.toFixed(2).replace('.', ',');
   }
 
-}
-
-function dagrubrik(iso: string): string {
-  const d = new Date(iso);
-  const idag = new Date();
-  const igar = new Date(idag);
-  igar.setDate(igar.getDate() - 1);
-  if (d.toDateString() === idag.toDateString()) return 'I DAG';
-  if (d.toDateString() === igar.toDateString()) return 'I GÅR';
-  return d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' }).toUpperCase();
+  fangat(iso: string): string {
+    return new Date(iso).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
 }

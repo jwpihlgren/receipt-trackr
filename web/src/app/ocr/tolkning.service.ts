@@ -115,6 +115,30 @@ export class TolkningService {
     }
   }
 
+  /**
+   * Tolkar ett bestämt kvitto direkt.
+   *
+   * *Läs om bilden* la tidigare tillbaka kvittot i kön och lämnade användaren att
+   * trycka *Tolka här* — två steg av en handling, och det andra steget syntes inte.
+   * Nu läser den här webbläsaren om bilden på fläcken.
+   */
+  async koraEtt(id: string): Promise<void> {
+    if (this.lage().kor) return;
+    this.stoppa = false;
+    this.lage.update((l) => ({ ...l, kor: true, fel: null, klaraIPasset: 0, aktuellt: id }));
+    try {
+      const jobb = await this.hamta(id);
+      const mitt = jobb.find((j) => j.id === id);
+      if (!mitt) throw new Error('Kvittot var inte ledigt för tolkning.');
+      await this.tolkaEtt(mitt);
+    } catch (fel) {
+      this.lage.update((l) => ({ ...l, fel: (fel as Error).message }));
+    } finally {
+      this.lage.update((l) => ({ ...l, kor: false, aktuellt: null, steg: null }));
+      await this.rakna();
+    }
+  }
+
   /** Stannar efter det kvitto som pågår. Ett halvtolkat kvitto lämnas aldrig. */
   stanna(): void {
     this.stoppa = true;
@@ -146,11 +170,11 @@ export class TolkningService {
     this.stanna();
   }
 
-  private async hamta(): Promise<Jobb[]> {
+  private async hamta(id?: string): Promise<Jobb[]> {
     const svar = await fetch('/api/jobb/hamta', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ arbetare: this.arbetare, antal: 1 }),
+      body: JSON.stringify({ arbetare: this.arbetare, antal: 1, ...(id ? { id } : {}) }),
     });
     if (!svar.ok) return [];
     return ((await svar.json()) as { jobb: Jobb[] }).jobb;

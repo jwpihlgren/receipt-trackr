@@ -6,7 +6,7 @@ import sharp from "sharp";
 import { Archive, ConflictError } from "../src/store/archive.js";
 import { receiptDir, sidecarPath } from "../src/store/paths.js";
 import { ulid } from "../src/store/ulid.js";
-import { count, search } from "../src/store/index-db.js";
+import { arkiv, count } from "../src/store/index-db.js";
 import type { Receipt } from "../src/store/sidecar.js";
 
 const jpeg = (width = 600, height = 800): Promise<Buffer> =>
@@ -161,14 +161,29 @@ describe("fritextsöket", () => {
       const id = ulid();
       const { receipt } = await archive.create({ id });
       // Så här ser OCR-texten ut i verkligheten: å blev ä. Sökningen måste ändå träffa.
-      const withText: Receipt = { ...receipt, text: "BAUHAUS\näterköp av kakel\nATT BETALA 4218,50" };
+      // Kvittot görs komplett — arkivfrågan visar bara klara kvitton, och ofärdiga
+      // hör hemma i aktiviteten.
+      const komplett: Receipt = {
+        ...receipt,
+        segments: [{ file: "segment-01.jpg", sha256: "x", bytes: 1, width: 1, height: 1 }],
+        expectedSegments: 1,
+        completedAt: new Date().toISOString(),
+        ocr: { teckenPerRad: 11 },
+        fields: {
+          store: { value: "Bauhaus", confidence: 1, source: "ocr" },
+          date: { value: "2026-04-11", confidence: 1, source: "ocr" },
+          total: { value: 4218.5, confidence: 1, source: "ocr" },
+        },
+        text: "BAUHAUS\näterköp av kakel\nATT BETALA 4218,50",
+      };
       const { upsert } = await import("../src/store/index-db.js");
-      upsert(archive.db, withText);
+      upsert(archive.db, komplett);
 
-      expect(search(archive.db, '"återköp"').map((h) => h.id)).toEqual([id]);
-      expect(search(archive.db, '"aterkop"').map((h) => h.id)).toEqual([id]);
-      expect(search(archive.db, '"kakel"')).toHaveLength(1);
-      expect(search(archive.db, '"skruvmejsel"')).toHaveLength(0);
+      const sok = (q: string) => arkiv(archive.db, { q }).receipts.map((r) => r.id);
+      expect(sok('"återköp"')).toEqual([id]);
+      expect(sok('"aterkop"')).toEqual([id]);
+      expect(sok('"kakel"')).toHaveLength(1);
+      expect(sok('"skruvmejsel"')).toHaveLength(0);
     } finally {
       archive.close();
     }

@@ -170,17 +170,6 @@ export function pendingOcrCount(db: ReceiptIndex): number {
   return row.n;
 }
 
-export type SearchHit = {
-  id: string;
-  capturedAt: string;
-  segments: number;
-  store: string | null;
-  date: string | null;
-  total: number | null;
-  currency: string | null;
-  snippet: string;
-};
-
 /**
  * Användarens text är inte FTS5-syntax. Varje ord citeras för sig och binds ihop med
  * AND — inte hela frågan som en fras, för då kräver "kakel badrum" att orden står
@@ -195,53 +184,89 @@ export function ftsQuery(raw: string): string {
   return terms.join(" AND ");
 }
 
-export function search(db: ReceiptIndex, query: string, limit = 50): SearchHit[] {
-  return db
-    .prepare(
-      `SELECT r.id AS id, r.captured_at AS capturedAt, r.segments AS segments,
-              r.store AS store, r.date AS date, r.total AS total, r.currency AS currency,
-              snippet(receipts_fts, 0, '[', ']', '…', 12) AS snippet
-       FROM receipts_fts f JOIN receipts r ON r.id = f.id
-       WHERE receipts_fts MATCH ?
-       ORDER BY rank
-       LIMIT ?`,
-    )
-    .all(query, limit) as SearchHit[];
-}
-
-export type ReceiptRow = {
+export type ArkivRad = {
   id: string;
-  capturedAt: string;
-  segments: number;
-  store: string | null;
+  /** Kvittots eget datum — det man handlade. Sorteringen går på det, inte på fångsten. */
   date: string | null;
+  store: string | null;
   total: number | null;
   currency: string | null;
-  /**
-   * Hur många tecken texten har. Noll betyder otolkat.
-   *
-   * Raden behöver den, och skälet är ett fel den här listan hade: den visade `store`
-   * som enda tecken på att något hänt, och `store` fylls först av fältutvinningen i
-   * M6. Tolkningen kunde alltså läsa hela kvittot utan att det syntes någonstans, och
-   * det såg ut som att ingenting fungerade. Texten finns före fälten, och då ska den
-   * också gå att se.
-   */
-  tecken: number;
+  capturedAt: string;
+  segments: number;
+  snippet: string | null;
 };
 
-/** Senaste kvittona, nyast först. Indexet har redan sorteringen som kolumn. */
-export function recent(db: ReceiptIndex, limit = 50, before?: string): ReceiptRow[] {
-  const where = before ? "WHERE r.captured_at < ?" : "";
-  const params = before ? [before, limit] : [limit];
-  return db
+export type ArkivFraga = { q?: string; butik?: string; fran?: string; till?: string; limit?: number };
+
+/**
+ * Arkivet: klara kvitton, filtrerade, nyaste köp först.
+ *
+ * Fritexten och filtren bor i samma fråga med flit. De låg i var sin rutt, och då gick
+ * det inte att söka på ett ord *och* begränsa till en butik — vilket är det första man
+ * vill göra så fort högen blivit stor nog att söka i.
+ *
+ * Ofärdiga kvitton står inte här. De hör till aktiviteten; blandas de in blir arkivet
+ * en lista där en del av raderna saknar just det man letar efter.
+ */
+export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; receipts: ArkivRad[] } {
+  const villkor: string[] = [KLAR];
+  const params: unknown[] = [];
+  if (fraga.q) {
+    villkor.push("receipts_fts MATCH ?");
+    params.push(fraga.q);
+  }
+  if (fraga.butik) {
+    villkor.push("r.store = ?");
+    params.push(fraga.butik);
+  }
+  if (fraga.fran) {
+    villkor.push("r.date >= ?");
+    params.push(fraga.fran);
+  }
+  if (fraga.till) {
+    villkor.push("r.date <= ?");
+    params.push(fraga.till);
+  }
+  const where = villkor.join(" AND ");
+  const from = "FROM receipts r JOIN receipts_fts f ON f.id = r.id";
+
+  const total = (db.prepare(`SELECT COUNT(*) AS n ${from} WHERE ${where}`).get(...params) as { n: number }).n;
+  const receipts = db
     .prepare(
-      `SELECT r.id AS id, r.captured_at AS capturedAt, r.segments AS segments,
-              r.store AS store, r.date AS date, r.total AS total, r.currency AS currency,
-              length(f.text) AS tecken
-       FROM receipts r LEFT JOIN receipts_fts f ON f.id = r.id
-       ${where} ORDER BY r.captured_at DESC LIMIT ?`,
+      `SELECT r.id AS id, r.date AS date, r.store AS store, r.total AS total,
+              r.currency AS currency, r.captured_at AS capturedAt, r.segments AS segments,
+              ${fraga.q ? "snippet(receipts_fts, 0, '[', ']', '…', 12)" : "NULL"} AS snippet
+         ${from} WHERE ${where}
+        ORDER BY r.date DESC, r.captured_at DESC
+        LIMIT ?`,
     )
-    .all(...params) as ReceiptRow[];
+    .all(...params, Math.min(Math.max(fraga.limit ?? 200, 1), 1000)) as ArkivRad[];
+  return { total, receipts };
+}
+
+/** Butikerna som faktiskt finns i arkivet — filtrets alternativ, inte en påhittad lista. */
+export function butiker(db: ReceiptIndex): string[] {
+  return (
+    db
+      .prepare(
+        `SELECT DISTINCT r.store AS store FROM receipts r JOIN receipts_fts f ON f.id = r.id
+          WHERE ${KLAR} AND r.store IS NOT NULL ORDER BY r.store COLLATE NOCASE`,
+      )
+      .all() as { store: string }[]
+  ).map((r) => r.store);
+}
+
+/**
+ * Rader vars kvitto inte längre finns på disken.
+ *
+ * `upsert` sätter `indexed_at` på varje kvitto den ser, så allt äldre än ombyggnadens
+ * start saknar motsvarighet i `receipts/`. Utan det här skulle ett raderat kvitto leva
+ * kvar i listorna som en rad som ger 404 när man klickar på den.
+ */
+export function rensaAldreAn(db: ReceiptIndex, tidpunkt: string): number {
+  const rader = db.prepare("SELECT id FROM receipts WHERE indexed_at < ?").all(tidpunkt) as { id: string }[];
+  for (const rad of rader) remove(db, rad.id);
+  return rader.length;
 }
 
 export const count = (db: ReceiptIndex): number =>
@@ -266,6 +291,20 @@ export type Lage = "bilder" | "ofullstandig" | "vantar" | "utan_text" | "svag_te
  * hög konfidensen än råkar vara.
  */
 const TECKEN_PER_RAD_GRANS = 7;
+
+/**
+ * Vad det innebär att ett kvitto är klart, skrivet en gång.
+ *
+ * Arkivlistan visar det som uppfyller det här; aktiviteten visar allt annat. Två
+ * ställen som frågar om samma sak måste fråga likadant, annars finns kvitton som
+ * varken syns i den ena listan eller den andra.
+ */
+const KLAR = `(
+  r.expected IS NOT NULL AND r.segments >= r.expected
+  AND r.tolkad = 1 AND length(f.text) > 0
+  AND r.store IS NOT NULL AND r.date IS NOT NULL AND r.total IS NOT NULL
+  AND (r.tecken_per_rad IS NULL OR r.tecken_per_rad >= ${TECKEN_PER_RAD_GRANS} OR r.manuella = 3)
+)`;
 
 export type Ofardigt = KvittoRad & {
   lage: Lage;
@@ -297,13 +336,7 @@ export function ofardiga(db: ReceiptIndex, limit = 500): Ofardigt[] {
               r.tecken_per_rad AS teckenPerRad, r.manuella AS manuella, length(f.text) AS tecken
          FROM receipts r
          JOIN receipts_fts f ON f.id = r.id
-        WHERE NOT (
-                r.expected IS NOT NULL AND r.segments >= r.expected
-                AND r.tolkad = 1 AND length(f.text) > 0
-                AND r.store IS NOT NULL AND r.date IS NOT NULL AND r.total IS NOT NULL
-                AND (r.tecken_per_rad IS NULL OR r.tecken_per_rad >= ${TECKEN_PER_RAD_GRANS}
-                     OR r.manuella = 3)
-              )
+        WHERE NOT ${KLAR}
         ORDER BY r.captured_at DESC
         LIMIT ?`,
     )

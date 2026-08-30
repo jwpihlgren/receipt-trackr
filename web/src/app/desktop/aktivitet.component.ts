@@ -70,6 +70,8 @@ export class AktivitetComponent {
   }
 
   readonly arbetar = signal(false);
+  /** Vilket kvitto som just nu läses om här. Raden visar en snurra i stället för knappen. */
+  readonly arbetarMed = signal<string | null>(null);
 
   /**
    * Räknar om fälten ur texten som redan lästs, för hela arkivet. Billigt: ingen bild
@@ -90,20 +92,26 @@ export class AktivitetComponent {
   }
 
   /**
-   * Läser om bilden: kastar texten så att kvittot hamnar i tolkningskön igen. Dyrt,
-   * och den enda vägen när det som lästes inte går att lita på.
+   * Läser om bilden och tolkar den på fläcken, i den här webbläsaren.
+   *
+   * Det var tidigare två steg: kvittot lades tillbaka i kön och användaren fick trycka
+   * *Tolka här*. Ett tryck är en handling — den som pekat på ett kvitto har redan sagt
+   * vad hen vill, och att kön existerar är inte hens problem.
    */
   async lasOm(id: string): Promise<void> {
     this.arbetar.set(true);
+    this.arbetarMed.set(id);
     try {
       const svar = await fetch(`/api/receipts/${id}/lasom`, { method: 'POST' });
       if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
       if (!svar.ok) throw new Error(String(svar.status));
+      await this.tolkning.koraEtt(id);
       await this.tolkning.rakna();
       await this.load();
     } catch {
-      this.error.set('Kvittot gick inte att lägga tillbaka i kön.');
+      this.error.set('Kvittot gick inte att tolka om.');
     } finally {
+      this.arbetarMed.set(null);
       this.arbetar.set(false);
     }
   }

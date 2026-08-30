@@ -31,17 +31,24 @@ export function registerJobb(app: FastifyInstance, archive: Archive, reservation
     reserverade: reservationer.antal(),
   }));
 
-  app.post<{ Body: { antal?: number; arbetare?: string } }>("/api/jobb/hamta", async (request, reply) => {
+  app.post<{ Body: { antal?: number; arbetare?: string; id?: string } }>("/api/jobb/hamta", async (request, reply) => {
     const arbetare = request.body?.arbetare?.trim();
     if (!arbetare) {
       return reply.code(400).send({ error: "missing_arbetare", message: "Klienten ska säga vem den är." });
     }
     const antal = Math.min(Math.max(Number(request.body?.antal ?? 1) || 1, 1), 5);
 
-    // Hämtar fler kandidater än som ska delas ut: några av dem är redan reserverade.
-    const kandidater = pendingOcr(archive.db, antal * 4).filter((k) => !reservationer.reserverad(k.id));
+    // Ett `id` betyder "just det här kvittot, nu". Det är vad *Läs om bilden* gör: en
+    // människa har pekat på ett kvitto och ska inte behöva vänta på att kön råkar
+    // komma dit. Kön i övrigt fungerar likadant — utdelningen är fortfarande serverns
+    // enda uppgift, och det är fortfarande klienten som räknar.
+    const onskat = request.body?.id?.trim();
+    const kandidater = onskat
+      ? pendingOcr(archive.db, 1000).filter((k) => k.id === onskat && !reservationer.reserverad(k.id))
+      : // Hämtar fler kandidater än som ska delas ut: några av dem är redan reserverade.
+        pendingOcr(archive.db, antal * 4).filter((k) => !reservationer.reserverad(k.id));
     const givna = reservationer.reservera(
-      kandidater.slice(0, antal).map((k) => k.id),
+      kandidater.slice(0, onskat ? 1 : antal).map((k) => k.id),
       arbetare,
     );
 

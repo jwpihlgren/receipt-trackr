@@ -59,7 +59,7 @@ export class CaptureComponent {
   constructor() {
     this.queue.start();
     // Direktnavigering hit utan påbörjad fångst har ingenting att visa.
-    if (this.flow.shots().length === 0) void this.router.navigateByUrl('/kvitton');
+    if (this.flow.shots().length === 0) void this.router.navigateByUrl('/telefon/kvitton');
   }
 
   isConfirmed(index: number): boolean {
@@ -107,13 +107,13 @@ export class CaptureComponent {
 
   async fardig(): Promise<void> {
     this.slappKort();
-    await this.router.navigateByUrl('/kvitton');
+    await this.router.navigateByUrl('/telefon/kvitton');
   }
 
   async avbryt(): Promise<void> {
     // Bilderna ligger kvar i kön och laddas upp ändå — de är oåterkalleliga.
     this.flow.reset();
-    await this.router.navigateByUrl('/kvitton');
+    await this.router.navigateByUrl('/telefon/kvitton');
   }
 
   private slappKort(): void {

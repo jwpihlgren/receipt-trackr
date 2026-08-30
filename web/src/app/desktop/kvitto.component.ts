@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MenyComponent } from '../shared/meny.component';
+import { TolkningService } from '../ocr/tolkning.service';
 
 type Segment = { file: string; sha256: string; bytes: number; width: number; height: number };
 
@@ -52,6 +53,8 @@ type Receipt = {
 export class KvittoComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  readonly tolkning = inject(TolkningService);
+  readonly tolkar = signal(false);
 
   readonly receipt = signal<Receipt | null>(null);
   readonly error = signal<string | null>(null);
@@ -143,10 +146,16 @@ export class KvittoComponent {
         body: JSON.stringify({ rattelser }),
       });
       if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (svar.status === 400) {
+        const { message } = (await svar.json()) as { message?: string };
+        this.error.set(message ?? 'Värdet gick inte att spara.');
+        return;
+      }
       if (!svar.ok) throw new Error(String(svar.status));
       this.receipt.set((await svar.json()) as Receipt);
       this.fyllUtkast();
       this.sparat.set(true);
+      this.error.set(null);
     } catch {
       this.error.set('Rättelsen gick inte att spara.');
     } finally {
@@ -154,18 +163,58 @@ export class KvittoComponent {
     }
   }
 
-  /** Lägger kvittot i tolkningskön igen. Bilderna är kvar; texten räknas om. */
+  /** Tolkar kvittot här och nu, i den här webbläsaren. */
+  async tolkaNu(): Promise<void> {
+    this.tolkar.set(true);
+    try {
+      await this.tolkning.koraEtt(this.id());
+      await this.load();
+    } catch {
+      this.error.set('Tolkningen gick inte att köra.');
+    } finally {
+      this.tolkar.set(false);
+    }
+  }
+
+  /** Kastar texten och läser om bilden direkt. Bilderna är kvar; rättelser också. */
   async lasOm(): Promise<void> {
-    this.sparar.set(true);
+    this.tolkar.set(true);
     try {
       const svar = await fetch(`/api/receipts/${this.id()}/lasom`, { method: 'POST' });
       if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
       if (!svar.ok) throw new Error(String(svar.status));
-      this.receipt.set((await svar.json()) as Receipt);
-      this.fyllUtkast();
+      await this.tolkning.koraEtt(this.id());
+      await this.load();
     } catch {
-      this.error.set('Kvittot gick inte att lägga tillbaka i kön.');
+      this.error.set('Kvittot gick inte att läsa om.');
     } finally {
+      this.tolkar.set(false);
+    }
+  }
+
+  readonly vissRadera = signal(false);
+
+  /**
+   * Två steg med flit. Bilderna finns ingen annanstans och papperet är slängt, så det
+   * här är den enda handlingen i appen som inte går att ta tillbaka.
+   */
+  fragaRadera(): void {
+    this.vissRadera.set(true);
+  }
+
+  avbrytRadera(): void {
+    this.vissRadera.set(false);
+  }
+
+  async radera(): Promise<void> {
+    this.sparar.set(true);
+    try {
+      const svar = await fetch(`/api/receipts/${this.id()}`, { method: 'DELETE' });
+      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (!svar.ok && svar.status !== 404) throw new Error(String(svar.status));
+      await this.router.navigateByUrl('/dator/kvitton');
+    } catch {
+      this.error.set('Kvittot gick inte att ta bort.');
       this.sparar.set(false);
     }
   }

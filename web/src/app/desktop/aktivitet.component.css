@@ -108,3 +108,21 @@ tbody tr:last-child td { border-bottom: none; }
   background: var(--surface);
   color: var(--danger);
 }
+
+/* Snurran finns för att en tolkning tar ett par sekunder och tystnad då läses som
+   att ingenting händer. Stillastående vid reducerad rörelse — se base.css. */
+.snurra {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  border: 2px solid var(--line-strong);
+  border-block-start-color: var(--accent);
+  border-radius: 50%;
+  animation: snurr 0.8s linear infinite;
+}
+
+.snurra.liten { width: 14px; height: 14px; border-width: 2px; }
+
+@keyframes snurr {
+  to { transform: rotate(360deg); }
+}

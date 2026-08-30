@@ -6,7 +6,7 @@
   </header>
 
   @if (kvarText(); as text) {
-    <a class="remsa" [class.illa]="kvarIlla()" routerLink="/uppladdning">
+    <a class="remsa" [class.illa]="kvarIlla()" routerLink="/telefon/uppladdning">
       @if (kvarIlla()) {
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
       } @else {
@@ -55,7 +55,7 @@
           <ul class="lista">
             @for (rad of grupp.rader; track rad.id) {
               <li>
-                <a class="rad" [routerLink]="['/kvitto', rad.id]">
+                <a class="rad" [routerLink]="['/dator/kvitto', rad.id]">
                   <img class="tumnagel" [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
                   <span class="text">
                     <span class="huvud">{{ rad.store ?? klocka(rad.capturedAt) }}</span>

@@ -1,135 +1,88 @@
 <div class="yta">
   <header class="topp">
     <app-meny lage="dator" />
-    <span class="marke">Kvittoarkiv</span>
+    <h1>Kvitton</h1>
+    <span class="tyst num">{{ total() }}{{ filtrerat() ? ' träffar' : ' kvitton' }}</span>
   </header>
 
-  <main class="kolumn">
-    <div class="rubrik">
-      <h1>Kvitton</h1>
-      <span class="antal num">{{ total() }} i arkivet</span>
+  @if (ofardiga() > 0) {
+    <div class="remsa">
+      <span class="remstext">
+        {{ ofardiga() }} {{ ofardiga() === 1 ? 'kvitto är' : 'kvitton är' }} inte klara
+      </span>
+      <a class="knapp primar" routerLink="/dator/aktivitet">Aktivitet</a>
+    </div>
+  }
+
+  <form class="filter" (submit)="sok($event)">
+    <div class="falt sokfalt">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+      <input type="search" [value]="fraga()" (input)="onFraga($event)" placeholder="Sök i texten" aria-label="Sök i kvittonas text" />
     </div>
 
-    <form class="sok" (submit)="sok($event)">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-      <input
-        type="search"
-        [value]="fraga()"
-        (input)="onFraga($event)"
-        placeholder="Sök i kvittonas text"
-        aria-label="Sök i kvittonas text"
-      />
-      @if (traffar() !== null) {
-        <button type="button" class="rensa" (click)="rensa()" aria-label="Rensa sökningen">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-        </button>
-      }
-    </form>
+    <label class="falt">
+      <span class="etikett">Butik</span>
+      <select [value]="butik()" (change)="valjButik($event)">
+        <option value="">Alla</option>
+        @for (b of butiker(); track b) { <option [value]="b">{{ b }}</option> }
+      </select>
+    </label>
 
-    @if (error(); as message) {
-      <p class="fel" role="alert">{{ message }} <button type="button" (click)="load()">Försök igen</button></p>
-    }
+    <label class="falt">
+      <span class="etikett">Från</span>
+      <input type="date" [value]="fran()" (change)="onFran($event)" />
+    </label>
 
-    @if (traffar(); as hits) {
+    <label class="falt">
+      <span class="etikett">Till</span>
+      <input type="date" [value]="till()" (change)="onTill($event)" />
+    </label>
 
-      <div class="traffhuvud">
-        <span>{{ hits.length }} {{ hits.length === 1 ? 'träff' : 'träffar' }}</span>
-        <span class="tyst">Sökningen bortser från prickar över bokstäverna — «kanelbullé» hittas också.</span>
-      </div>
+    <button type="submit" class="knapp">Sök</button>
+    @if (filtrerat()) { <button type="button" class="knapp" (click)="rensa()">Rensa</button> }
+  </form>
 
-      @if (hits.length === 0) {
-        <p class="tyst">Inget matchar «{{ fraga() }}».</p>
-      }
+  @if (error(); as message) {
+    <p class="fel" role="alert">{{ message }} <button type="button" (click)="load()">Försök igen</button></p>
+  }
 
-      <div class="traffar">
-        @for (hit of hits; track hit.id) {
-          <a class="traff" [routerLink]="['/kvitto', hit.id]">
-            <img class="tumnagel" [src]="'/api/receipts/' + hit.id + '/thumbs/1'" alt="" loading="lazy" />
-            <div class="traffext">
-              <div class="traffrad">
-                <strong>{{ hit.store ?? 'Okänd butik' }}</strong>
-                <span class="tyst">{{ datum(hit.capturedAt) }}@if (hit.total !== null) { · {{ hit.total }} kr }</span>
-              </div>
-              <span class="snippet ocr-text">{{ hit.snippet }}</span>
-            </div>
-          </a>
-        }
-      </div>
-
+  <main class="innehall">
+    @if (rader() === null) {
+      <p class="tyst">Hämtar …</p>
+    } @else if (rader()!.length === 0) {
+      <p class="tyst">{{ filtrerat() ? 'Inget kvitto matchar filtret.' : 'Inga klara kvitton än.' }}</p>
     } @else {
-
-      @if (tolkning.snapshot().kor) {
-        <div class="tolkremsa">
-          <div class="tolkrad">
-            <span class="tolktext">
-              Tolkar här · {{ tolkning.snapshot().klaraIPasset }} klara, {{ otolkade() }} kvar
-            </span>
-            <button type="button" class="tolkknapp" (click)="tolkning.stanna()">Sluta efter det här</button>
-          </div>
-          <span class="tyst">{{ tolkning.snapshot().steg ?? 'Arbetar …' }} · datorn tolkar bara medan den här fliken är öppen.</span>
-        </div>
-      } @else if (otolkade() > 0) {
-        <div class="tolkremsa">
-          <div class="tolkrad">
-            <span class="tolktext">{{ otolkade() }} {{ otolkade() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
-            <button type="button" class="tolkknapp primar" (click)="tolka()">Tolka här</button>
-          </div>
-        </div>
-      }
-
-      @if (ofardiga() > 0) {
-        <div class="tolkremsa">
-          <div class="tolkrad">
-            <span class="tolktext">
-              {{ ofardiga() }} {{ ofardiga() === 1 ? 'kvitto är' : 'kvitton är' }} inte klara
-            </span>
-            <a class="tolkknapp primar" routerLink="/aktivitet">Aktivitet</a>
-          </div>
-        </div>
-      }
-
-      @if (tolkning.snapshot().fel; as fel) {
-        <p class="fel" role="alert">Tolkningen stannade: {{ fel }}</p>
-      }
-
-      @if (rader() === null) {
-        <p class="tyst">Hämtar …</p>
-      } @else {
-        @if (grupper().length === 0) {
-          <div class="tomt">
-            <h2>Inga kvitton än</h2>
-            <p>Fotografera det första med telefonen. Det dyker upp här av sig självt.</p>
-          </div>
-        }
-        @for (grupp of grupper(); track grupp.rubrik) {
-          <h2 class="dag">{{ grupp.rubrik }}</h2>
-          <div class="lista">
-            @for (rad of grupp.rader; track rad.id) {
-              <a class="rad" [routerLink]="['/kvitto', rad.id]">
-                <img class="tumnagel" [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
-                <div class="tid">
-                  <span>{{ klocka(rad.capturedAt) }}</span>
-                  <span class="tyst">{{ rad.segments }} {{ rad.segments === 1 ? 'bild' : 'bilder' }}</span>
-                </div>
-                <span class="butik">
-                  @if (rad.store) {
-                    {{ rad.store }}@if (rad.total !== null) { <span class="tyst"> · {{ rad.total }} kr</span> }
-                  } @else if (rad.tecken > 0) {
-                    <span class="tolkad">Tolkad</span>
-                    <span class="tyst">· {{ rad.tecken }} tecken · ingen butik hittades i texten</span>
-                  } @else {
-                    <span class="tyst">Inte tolkat än</span>
-                  }
-                </span>
-                <span class="lage klar">
-                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5 5L20 7" /></svg>
-                  i arkivet
-                </span>
-              </a>
-            }
-          </div>
-        }
-      }
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" class="bildkol"><span class="sr-only">Bild</span></th>
+            <th scope="col">Datum</th>
+            <th scope="col">Butik</th>
+            <th scope="col" class="talkol">Belopp</th>
+            <th scope="col">Bilder</th>
+            <th scope="col">Fångat</th>
+            <th scope="col"><span class="sr-only">Öppna</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (rad of rader(); track rad.id) {
+            <tr>
+              <td class="bildkol">
+                <img [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
+              </td>
+              <td class="num">{{ rad.date }}</td>
+              <td>
+                {{ rad.store }}
+                @if (rad.snippet) { <span class="snippet ocr-text">{{ rad.snippet }}</span> }
+              </td>
+              <td class="talkol num">{{ belopp(rad) }} kr</td>
+              <td class="num">{{ rad.segments }}</td>
+              <td class="tyst num">{{ fangat(rad.capturedAt) }}</td>
+              <td class="atgard"><a [routerLink]="['/dator/kvitto', rad.id]">Öppna</a></td>
+            </tr>
+          }
+        </tbody>
+      </table>
     }
   </main>
 </div>

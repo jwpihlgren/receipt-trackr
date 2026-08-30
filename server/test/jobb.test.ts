@@ -140,13 +140,15 @@ describe("jobbrutterna", () => {
       method: "POST",
       url: `/api/jobb/${ID}`,
       headers: { cookie },
-      payload: { text: "COOP KONSUM kanelbulle 12,00 SUMMA 284,50", ocr: null },
+      // Datumet och summan måste gå att läsa: arkivet visar klara kvitton, och ett
+      // kvitto utan fält står i aktiviteten i stället.
+      payload: { text: "COOP KONSUM\n2026-08-29\nkanelbulle 12,00\nSUMMA 284,50", ocr: { teckenPerRad: 11 } },
     });
 
     // Sökningen bortser från prickar: OCR förväxlar å/ä/ö åt båda hållen.
-    const traff = await app.inject({ method: "GET", url: "/api/search?q=kanelbullé", headers: { cookie } });
+    const traff = await app.inject({ method: "GET", url: "/api/receipts?q=kanelbullé", headers: { cookie } });
     expect(traff.statusCode).toBe(200);
-    expect(traff.json().hits.map((h: { id: string }) => h.id)).toContain(ID);
+    expect(traff.json().receipts.map((h: { id: string }) => h.id)).toContain(ID);
   });
 
   it("tar emot ett svar även efter att reservationen gått ut — arbetet är ändå gjort", async () => {

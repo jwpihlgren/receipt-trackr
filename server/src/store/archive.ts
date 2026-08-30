@@ -3,12 +3,12 @@
  * mellan sidecar och index får bara finnas på ett ställe, annars glöms den bort en
  * gång och då är disken och indexet oense utan att någon märker det.
  */
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { indexPath, receiptDir, RECEIPTS_DIR } from "./paths.js";
 import { newReceipt, readSidecar, writeSidecar, type Receipt, type Segment, type Verdict } from "./sidecar.js";
 import { saveSegment, ImageError } from "./images.js";
-import { dragbara, openIndex, upsert, type ReceiptIndex } from "./index-db.js";
+import { dragbara, openIndex, remove, rensaAldreAn, upsert, type ReceiptIndex } from "./index-db.js";
 import { utvinnUtanAttSkrivaOver, type Falten } from "../falt/index.js";
 
 export class ConflictError extends Error {}
@@ -129,20 +129,42 @@ export class Archive {
   }
 
   /**
+   * Raderar ett kvitto och allt som hör till det: bilderna, sidecaren, tumnaglarna.
+   *
+   * **Oåterkalleligt.** Bilderna är sanningen i det här arkivet och finns ingen
+   * annanstans; papperet är för länge sedan slängt. Det finns ingen papperskorg, för
+   * en dold sådan hade varit att svara något annat än det som efterfrågades.
+   *
+   * Ordningen är omvänd mot all annan skrivning här, och det är avsiktligt: indexet
+   * först, filerna sedan. Kraschar det däremellan ligger bilderna kvar utan rad i
+   * indexet, och `reindex` tar tillbaka dem — en misslyckad radering. Görs det åt
+   * andra hållet blir följden i stället en rad som pekar på filer som inte finns.
+   * Av de två felen är det första det harmlösa.
+   */
+  async taBort(id: string): Promise<{ borttaget: boolean }> {
+    const receipt = await this.get(id);
+    if (!receipt) return { borttaget: false };
+    remove(this.db, id);
+    await rm(receiptDir(this.dataDir, id), { recursive: true, force: true });
+    return { borttaget: true };
+  }
+
+  /**
    * Bygger indexet från disken. Det är återställningsvägen (krav 56) och samtidigt
    * konsistenstestet: ett index byggt så här ska vara identiskt med det som växt fram
    * inkrementellt. Går en sidecar inte att läsa hoppas den över och räknas — en
    * trasig fil ska inte stoppa ombyggnaden av tiotusen andra.
    */
-  async reindex(): Promise<{ indexed: number; skipped: string[] }> {
+  async reindex(): Promise<{ indexed: number; skipped: string[]; rensade: number }> {
     const root = join(this.dataDir, RECEIPTS_DIR);
     let entries: string[];
     try {
       entries = await readdir(root, { recursive: true });
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return { indexed: 0, skipped: [] };
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return { indexed: 0, skipped: [], rensade: 0 };
       throw error;
     }
+    const start = new Date().toISOString();
     const skipped: string[] = [];
     let indexed = 0;
     for (const entry of entries) {
@@ -155,7 +177,10 @@ export class Archive {
         skipped.push(entry);
       }
     }
-    return { indexed, skipped };
+    // Rader vars kvitto inte längre finns kvar på disken städas bort. Utan det skulle
+    // ett raderat kvitto överleva i listorna som en rad som ger 404 när man klickar.
+    const rensade = rensaAldreAn(this.db, start);
+    return { indexed, skipped, rensade };
   }
 
   /**

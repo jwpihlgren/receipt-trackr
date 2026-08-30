@@ -1,7 +1,7 @@
 <div class="yta">
   <header class="topp">
     <app-meny lage="dator" />
-    <a class="tillbaka" routerLink="/arkiv">
+    <a class="tillbaka" routerLink="/dator/kvitton">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
       Kvitton
     </a>
@@ -57,7 +57,12 @@
         @if (!harText()) {
           <div class="notis">
             <strong>Inte tolkat än</strong>
-            <span>Telefonen tolkar av sig själv när appen är öppen. Vid datorn gör du det med <em>Tolka här</em> i arkivet.</span>
+            <div class="sparrad">
+              <button type="button" class="primar" [disabled]="tolkar()" (click)="tolkaNu()">
+                @if (tolkar()) { <span class="snurra" aria-hidden="true"></span> }
+                {{ tolkar() ? (tolkning.snapshot().steg ?? 'Tolkar …') : 'Tolka nu' }}
+              </button>
+            </div>
           </div>
         }
 
@@ -110,12 +115,30 @@
             </button>
             @if (sparat()) { <span class="sparat">Sparat</span> }
             @if (harText()) {
-              <button type="button" class="liten" [disabled]="sparar()" (click)="lasOm()">Läs om bilden</button>
+              <button type="button" class="liten" [disabled]="sparar() || tolkar()" (click)="lasOm()">
+                @if (tolkar()) { <span class="snurra" aria-hidden="true"></span> }
+                {{ tolkar() ? 'Läser …' : 'Läs om bilden' }}
+              </button>
             }
           </div>
         </div>
 
         <div class="avdelare"></div>
+
+        <div class="radera">
+          @if (vissRadera()) {
+            <p class="varning">
+              Kvittot och alla {{ r.segments.length }}
+              {{ r.segments.length === 1 ? 'bilden' : 'bilderna' }} tas bort för alltid.
+            </p>
+            <div class="sparrad">
+              <button type="button" class="farlig" [disabled]="sparar()" (click)="radera()">Ta bort</button>
+              <button type="button" class="liten" (click)="avbrytRadera()">Avbryt</button>
+            </div>
+          } @else {
+            <button type="button" class="lankknapp" (click)="fragaRadera()">Ta bort kvittot</button>
+          }
+        </div>
 
         <div class="falt">
           <span class="etikett">FÅNGAT</span>

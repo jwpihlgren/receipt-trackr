@@ -191,3 +191,52 @@
 .proveniens svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .proveniens.maskinell { color: var(--warn); }
 .proveniens.bekraftad { color: var(--ok); }
+
+/* ---- borttagning ------------------------------------------------------ */
+/* Sist i panelen och utan färg tills den är påkallad: den enda handlingen i appen
+   som inte går att ta tillbaka ska inte ligga bredvid Spara och se ut som en granne. */
+.radera { display: grid; gap: var(--space-3); }
+
+.lankknapp {
+  justify-self: start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink-faint);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lankknapp:hover { color: var(--danger); }
+.varning { margin: 0; color: var(--danger); font-size: var(--text-base); line-height: var(--leading-body); }
+
+.farlig {
+  min-height: var(--tap-comfort);
+  padding-inline: var(--space-5);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--danger);
+  color: var(--on-danger);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
+.farlig:disabled { opacity: 0.6; cursor: default; }
+
+.snurra {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-inline-end: var(--space-2);
+  border: 2px solid var(--line-strong);
+  border-block-start-color: currentColor;
+  border-radius: 50%;
+  animation: snurr 0.8s linear infinite;
+  vertical-align: -2px;
+}
+
+@keyframes snurr {
+  to { transform: rotate(360deg); }
+}

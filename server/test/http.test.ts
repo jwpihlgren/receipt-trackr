@@ -169,24 +169,25 @@ describe("kvitto-API:t", () => {
   it("söker på flera ord utan att kräva att de står intill varandra", async () => {
     const id = ulid();
     await app.inject({ method: "POST", url: "/api/receipts", payload: { id } });
-    const { Archive } = await import("../src/store/archive.js");
-    const { upsert } = await import("../src/store/index-db.js");
-    const archive = Archive.open(dir);
-    try {
-      const receipt = (await archive.get(id))!;
-      upsert(archive.db, { ...receipt, text: "BAUHAUS\nKAKEL VIT 20x25\nFOG TILL BADRUM\nATT BETALA 1240,00" });
-    } finally {
-      archive.close();
-    }
+    await app.inject({ method: "POST", url: `/api/receipts/${id}/segments/1`, ...multipart("file", "a.jpg", await jpeg()) });
+    await app.inject({ method: "POST", url: `/api/receipts/${id}/complete`, payload: { segments: 1 } });
+    await app.inject({
+      method: "POST",
+      url: `/api/jobb/${id}`,
+      payload: {
+        text: "BAUHAUS\n2026-04-11\nKAKEL VIT 20x25\nFOG TILL BADRUM\nATT BETALA 1240,00",
+        ocr: { teckenPerRad: 11 },
+      },
+    });
 
     // Kravställningens eget slutprov: orden står inte intill varandra på kvittot.
-    const hit = await app.inject({ method: "GET", url: "/api/search?q=kakel badrum" });
+    const hit = await app.inject({ method: "GET", url: "/api/receipts?q=kakel badrum" });
     expect(hit.statusCode).toBe(200);
-    expect(hit.json().hits).toHaveLength(1);
-    expect(hit.json().hits[0]).toMatchObject({ id });
+    expect(hit.json().receipts).toHaveLength(1);
+    expect(hit.json().receipts[0]).toMatchObject({ id });
 
     // En citerad fras ska däremot fortsätta vara en fras.
-    const phrase = await app.inject({ method: "GET", url: '/api/search?q="kakel badrum"' });
-    expect(phrase.json().hits).toHaveLength(0);
+    const phrase = await app.inject({ method: "GET", url: '/api/receipts?q="kakel badrum"' });
+    expect(phrase.json().receipts).toHaveLength(0);
   });
 });

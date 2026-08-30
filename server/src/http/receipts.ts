@@ -8,14 +8,15 @@ import { join } from "node:path";
 import { stat } from "node:fs/promises";
 import { Archive, ConflictError, ImageError } from "../store/archive.js";
 import { InvalidIdError, isSafeFileName } from "../store/paths.js";
+import { giltigt } from "../falt/datum.js";
 import {
+  arkiv,
+  butiker,
   count,
   ftsQuery,
+  ofardiga,
   ogranskatUrval,
   pendingOcrCount,
-  ofardiga,
-  recent,
-  search,
   urvalLage,
 } from "../store/index-db.js";
 import { thumbName } from "../store/paths.js";
@@ -93,14 +94,26 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
     },
   );
 
-  app.get<{ Querystring: { limit?: string; before?: string } }>("/api/receipts", async (request) => {
-    const limit = Math.min(Math.max(Number(request.query.limit ?? 50) || 50, 1), 200);
-    const before = request.query.before;
-    return {
-      total: count(archive.db),
-      receipts: recent(archive.db, limit, before),
-    };
-  });
+  /**
+   * Arkivet. Bara klara kvitton, sorterade på kvittots eget datum — det man handlade,
+   * inte det man fotograferade. `butiker` följer med så att filtret kan erbjuda de
+   * butiker som faktiskt finns i stället för en lista någon skrivit i förväg.
+   */
+  app.get<{ Querystring: { q?: string; butik?: string; fran?: string; till?: string; limit?: string } }>(
+    "/api/receipts",
+    async (request) => {
+      const { q, butik, fran, till } = request.query;
+      const fritext = q?.trim() ? ftsQuery(q.trim()) : "";
+      const svar = arkiv(archive.db, {
+        ...(fritext ? { q: fritext } : {}),
+        ...(butik?.trim() ? { butik: butik.trim() } : {}),
+        ...(fran?.trim() ? { fran: fran.trim() } : {}),
+        ...(till?.trim() ? { till: till.trim() } : {}),
+        limit: Math.min(Math.max(Number(request.query.limit ?? 200) || 200, 1), 1000),
+      });
+      return { ...svar, butiker: butiker(archive.db) };
+    },
+  );
 
   app.get<{ Params: { id: string } }>("/api/receipts/:id", async (request, reply) => {
     const receipt = await archive.get(request.params.id);
@@ -135,15 +148,35 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
     },
   );
 
-  app.get<{ Querystring: { q?: string } }>("/api/search", async (request, reply) => {
-    const q = request.query.q?.trim();
-    if (!q) return reply.code(400).send({ error: "missing_query" });
-    const query = ftsQuery(q);
-    if (!query) return reply.code(400).send({ error: "missing_query" });
-    return { query, hits: search(archive.db, query) };
-  });
-
   const FALT = new Set(["store", "date", "total", "currency"]);
+
+  /**
+   * Vad ett fält får innehålla när en människa skriver in det.
+   *
+   * Det fanns ingen kontroll alls, och `sdfsfdf` gick rakt in som inköpsdatum. Ett
+   * maskinläst värde passerar utvinningens egna regler; ett handskrivet passerade
+   * ingenting. Kontrollen hör hemma här och inte bara i formuläret — servern är den
+   * som äger arkivets innehåll, och ett API som tar emot skräp gör det förr eller senare.
+   */
+  function ogiltigt(namn: string, value: unknown): string | null {
+    if (namn === "date") {
+      if (typeof value !== "string") return "Datumet ska skrivas som ÅÅÅÅ-MM-DD.";
+      const träff = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+      if (!träff) return "Datumet ska skrivas som ÅÅÅÅ-MM-DD.";
+      const [, ar, manad, dag] = träff;
+      if (!giltigt(Number(ar), Number(manad), Number(dag))) return `Det finns ingen ${value}.`;
+      return null;
+    }
+    if (namn === "total") {
+      if (typeof value !== "number" || !Number.isFinite(value)) return "Beloppet ska vara ett tal.";
+      if (value < 0) return "Beloppet kan inte vara negativt.";
+      return null;
+    }
+    // Butik och valuta är fri text — men inte tom, och inte en uppsats.
+    if (typeof value !== "string" || !value.trim()) return "Fältet kan inte vara tomt.";
+    if (value.length > 200) return "Fältet är för långt.";
+    return null;
+  }
 
   app.post<{ Params: { id: string }; Body: { namn?: string; value?: unknown; bekraftat?: boolean } }>(
     "/api/receipts/:id/falt",
@@ -155,6 +188,8 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
       if (request.body?.value === undefined) {
         return reply.code(400).send({ error: "missing_value", message: "Ange vad fältet ska bli." });
       }
+      const fel = ogiltigt(namn, request.body.value);
+      if (fel) return reply.code(400).send({ error: "ogiltigt_varde", message: fel });
       const receipt = await archive.rattaFalt(
         request.params.id,
         namn,
@@ -186,6 +221,8 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
         if (rattelse.value === undefined) {
           return reply.code(400).send({ error: "missing_value", message: "Ange vad fältet ska bli." });
         }
+        const fel = ogiltigt(rattelse.namn, rattelse.value);
+        if (fel) return reply.code(400).send({ error: "ogiltigt_varde", message: fel });
       }
       const receipt = await archive.rattaFalten(
         request.params.id,
@@ -269,6 +306,16 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
   app.post<{ Params: { id: string } }>("/api/receipts/:id/lasom", async (request, reply) =>
     reply.send(await archive.lasOm(request.params.id)),
   );
+
+  /**
+   * Raderar kvittot och allt som hör till det. Oåterkalleligt — bilderna finns ingen
+   * annanstans. Bekräftelsen hör hemma i gränssnittet, inte i en extra parameter här.
+   */
+  app.delete<{ Params: { id: string } }>("/api/receipts/:id", async (request, reply) => {
+    const { borttaget } = await archive.taBort(request.params.id);
+    if (!borttaget) return reply.code(404).send({ error: "not_found" });
+    return reply.code(204).send();
+  });
 
   app.post("/api/reindex", async () => archive.reindex());
 

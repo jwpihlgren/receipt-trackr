@@ -136,7 +136,7 @@ export class ListaComponent {
       return;
     }
     for (const file of files) await this.flow.accept(file);
-    if (this.flow.shots().length) await this.router.navigateByUrl('/fanga');
+    if (this.flow.shots().length) await this.router.navigateByUrl('/telefon/fanga');
   }
 }
 
