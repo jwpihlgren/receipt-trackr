@@ -20,12 +20,55 @@ import { envariationer, siffervik } from "./tecken.js";
 
 export type Kandidat = { value: string; confidence: number; forekomster: number; lagad: boolean };
 
+type Rakning = { forekomster: number; lagad: boolean; anger: number };
+
 /**
  * Datum och tid springer ihop i kvittotext: `2026-05-2516 46`, `2026-05-3115020026`.
  * Skannern tar därför åtta siffror i följd och bryr sig inte om vad som kommer sedan.
- * Avgränsarna får saknas, och bokstäver som läses som siffror viks först.
+ *
+ * Tre former, för alla tre står på beställarens kvitton: `2026-05-25`, `03 06 2026`
+ * och `Date: 26-07-10`. Den sista är tvetydig i teorin och entydig i praktiken — en
+ * tvåsiffrig del som är 20–39 är ett årtal, för inget kvitto i arkivet är från 1900-talet.
+ * Vilken tolkning som överlever avgörs ändå av kalendern och av fototillfället.
  */
-const SKANNER = /(\d{4})[-./ ]?(\d{2})[-./ ]?(\d{2})/g;
+/**
+ * Uttrycken är **nollbreddiga**: allt ligger i en lookahead, så en träff förbrukar
+ * ingenting och skanningen går vidare ett tecken i taget.
+ *
+ * Det är inte en finess utan en rättelse. Ett girigt uttryck läste `Kvitto 618057
+ * 2026-04-26` som `618057 20` — ett omöjligt datum som kalendern förkastade — och
+ * eftersom träffen förbrukade tecknen försvann det riktiga datumet med den. Kvittot
+ * fick i stället ångerfristens datum längst ned. Det här är sannolikt en del av
+ * datumsvagheten M0 mätte till 74 %.
+ */
+const ARET_FORST = /(?<!\d)(?=(\d{4})[-./ ]?(\d{2})[-./ ]?(\d{2}))/g;
+const DAGEN_FORST = /(?<!\d)(?=(\d{2})[-./ ]?(\d{2})[-./ ]?(\d{4})(?!\d))/g;
+const KORT_AR = /(?<!\d)(?=(2\d)[-./](\d{2})[-./](\d{2})(?!\d))/g;
+
+/**
+ * Ord som gör ett datum till något annat än ett inköpsdatum: ångerfristen, garantins
+ * slut, sista dagen för återköp. Beställarens Blomsterlandet-kvitto lästes som
+ * 2026-05-26 därför att `öppet köp t.o.m` stod före det datumet; köpet skedde 04-26.
+ */
+const ANGERORD = /(ÖPPET\s*KÖP|OPPET\s*KOP|SISTA\s*DAG|ÅTERKÖP|ATERKOP|BYTESRÄTT|BYTESRATT|GARANTI|GÄLLER\s*T|T\.?O\.?M)/;
+
+/** Hur långt före ett datum ett ångerord får stå för att gälla det. */
+const ANGERFONSTER = 40;
+
+/**
+ * Bokstäver viks till siffror **bara i ord som redan är mest siffror**.
+ *
+ * `siffervik` skrevs för en datumrad och fick i stället hela kvittot, sedan texten
+ * visade sig sakna radbrytningar. Då blir `Bonusgrundande` till `80nu56run04n03`, och
+ * ur prosan växer åttasiffriga tal som ser ut som datum. Vikningen är 1:1 per tecken,
+ * så positionerna i texten står kvar och ångerorden går fortfarande att hitta.
+ */
+function vikTal(text: string): string {
+  return text.replace(/\S+/g, (bit) => {
+    const siffror = (bit.match(/\d/g) ?? []).length;
+    return siffror >= 2 && siffror >= bit.length / 3 ? siffervik(bit) : bit;
+  });
+}
 
 const pad = (n: number): string => String(n).padStart(2, "0");
 
@@ -43,35 +86,44 @@ export function giltigt(ar: number, manad: number, dag: number): boolean {
  */
 export function utvinnDatum(text: string, capturedAt: string): Kandidat[] {
   const fangat = new Date(capturedAt);
-  const rakning = new Map<string, { forekomster: number; lagad: boolean }>();
+  const rakning = new Map<string, Rakning>();
 
-  for (const rad of text.split(/\n+/)) {
-    const vikt = siffervik(rad);
-    for (const traff of vikt.matchAll(SKANNER)) {
-      const [, ar, manad, dag] = traff as unknown as [string, string, string, string];
-      registrera(rakning, ar, manad, dag, fangat);
+  const vikt = vikTal(text);
+  const skanna = (uttryck: RegExp, ordning: [number, number, number]): void => {
+    for (const traff of vikt.matchAll(uttryck)) {
+      const [ai, mi, di] = ordning;
+      const index = traff.index ?? 0;
+      // Ett datum efter "öppet köp t.o.m" är ångerfristens sista dag, inte köpets.
+      const fore = vikt.slice(Math.max(0, index - ANGERFONSTER), index).toUpperCase();
+      registrera(rakning, traff[ai]!, traff[mi]!, traff[di]!, fangat, ANGERORD.test(fore));
     }
-  }
+  };
+
+  skanna(ARET_FORST, [1, 2, 3]);
+  skanna(DAGEN_FORST, [3, 2, 1]);
+  skanna(KORT_AR, [1, 2, 3]);
 
   const ut: Kandidat[] = [];
-  for (const [value, { forekomster, lagad }] of rakning) {
+  for (const [value, { forekomster, lagad, anger }] of rakning) {
     const alder = (fangat.getTime() - new Date(`${value}T12:00:00Z`).getTime()) / 86_400_000;
     ut.push({
       value,
       forekomster,
       lagad,
-      confidence: konfidens(forekomster, lagad, alder),
+      // Står datumet *bara* efter ett ångerord är det inte kvittots datum.
+      confidence: konfidens(forekomster, lagad, alder, anger === forekomster),
     });
   }
   return ut.sort((a, b) => b.confidence - a.confidence || b.forekomster - a.forekomster);
 }
 
 function registrera(
-  rakning: Map<string, { forekomster: number; lagad: boolean }>,
+  rakning: Map<string, Rakning>,
   ar: string,
   manad: string,
   dag: string,
   fangat: Date,
+  anger: boolean,
 ): void {
   const rimligt = (a: number, m: number, d: number): boolean => {
     if (!giltigt(a, m, d)) return false;
@@ -84,18 +136,19 @@ function registrera(
     const fanns = rakning.get(value);
     if (fanns) {
       fanns.forekomster++;
+      if (anger) fanns.anger++;
       // Lästes samma datum någon gång utan lagning är det inte längre en lagning.
       if (!lagad) fanns.lagad = false;
     } else {
-      rakning.set(value, { forekomster: 1, lagad });
+      rakning.set(value, { forekomster: 1, lagad, anger: anger ? 1 : 0 });
     }
   };
 
-  const a = Number(ar);
+  const a = Number(ar.length === 2 ? `20${ar}` : ar);
   const m = Number(manad);
   const d = Number(dag);
   if (rimligt(a, m, d)) {
-    notera(`${ar}-${pad(m)}-${pad(d)}`, false);
+    notera(`${a}-${pad(m)}-${pad(d)}`, false);
     return;
   }
 
@@ -113,9 +166,11 @@ function registrera(
  * varje enskild läsning kunde varit fel; ett som står en gång och dessutom behövde
  * lagas är en gissning och ska se ut som en.
  */
-function konfidens(forekomster: number, lagad: boolean, alderDagar: number): number {
+function konfidens(forekomster: number, lagad: boolean, alderDagar: number, baraAnger: boolean): number {
   let c = 0.45 + Math.min(forekomster, 4) * 0.12;
   if (lagad) c -= 0.2;
+  // Ångerfristens datum konkurrerar inte med köpets — det är ett annat fält.
+  if (baraAnger) c -= 0.35;
 
   /**
    * Ett kvitto fotograferas efter köpet, aldrig före. Bonusen för "nära fototillfället"

@@ -65,5 +65,22 @@ export function envariationer(siffror: string): string[] {
 }
 
 /** Normaliserar för jämförelse: versaler, hopvikta bokstäver, inga extra mellanrum. */
+/**
+ * Bokstäver som inte finns i svenskan men står på kvittona ändå: `Flügger`, `Søstrene`,
+ * `Café`. Teckenklassen nedan släppte inte igenom dem, så `FLÜGGER` blev `FL GGER` och
+ * kunde aldrig matcha sitt eget namn. Å, Ä och Ö viks inte — de är egna bokstäver här,
+ * och M0 mätte att OCR:en förväxlar dem inbördes, vilket är sökningens problem och
+ * inte jämförelsens.
+ */
+const FRAMMANDE: Record<string, string> = {
+  Ü: "U", Ø: "O", Æ: "AE", É: "E", È: "E", Ê: "E", Ë: "E",
+  À: "A", Á: "A", Â: "A", Ç: "C", Ñ: "N", Ô: "O", Ó: "O", Ò: "O", Í: "I", Ì: "I",
+};
+
+const vikFrammande = (s: string): string => [...s].map((c) => FRAMMANDE[c] ?? c).join("");
+
 export const jamforbar = (s: string): string =>
-  bokstavsvik(s.toUpperCase()).replace(/[^A-ZÅÄÖ0-9]+/g, " ").trim();
+  vikFrammande(bokstavsvik(s.toUpperCase())).replace(/[^A-ZÅÄÖ0-9]+/g, " ").trim();
+
+/** Texten som ord, jämförbara. Tom sträng ger en tom lista, inte `[""]`. */
+export const ord = (s: string): string[] => jamforbar(s).split(" ").filter(Boolean);

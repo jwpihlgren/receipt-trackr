@@ -170,7 +170,20 @@ addEventListener('message', async (event: MessageEvent<OcrBegaran | { typ: 'varm
       typ: 'klar',
       id,
       niva,
-      text: resultat.text ?? rader.map((r) => r.text).join('\n'),
+      /**
+       * Texten byggs **alltid** ur raderna, aldrig ur bibliotekets `resultat.text`.
+       *
+       * Den senare fogar ihop raderna med mellanslag, och gav därför en enda tusen
+       * tecken lång rad utan en enda radbrytning. Hela fältutvinningen på servern är
+       * radorienterad — den delar på `\n`, tittar på de översta raderna, och kollar
+       * om ett butiksnamn står på en summeringsrad. Med en enda rad in föll allt det
+       * ihop: butiken blev de sextio första tecknen av kvittot, och en kedjematchning
+       * som skulle glida över *en rad* gled över hela texten.
+       *
+       * Mätt på beställarens 35 kvitton 2026-08-30: Blomsterlandet lästes som
+       * "Tesla", Flügger som "Preem", och Däckskiftarna som sin egen adressrad.
+       */
+      text: rader.map((r) => r.text).join('\n'),
       rader,
       ms: {
         avkoda: Math.round(t1 - t0),
