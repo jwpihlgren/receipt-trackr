@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { QueueService } from './queue.service';
 import { CaptureFlowService } from './capture-flow.service';
@@ -13,7 +13,7 @@ export type ReceiptRow = {
   date: string | null;
   total: number | null;
   currency: string | null;
-  /** Noll = ingen text utläst än. Det är listans enda ärliga tolkningsmått före M6. */
+  /** Noll = tolkningen har inte gett något. Servern räknar tecknen i den utlästa texten. */
   tecken: number;
 };
 
@@ -88,10 +88,27 @@ export class ListaComponent {
     void this.load();
     this.tolkning.startaLopande();
 
+    // Telefonen tolkar löpande så länge den här ytan är öppen — och bara då. Utan
+    // det här fortsatte datorn tolka av sig själv efter ett byte till datorläget i
+    // samma flik, vilket är en regel som inte får brytas: den datorn arbetar när
+    // dess ägare säger till, aldrig annars.
+    inject(DestroyRef).onDestroy(() => {
+      this.tolkning.stoppaLopande();
+      this.queue.stop();
+    });
+
     // Hämtar om listan varje gång ett kvitto blivit tolkat. Utan det arbetar
     // tolkningen vidare medan raderna står kvar och säger "inte tolkat än".
+    //
+    // Första körningen hoppas över: en effect kör en gång så snart den skapas, och
+    // utan det hämtade varje sidladdning listan två gånger.
+    let forsta = true;
     effect(() => {
       this.tolkning.klaraTotalt();
+      if (forsta) {
+        forsta = false;
+        return;
+      }
       void this.load();
     });
   }
@@ -99,7 +116,10 @@ export class ListaComponent {
   async load(): Promise<void> {
     this.error.set(null);
     try {
-      const response = await fetch('/api/receipts?limit=50');
+      // `ofardiga=true`: hemskärmen visar allt, även det som just fotograferats och
+      // ännu inte tolkats. Skrivbordets arkiv gör tvärtom — där bor det ofärdiga i
+      // Aktivitet.
+      const response = await fetch('/api/receipts?limit=50&ofardiga=true');
       if (response.status === 401) {
         await this.router.navigateByUrl('/logga-in');
         return;
@@ -109,7 +129,7 @@ export class ListaComponent {
       this.receipts.set(body.receipts);
       this.total.set(body.total);
     } catch {
-      this.error.set('Kunde inte hämta kvittona. Är burken igång?');
+      this.error.set('Kvittona gick inte att hämta. Kontrollera att du har nätverk.');
     }
   }
 

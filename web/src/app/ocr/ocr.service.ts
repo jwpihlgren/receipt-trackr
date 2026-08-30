@@ -41,6 +41,18 @@ export class OcrService {
       }
       this.vantande.get(data.id)?.(data);
     };
+    // En worker som dör tar med sig varje väntande löfte. Utan det här hänger
+    // anroparen för alltid i stället för att få veta att det gick fel.
+    const doden = (meddelande: string): void => {
+      for (const [nyckel, svara] of [...this.vantande]) {
+        this.vantande.delete(nyckel);
+        svara({ typ: 'fel', id: nyckel, niva: 'tiny', meddelande });
+      }
+      this.worker?.terminate();
+      this.worker = null;
+    };
+    this.worker.onerror = (e) => doden(e.message || 'tolkningen kraschade');
+    this.worker.onmessageerror = () => doden('ett svar från tolkningen gick inte att läsa');
     return this.worker;
   }
 

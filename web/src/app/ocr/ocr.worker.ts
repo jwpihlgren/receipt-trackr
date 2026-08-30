@@ -107,7 +107,14 @@ addEventListener('message', async (event: MessageEvent<OcrBegaran | { typ: 'varm
       };
       postMessage(svar);
     } catch (fel) {
-      postMessage({ typ: 'fel', id: 'init', niva: data.niva, meddelande: (fel as Error).message } satisfies OcrSvar);
+      // Nyckeln måste vara den anroparen väntar på. Stod det 'init' här resolvades
+      // löftet aldrig, och uppvärmningen hängde för alltid.
+      postMessage({
+        typ: 'fel',
+        id: `varm:${data.niva}`,
+        niva: data.niva,
+        meddelande: fel instanceof Error ? fel.message : String(fel),
+      } satisfies OcrSvar);
     }
     return;
   }

@@ -194,9 +194,23 @@ export type ArkivRad = {
   capturedAt: string;
   segments: number;
   snippet: string | null;
+  /** Antal tecken i den utlästa texten. Noll betyder att tolkningen inte gett något. */
+  tecken: number;
 };
 
-export type ArkivFraga = { q?: string; butik?: string; fran?: string; till?: string; limit?: number };
+export type ArkivFraga = {
+  q?: string;
+  butik?: string;
+  fran?: string;
+  till?: string;
+  limit?: number;
+  /**
+   * Ta med ofärdiga kvitton också. Skrivbordets arkiv vill inte det — där är
+   * Aktivitet den andra halvan. Telefonens hemskärm vill det: ett kvitto man just
+   * fotograferat måste synas där, annars ser fångsten ut att ha misslyckats.
+   */
+  ofardiga?: boolean;
+};
 
 /**
  * Arkivet: klara kvitton, filtrerade, nyaste köp först.
@@ -209,7 +223,7 @@ export type ArkivFraga = { q?: string; butik?: string; fran?: string; till?: str
  * en lista där en del av raderna saknar just det man letar efter.
  */
 export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; receipts: ArkivRad[] } {
-  const villkor: string[] = [KLAR];
+  const villkor: string[] = fraga.ofardiga ? [] : [KLAR];
   const params: unknown[] = [];
   if (fraga.q) {
     villkor.push("receipts_fts MATCH ?");
@@ -227,7 +241,7 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
     villkor.push("r.date <= ?");
     params.push(fraga.till);
   }
-  const where = villkor.join(" AND ");
+  const where = villkor.length ? villkor.join(" AND ") : "1 = 1";
   const from = "FROM receipts r JOIN receipts_fts f ON f.id = r.id";
 
   const total = (db.prepare(`SELECT COUNT(*) AS n ${from} WHERE ${where}`).get(...params) as { n: number }).n;
@@ -235,6 +249,7 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
     .prepare(
       `SELECT r.id AS id, r.date AS date, r.store AS store, r.total AS total,
               r.currency AS currency, r.captured_at AS capturedAt, r.segments AS segments,
+              length(f.text) AS tecken,
               ${fraga.q ? "snippet(receipts_fts, 0, '[', ']', '…', 12)" : "NULL"} AS snippet
          ${from} WHERE ${where}
         ORDER BY r.date DESC, r.captured_at DESC

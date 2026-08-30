@@ -30,6 +30,8 @@
             <span class="tid">{{ rad.tid }}</span>
             @if (rad.fast) {
               <span class="lage farlig">Kom inte fram — servern avvisade en bild</span>
+            } @else if (state().utloggad) {
+              <span class="lage farlig">Sessionen har gått ut — logga in igen</span>
             } @else if (state().offline) {
               <span class="lage vantar">Väntar på nät · {{ rad.kvar }} {{ rad.kvar === 1 ? 'bild' : 'bilder' }}</span>
             } @else if (rad.kvar === 0) {
@@ -38,7 +40,7 @@
               <span class="lage">Skickar · {{ rad.kvar }} {{ rad.kvar === 1 ? 'bild kvar' : 'bilder kvar' }}</span>
             }
           </div>
-          @if (!rad.fast && !state().offline) {
+          @if (!rad.fast && !state().offline && !state().utloggad) {
             <svg class="snurra" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
           }
         </div>
@@ -46,7 +48,11 @@
     }
   </div>
 
-  @if (harFast()) {
+  @if (state().utloggad) {
+    <div class="handzon">
+      <a class="knapp primar" routerLink="/logga-in">Logga in igen</a>
+    </div>
+  } @else if (harFast()) {
     <div class="handzon">
       <button type="button" class="knapp primar" (click)="retry()">Försök igen nu</button>
     </div>

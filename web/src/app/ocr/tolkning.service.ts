@@ -149,6 +149,9 @@ export class TolkningService {
    * går i bakgrunden — en telefon som ligger i fickan ska inte bränna batteri på
    * inferens, och reservationen går ändå ut och blir ledig igen.
    */
+  private pulslyssnare: (() => void) | null = null;
+  private pulstimer: ReturnType<typeof setInterval> | null = null;
+
   startaLopande(): void {
     if (this.lopande) return;
     this.lopande = true;
@@ -160,13 +163,23 @@ export class TolkningService {
       }
     };
 
-    document.addEventListener('visibilitychange', () => void puls());
-    setInterval(() => void puls(), 30_000);
+    this.pulslyssnare = () => void puls();
+    document.addEventListener('visibilitychange', this.pulslyssnare);
+    this.pulstimer = setInterval(() => void puls(), 30_000);
     void puls();
   }
 
+  /**
+   * Lyssnaren och timern tas bort, inte bara flaggan. Tjänsten lever i roten och
+   * överlever ytbytet; utan det här låg en pulsslyssnare och en trettiosekunderstimer
+   * kvar i datorläget och startade tolkningen av sig själv.
+   */
   stoppaLopande(): void {
     this.lopande = false;
+    if (this.pulslyssnare) document.removeEventListener('visibilitychange', this.pulslyssnare);
+    this.pulslyssnare = null;
+    if (this.pulstimer) clearInterval(this.pulstimer);
+    this.pulstimer = null;
     this.stanna();
   }
 
@@ -210,7 +223,7 @@ export class TolkningService {
       const konfidenser = rader.map((r) => r.confidence).sort((a, b) => a - b);
       const tecken = delar.join('\n').length;
 
-      await fetch(`/api/jobb/${jobb.id}`, {
+      const svar = await fetch(`/api/jobb/${jobb.id}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -230,6 +243,10 @@ export class TolkningService {
           },
         }),
       });
+      // Utan den här kontrollen räknades kvittot som klart även när servern sagt nej,
+      // och räknaren påstod att arbete blivit gjort som inte blivit det.
+      if (svar.status === 401) throw new Error('sessionen har gått ut — logga in igen');
+      if (!svar.ok) throw new Error(`servern tog inte emot tolkningen (${svar.status})`);
 
       this.lage.update((l) => ({
         ...l,

@@ -251,6 +251,32 @@ describe("aktiviteten", () => {
     expect(belopp.json()).toMatchObject({ error: "ogiltigt_varde", namn: "total" });
   });
 
+  /**
+   * Telefonens hemskärm måste se ett kvitto man just fotograferat. Arkivfrågan
+   * skrevs om till att bara visa klara kvitton, och då försvann ett nyfotat kvitto
+   * ur listan — fångsten såg ut att ha misslyckats.
+   */
+  it("visar ofärdiga kvitton när klienten ber om dem, och räknar tecknen", async () => {
+    const klart = ulid();
+    await fanga(klart);
+    await tolka(klart, HELT, 11);
+    const nyss = ulid();
+    await fanga(nyss);
+
+    const arkivet = await app.inject({ method: "GET", url: "/api/receipts" });
+    expect(arkivet.json().receipts.map((r: { id: string }) => r.id)).toEqual([klart]);
+
+    const telefonen = await app.inject({ method: "GET", url: "/api/receipts?ofardiga=true" });
+    const ider = telefonen.json().receipts.map((r: { id: string }) => r.id);
+    expect(ider).toContain(klart);
+    expect(ider).toContain(nyss);
+
+    // `tecken` föll bort ur frågan och gjorde att varje rad påstod sig vara otolkad.
+    const rader = telefonen.json().receipts as { id: string; tecken: number }[];
+    expect(rader.find((r) => r.id === klart)!.tecken).toBeGreaterThan(0);
+    expect(rader.find((r) => r.id === nyss)!.tecken).toBe(0);
+  });
+
   it("bygger om indexet av sig självt när schemaversionen är en annan", async () => {
     const id = ulid();
     await fanga(id, 3);

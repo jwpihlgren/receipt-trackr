@@ -99,12 +99,15 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
    * inte det man fotograferade. `butiker` följer med så att filtret kan erbjuda de
    * butiker som faktiskt finns i stället för en lista någon skrivit i förväg.
    */
-  app.get<{ Querystring: { q?: string; butik?: string; fran?: string; till?: string; limit?: string } }>(
+  app.get<{
+    Querystring: { q?: string; butik?: string; fran?: string; till?: string; limit?: string; ofardiga?: string };
+  }>(
     "/api/receipts",
     async (request) => {
       const { q, butik, fran, till } = request.query;
       const fritext = q?.trim() ? ftsQuery(q.trim()) : "";
       const svar = arkiv(archive.db, {
+        ...(request.query.ofardiga === "true" ? { ofardiga: true } : {}),
         ...(fritext ? { q: fritext } : {}),
         ...(butik?.trim() ? { butik: butik.trim() } : {}),
         ...(fran?.trim() ? { fran: fran.trim() } : {}),

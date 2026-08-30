@@ -13,6 +13,8 @@ import { Injectable, computed, signal } from '@angular/core';
 import { allReceipts, allSegments, deleteReceipt, deleteSegment, putReceipt, putSegment, type QueuedReceipt, type QueuedSegment } from './db';
 
 export type QueueState = {
+  /** Sant när servern svarat 401 eller 403. Kön vilar då tills någon loggat in igen. */
+  utloggad: boolean;
   /** Kvitton som ännu inte är helt kvitterade av servern. Det är siffran krav 3 vill ha. */
   waiting: number;
   /** Segment kvar att skicka, för den som vill veta varför det tar tid. */
@@ -57,6 +59,7 @@ const RETRY_MS = 15_000;
 @Injectable({ providedIn: 'root' })
 export class QueueService {
   private readonly state = signal<QueueState>({
+    utloggad: false,
     waiting: 0,
     pendingSegments: 0,
     uploading: false,
@@ -192,6 +195,16 @@ export class QueueService {
     return 'stuck';
   }
 
+  /**
+   * Sessionen har gått ut. Kön vilar tills någon loggat in igen — kvittona är
+   * oskyldiga och ligger kvar i telefonen. Det som saknades var beskedet: skärmen
+   * fortsatte visa "Skickar" med snurra i evighet.
+   */
+  private utloggad(): false {
+    this.state.update((s) => ({ ...s, utloggad: true, uploading: false }));
+    return false;
+  }
+
   private markStuck(id: string): void {
     this.state.update((s) => ({ ...s, stuck: [...new Set([...s.stuck, id])] }));
   }
@@ -205,12 +218,13 @@ export class QueueService {
         body: JSON.stringify({ id: receipt.id, backlog: true }),
       });
       const createdVerdict = this.classify(created.status);
-      if (createdVerdict === 'unauthorized') return false;
+      if (createdVerdict === 'unauthorized') return this.utloggad();
       if (createdVerdict === 'stuck') {
         this.markStuck(receipt.id);
         return true;
       }
       if (createdVerdict === 'retry') return true;
+      if (this.state().utloggad) this.state.update((s) => ({ ...s, utloggad: false }));
 
       for (const segment of segments) {
         if (segment.confirmedAt) continue;
@@ -223,7 +237,7 @@ export class QueueService {
           body: form,
         });
         const verdict = this.classify(response.status);
-        if (verdict === 'unauthorized') return false;
+        if (verdict === 'unauthorized') return this.utloggad();
         if (verdict === 'stuck') {
           // 409 är samma nummer med annat innehåll; 415 är en bild servern inte kan
           // läsa. Ingetdera löser sig av sig självt, och båda ska tas om hand vid
@@ -233,9 +247,14 @@ export class QueueService {
         }
         if (verdict === 'retry') return true;
 
-        const saved = (await response.json()) as { sha256?: string };
-        // Kvittensen: samma bytes, inte bara ett lyckat anrop.
-        if (saved.sha256 !== segment.sha256) return true;
+        const saved = (await response.json().catch(() => ({}))) as { sha256?: string };
+        // Kvittensen: samma bytes, inte bara ett lyckat anrop. Stämmer den inte är
+        // det inget som löser sig av att försöka igen — samma bytes ger samma svar.
+        // Kvittot märks som fastnat i stället för att skickas om för alltid.
+        if (saved.sha256 !== segment.sha256) {
+          this.markStuck(receipt.id);
+          return true;
+        }
         await deleteSegment(segment.key);
       }
 
@@ -246,7 +265,7 @@ export class QueueService {
           body: JSON.stringify({ segments: receipt.segments }),
         });
         const verdict = this.classify(done.status);
-        if (verdict === 'unauthorized') return false;
+        if (verdict === 'unauthorized') return this.utloggad();
         if (verdict === 'stuck') this.markStuck(receipt.id);
         if (verdict === 'ok') {
           await deleteReceipt(receipt.id);
