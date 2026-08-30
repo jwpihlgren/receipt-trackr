@@ -1,8 +1,7 @@
 # Överlämning
 
-Skriven 2026-08-30. Läs den här filen först, sedan planen i
-`~/.claude/plans/atomic-waddling-nautilus.md` — den är reviderad samma dag och
-stämmer med koden.
+Skriven 2026-08-30, omskriven samma kväll efter en dags omfattande ändringar. Läs den
+här filen först, sedan planen i `~/.claude/plans/atomic-waddling-nautilus.md`.
 
 ## Vad det här är
 
@@ -15,14 +14,19 @@ Kör på en ZimaBoard 2 (Intel N150, passivt kyld) hemma, på ZFS med 14,9 TiB f
 Nås på `http://<zima-ip>:5000` över hemnätet, och `https://zima.encke-shark.ts.net`
 via Tailscale utifrån.
 
-## Fyra regler som inte får brytas
+## Regler som inte får brytas
 
 **Allt körs i engångscontainrar.** Värden har varken Node, npm eller byggverktyg och
 ska aldrig få det. Ge alltid hela `docker`-kommandot, aldrig ett bart `node`.
 
 **Sidecar-filen är sanning, SQLite-indexet är härlett.** Skrivordningen är sidecar
 först (tmp → fsync → rename → fsync på katalogen), index efteråt, aldrig tvärtom.
-Därför finns inga migrationer: en schemaändring är en `reindex`.
+Därför finns inga migrationer: en schemaändring är en `reindex`, och indexet gör det
+självt när dess `user_version` inte stämmer med kodens.
+
+Undantaget är **radering**, som går åt andra hållet: index först, filer sedan. Kraschar
+det däremellan tar `reindex` tillbaka kvittot — en misslyckad radering är ett bättre
+fel än en rad som pekar på filer som inte finns.
 
 **Den lokala kopian raderas först när servern svarat med samma sha256.** Ett
 HTTP-svar med 200 är inget bevis på att rätt bytes kom fram.
@@ -30,7 +34,13 @@ HTTP-svar med 200 är inget bevis på att rätt bytes kom fram.
 **Servern räknar inte.** Den delar ut jobb och tar emot svar. Att telefonen frågar av
 sig själv och datorn bara när någon trycker är beslut som fattas i klienten.
 Beställaren har varit uttrycklig: hans dator arbetar när han från den datorn tar emot
-ett jobb, aldrig annars, och det får aldrig flytta in på servern.
+ett jobb, aldrig annars. Det bröts en gång i dag — `stoppaLopande()` anropades aldrig,
+så datorn fortsatte tolka efter ett ytbyte. Kontrollera att den regeln håller innan
+något ändras i `tolkning.service.ts`.
+
+**En människas ord väger tyngre än maskinen.** Har hon satt alla tre fälten själv, eller
+sagt att maskinens läsning stämmer, är kvittot klart — hur illa tolkningen än gick.
+Utan den regeln finns lägen utan utgång.
 
 ## Var saker ligger
 
@@ -39,184 +49,193 @@ ett jobb, aldrig annars, och det får aldrig flytta in på servern.
 | Planen | `~/.claude/plans/atomic-waddling-nautilus.md` (inte i repot) |
 | Mätningarna | `spike/README.md` — M0 och M5a, med siffror och slutsatser |
 | Drift | `docs/DRIFT.md` |
-| Designytan | https://claude.ai/code/artifact/b45461bb-187b-4a6d-95ba-0ac0b79bd235 |
-| Designkällorna | `design/*.dc.html` — 18 skärmar, mobil och skrivbord |
+| Designduken | https://claude.ai/code/artifact/b45461bb-187b-4a6d-95ba-0ac0b79bd235 |
+| Designkällorna | `design/*.dc.html` + `canvas.json`. Seedas om med skriptet i design-skillen |
 
-## Läget just nu
+## Informationsarkitektur
 
-M0 till M6 är byggda. M7 är nästan klar — rättningspasset finns, granskningsurvalet
-saknas. M8 måste skrivas om.
+Ytan står först i adressen, och sedan vad sidan innehåller. `/telefon/kvitton` och
+`/dator/kvitton` är samma sak sedd från två håll. Tidigare hette de `/kvitton` och
+`/arkiv`, vilket gav två namn åt en sak och dolde att det var ytan som skilde dem.
+Gamla adresser leder vidare.
 
-**Fångst.** Ingen livekamera. `getUserMedia` kräver säker kontext, och det kravet
-dikterade hela nätverksarkitekturen — därför öppnar ett filinput telefonens egen
-kameraapp i stället. Appen är blind i fångstögonblicket och ska inte låtsas annat.
-Granskningen ligger direkt efter återkomsten, och "Börja här" visar slutet på förra
-bilden *före* avfärden till kameran, som ett minne man bär med sig.
+**Appen heter Kvittoarkiv. Platsen heter Kvitton.** Samma ord i menyn, i rubriken och
+i webbläsarfliken. Ett ställe, ett namn.
 
-**Inloggning.** En lösenordsfras för hushållet i `AUTH_PASSWORD`, scrypt, signerad
-httpOnly-kaka. Ingen användartabell — den hade infört migrationsskulden designen
-finns till för att slippa. `/api/health` och de statiska filerna är öppna, allt annat
-under `/api` är stängt. Servern vägrar starta utan fras.
+| Rutt | Innehåll |
+| --- | --- |
+| `/telefon/kvitton` | hemskärmen: **alla** kvitton, även ofärdiga (`?ofardiga=true`) |
+| `/telefon/fanga` | öppnar telefonens egen kameraapp; appen har ingen sökare |
+| `/telefon/uppladdning` | kön av bilder på väg in |
+| `/telefon/kvitto/:id`, `/telefon/aktivitet` | samma komponenter som datorns, men vet vilken yta de står på |
+| `/dator/kvitton` | arkivet: **bara klara** kvitton, tabell med filter, sorterad på kvittots eget datum |
+| `/dator/aktivitet` | allt som inte är klart, oavsett läge, med läget som kolumn |
+| `/dator/kvitto/:id` | bild, fält som formulär, radering |
+| `/dator/drift` | utrymme, monteringspunkt, säkerhetskopior |
 
-**Tolkning.** PP-OCRv6 tiny via `ppu-paddle-ocr/web` i en Web Worker, modellfiler ur
-imagen (hämtas i bygget av `scripts/hamta-modeller.mjs`). Kön härleds ur indexet —
-tom FTS-text betyder otolkat. Reservationer lever i minnet och aldrig på disk.
+**Klart** betyder: fångsten avslutad, alla utlovade bilder framme, butik + datum +
+belopp lästa, och antingen en tolkning som gett text av dugligt kvalitetsmått **eller**
+tre fält satta av en människa. Definitionen står på ett ställe, `KLAR` i `index-db.ts`.
+Två listor som frågar om samma sak måste fråga likadant.
 
-**Fältutvinning** kör på servern, inte på klienten. Det är regexar och räkning, och
-därför räcker `POST /api/falt/omtolka` för att låta bättre regler nå gamla kvitton
-utan att en bild läses om. Rättelser skrivs över aldrig.
+**Låg konfidens skapar aldrig en rad.** Konfidensen mäts, den beordrar ingenting.
 
-**Aktiviteten** ligger på `/aktivitet`. Två avdelningar: *Pågår* (hur många som väntar
-på tolkning, och knappen som startar den på just den här datorn) och *Behöver dig* —
-och den senare innehåller **bara sådant som faktiskt gått fel**: bilder som aldrig kom
-fram, en tolkning som gav noll text, fält som inte gick att hitta. En rad leder till
-kvittovyn, där felet lagas, och försvinner sedan.
+### Aktivitetens lägen, och vägen ut ur var och en
 
-Låg konfidens skapar ingen rad, och ett fält maskinen läst utan att någon kvitterat
-det är inte en uppgift. Det fanns en kö byggd på motsatsen — `/pass`, senare `/ratta` —
-och den revs 2026-08-30: den räknade varje fungerande tolkning som arbete åt
-beställaren, vilket är en anställningsmodell och inte det han bett om. Förebilden är
+| Läge | Vägen ut |
+| --- | --- |
+| Väntar på tolkning | *Tolka nu* — läser bilden i den här webbläsaren, direkt |
+| Ingen text lästes | skriv in de tre fälten |
+| Bilden gick knappt att läsa | *Fälten stämmer*, eller rätta dem |
+| Saknar butik/datum/belopp | skriv in det som saknas |
+| Fångsten avslutades inte | *Kvittot är helt* |
+| Bilder saknas | *Bilden är borta* — förlusten skrivs i sidecarens `lostSegments` |
+
+Det fanns en kö byggd på motsatt premiss — `/pass`, senare `/ratta` — som räknade varje
+fungerande tolkning som arbete åt beställaren. Den revs 2026-08-30. Förebilden är
 Sonarrs *Activity*: systemet gör jobbet, listan är undantagen.
-
-**Kvalitetsflaggan** (M8) sitter i samma tabell. Måttet är tecken per läst rad, räknat
-av klienten som läste bilden och lagrat i `ocr.teckenPerRad`. Under 7 får kvittot läget
-`svag_text` — den felklassen är annars osynlig, för en bild som lästs tecken för tecken
-kan ha hög konfidens och fyllda fält och ändå vara fel rakt igenom. Gränsen står i
-`server/src/store/index-db.ts` och vilar på sjutton segment i M5a: 4,0 och 5,4 på de
-suddiga mot 11 i normalfallet. Saknas måttet flaggas ingenting — okänt är inte dåligt.
-
-**Två omtolkningar, och de är olika dyra.** *Tolka om fälten* (`POST /api/falt/omtolka`,
-knapp i aktiviteten) räknar om fälten ur texten som redan lästs, för hela arkivet —
-ingen bild öppnas, och det är vägen när utvinningsreglerna blivit bättre. *Läs om
-bilden* (`POST /api/receipts/:id/lasom`) kastar texten så att kvittot hamnar i
-tolkningskön igen; det är den enda vägen när det som lästes inte går att lita på.
-Rättelser överlever båda.
-
-**Kvittovyns fältpanel är ett formulär.** Den var tidigare text man kunde klicka på,
-och ett fält maskinen inte hittat ritades som ett tankstreck — det gick att rätta men
-såg inte ut att gå. Beställaren hittade det inte, och han hade rätt.
-
-**Kalibreringsurvalet** finns på servern (`POST /api/granskning/urval`,
-`GET /api/granskning`, `POST /api/receipts/:id/granskning`) och är testat, men **har
-ingen skärm**. Det är ett mätverktyg, inte en uppgift i appen, och var det ska visas
-är obestämt.
-
-Indexet bär en **schemaversion**. Stämmer den inte med koden kastas tabellerna vid
-start och byggs om ur `receipts/`.
 
 ## Gränssnittet
 
-**Mörk arbetsbänk — riktning A, vald 2026-08-30.** Ett läge, inte två: ljusa läget
-och `prefers-color-scheme` är borta, och `<html data-theme="kvitto">` är satt. Ytorna
-är äkta grå (#1f1e23 paneler mot #17161a sida), aldrig svart, med höjd som
-ljushetsskillnad; bildbädden ligger på #0e0d10 så att papperets kant syns även när
-fotot är överexponerat. Accenten är varm bärnsten #e2b04a, inte blå — närmast papperet
-i ton, syns mot mörkret utan att skrika, och krockar inte med felrött eller
-varningsgult. Tätheten kommer ur typografin: 44 px rader, 13 px text, versala
-kolumnrubriker på 11 px, linjer bara där de skiljer två ting åt.
+**Mörk arbetsbänk, riktning A** ur designduken, vald av beställaren. Ett läge, inte
+två: ljusa läget och `prefers-color-scheme` är borta, `<html data-theme="kvitto">`.
+Ytorna är äkta grå — #1f1e23 paneler mot #17161a sida — aldrig svart, med höjd som
+ljushetsskillnad. Bildbädden #0e0d10. Accenten är varm bärnsten #e2b04a, inte blå:
+närmast papperet i ton och krockar inte med felrött eller varningsgult i samma rad.
 
-Valet gjordes mot tre riktningar i duken som skilde sig i **vad de gör till
-huvudsak** — raden, fotografiet eller beloppet. Första försöket var tre färgställningar
-av samma layout och underkändes med rätta.
+**DaisyUI bär komponenterna.** Egna verktygsklasser ovanpå dem utgår — `flex-col` mot
+ett rutnät biter inte, `alert-vertical` finns. Egna regler som ändrar bibliotekets
+mått utgår också: de låg i `@layer components` och förlorade tyst mot DaisyUIs eget
+lager, så tabellen hade bibliotekets mått hela tiden utan att jag visste det.
 
-**DaisyUI, med husets egen palett.** Knappar, tabeller, fält och paneler var
-handskrivna och gled isär mellan skärmarna. Nu är komponenterna DaisyUIs, medan
-färgerna är samma som förut — de valdes mot kvittobilder och prövades i mörkt läge,
-och det arbetet görs inte om. Temat heter `kvitto`/`kvitto-morkt` och står i
-`web/src/styles.css`. Tailwind och DaisyUI ligger i node_modules och bakas in; sidan
-är cross-origin isolerad och kan inte hämta något utifrån ändå.
+Ett undantag är motiverat och mätt: **kontrollernas kanter**. DaisyUI räknar dem ur
+bläcket vid 20 %, vilket i den här paletten ger 1,09:1 för en neutral knapp och 1,64:1
+för ett fält. Kravet är 3:1. De ligger på `--line-strong` #6e6c7b, uppmätt 3,2:1 mot
+panelen. Raddelare är dekor och rörs inte — tätheten ska komma ur typografin.
 
-Datorytan är omgjord med DaisyUI. Telefonytan behåller sina egna komponenter men
-**delar palett**: den har aldrig haft egna färger — dess CSS läser bara tokens, och
-tokens är värde för värde identiska med DaisyUI-temat. Kontrollerat med grep: inga
-literala färger finns någonstans utom i `styles/tokens.css` och `styles.css`.
+Telefonytan har egna komponenter men **delar palett**: dess CSS läser bara tokens, och
+tokens är värde för värde identiska med DaisyUI-temat. Inga literala färger finns
+någonstans utom i `styles/tokens.css` och `styles.css`.
 
-**Namngivning: ett ställe, ett namn.** Ytan står först i adressen
-(`/telefon/kvitton`, `/dator/kvitton`), appen heter Kvittoarkiv, platsen heter
-Kvitton, och samma ord står i menyn, i rubriken och i webbläsarfliken.
-
-## Granskningen 2026-08-30
-
-Tre granskare — frontend, UX och UI — gick över koden och hittade 109 fel. De
-åtgärdades i fem grupper: datafel och regelbrott, köer utan utgång, telefonytan,
-kanter och tabellmått, samt texten. Fyra mönster är värda att inte återinföra:
-
-**Svar som inte kontrolleras.** Ett `fetch` vars status aldrig prövas, plus ett `as`
-som gör den ogranskade formen till en typ. Det var orsaken till fyra av de fem värsta
-buggarna, bland dem att varje rad i telefonlistan påstod sig vara otolkad.
-
-**Något som startas utan att stoppas.** `startaLopande()` anropades i en konstruktor
-medan `stoppaLopande()` bara fanns på papperet, och tjänsten lever i roten — datorn
-fortsatte tolka av sig själv efter ett ytbyte.
-
-**Lägen utan utgång.** Varje rad i aktiviteten måste kunna nå ett slut med appens egna
-medel. Regeln som bär det: en människas tre fält väger tyngre än maskinen.
-
-**Egna klasser ovanpå DaisyUI.** `flex-col` mot ett rutnät, tabellmått i `@layer
-components` som förlorar mot bibliotekets eget lager. Använd komponentens egen
-modifierare, och gå bara utanför när en mätning kräver det — kontrollernas kanter är
-det enda undantaget, och skälet står i `styles.css`.
+`tokens.css` får inte heta samma sak som Tailwinds egna namnrymder. Den gjorde det —
+`--text-*`, `--radius-*`, `--font-*` — och skrev över hela verktygsskalan. De heter nu
+`--typ-*`, `--horn-*`, `--typsnitt-*`, `--radavstand-*`, `--teckenavstand-*`.
 
 ## Vad som är mätt, och vad siffrorna betyder
 
 Ingenting nedan är gissat. Bryt inte mot det utan att mäta om.
 
 **tiny slår small.** 598 tecken mot 418, högre konfidens, tre gånger snabbare.
-Bekräftat två gånger: i Node med sharp (M0) och i webbläsare med canvas (M5a). Det
-är kontraintuitivt och stämmer ändå.
+Bekräftat två gånger: i Node med sharp (M0) och i webbläsare med canvas (M5a).
 
-**`raw` slår `clahe`.** Ingen kontrastbehandling. Det tar bort hela
-OpenCV-beroendet ur förbehandlingen.
+**`raw` slår `clahe`.** Ingen kontrastbehandling. Det tar bort hela OpenCV-beroendet.
 
-**Telefonen orkar tolka.** 2023 ms per bild, och snabbare än datorn — därför att den
-nåddes över https och fick flertrådad WASM. Entrådat kostar ~25 %.
+**Telefonen orkar tolka.** 2023 ms per bild, snabbare än datorn — därför att den nåddes
+över https och fick flertrådad WASM. Entrådat kostar ~25 %.
 
-**91 % av backloggens bilder saknar EXIF-orientering.** En liggande sida läses som
-skräp med hög konfidens. Regeln ligger i `web/src/app/ocr/orientering.ts`: andelen
-höga textrutor avgör *om* sidan ligger ned, en provläsning åt båda hållen avgör *åt
-vilket håll*. Bilder appen själv fångat är redan upprätta — jobbet bär `uppratt`.
+**91 % av backloggens bilder saknar EXIF-orientering.** Regeln ligger i
+`web/src/app/ocr/orientering.ts`. Bilder appen själv fångat är redan upprätta — jobbet
+bär `uppratt`.
 
 **Datumsvagheten var inte OCR:ens fel.** `2026-06-31` stod bredvid tre segment som
-läste `2026-05-31`. Den 31 juni finns inte. Kalendern förkastar, en enda
-sifferförväxling får laga, samstämmighet avgör. Ett datum efter fototillfället kan
-inte vara ett inköpsdatum.
+läste `2026-05-31`. Kalendern förkastar, en sifferförväxling får laga, samstämmighet
+avgör. Ett datum efter fototillfället kan inte vara ett inköpsdatum.
 
-**Tecken per läst rad är kvalitetsmåttet.** 4,0 och 5,4 på de suddiga bilderna mot
-11 i normalfallet. Gränsen ligger kring 7. Det är M8:s nya innehåll.
+**Tecken per läst rad är kvalitetsmåttet.** 4,0 och 5,4 på de suddiga mot 11 i
+normalfallet. Gränsen 7 står i `index-db.ts` och **är inte prövad mot en riktig hög**.
+Klienten räknar måttet och lagrar det i `ocr.teckenPerRad`; saknas det flaggas
+ingenting, för okänt är inte dåligt.
 
-## Nästa steg
+## Granskningen 2026-08-30
 
-1. **Aktiviteten är byggd men inte körd av beställaren.** Den ska ses på burken innan
-   något byggs ovanpå.
-2. **Kalibreringsurvalet behöver en plats.** API:t finns; skärmen gör det inte.
-   Mätning, inte uppgift.
-3. **Gränsen 7 är inte prövad mot beställarens hög.** Den kommer ur sjutton segment.
-   Flaggar den för mycket eller för lite ska siffran flyttas, inte förklaras bort.
+Tre granskare — frontend, UX och UI — gick över koden och hittade **109 fel**. Ungefär
+hälften är åtgärdade, i fem grupper: datafel och regelbrott, köer utan utgång,
+telefonytan, kanter och tabellmått, samt texten.
+
+Fyra mönster är värda att inte återinföra:
+
+**Svar som inte kontrolleras.** Ett `fetch` vars status aldrig prövas, plus ett `as`
+som gör den ogranskade formen till en typ. Orsaken till fyra av de fem värsta buggarna.
+
+**Något som startas utan att stoppas.** `startaLopande()` i en konstruktor medan
+`stoppaLopande()` bara fanns på papperet — och tjänsten lever i roten.
+
+**Lägen utan utgång.** Varje rad i aktiviteten måste kunna nå ett slut med appens egna
+medel.
+
+**Egna klasser ovanpå DaisyUI.** Se avsnittet om gränssnittet.
+
+### Kvar av listan
+
+**Buggar:**
+
+- *Avbryt* i fångsten laddar upp bilderna ändå, utan bekräftelse, och skapar ett kvitto
+  utan `expectedSegments`. Ordet lovar motsatsen till vad som händer.
+- Överlappande `load()` i arkivet: ändra butik och datum snabbt, så avgör svarsordningen
+  vad tabellen visar.
+- "Hämtar …" står kvar under felrutan för alltid när ett anrop misslyckats.
+- Driftsidan visar `Http failure response for /api/health: 401` rakt av vid utgången
+  session; den har ingen 401-hantering alls.
+- `track segment.sha256` är instabil: två identiska bilder ger NG0955 i stället för en lista.
+- Menyn är en fokusfälla — ingen Esc, ingen fokusflytt, bakgrunden inte inert.
+- *Försök igen nu* saknar allt tillstånd och gör ingenting när man är offline.
+- Sparfel vid full telefon syns bara i fångstvyn, inte på listan man står på.
+- Tumnaglarna på uppladdningssidan är garanterat 404 — kvittona är per definition inte
+  i arkivet än.
+- `retryStuck()` nollar även det servern avvisat med 415/409, som aldrig går igenom.
+- `refresh()` i kön är osekvenserad och kan skriva tillbaka en äldre lista.
+
+**Konsekvens och form:** fem sätt att visa ett fel, tre laddlägen med två
+formuleringar, fyra verb för samma operation, tre olika vänsterkanter på telefonens
+rubriker, h2 större än h1, fyra miniatyrformat, typskalan som inte följer sin egen
+beskrivning, kvittovyn som staplar sig ända upp till 1280 px.
+
+**Skräp:** 27 döda tokens; täthetsaxeln (`data-density`) saknas på tre av fyra
+skrivbordsskärmar så `--d-*` inte gäller där; `@angular/forms` importeras aldrig;
+`confirmedAt` läses men skrivs aldrig; `previewWarning` har en mallgren som aldrig kan
+visas; datumformatering dubblerad i fyra komponenter med tre olika format.
+
+**Medvetet inte åtgärdat:** att "saknar datum eller belopp" är en lista att beta av.
+Ett kvitto utan datum går inte att sortera eller filtrera på — det är en verklig lucka,
+inte en kvittering av något som redan fungerar.
+
+## Vad som inte är prövat
+
+- **Ingenting av dagens arbete är kört mot beställarens egna kvitton.** Skärmarna är
+  renderade i en webbläsare och mätta; de är inte använda.
+- **Telefonens fångstflöde i mörkt läge.** Paletten är delad, men flödet är inte
+  provat i handen.
+- **Gränsen 7** för svagt läst text.
+- **Kalibreringsurvalet** finns på servern med tester (`POST /api/granskning/urval`,
+  `GET /api/granskning`, `POST /api/receipts/:id/granskning`) men **har ingen skärm**.
+  Det är mätning, inte en uppgift i appen, och var det hör hemma är obestämt. Utan det
+  finns inga siffror till M9.
+- **Designduken säger 44 px rader och 13 px text.** Koden säger 35 och 12 — DaisyUIs
+  egen skala. Duken ska rättas efter koden, inte tvärtom.
 
 ## Så arbetar beställaren
 
 Han testar på riktig hårdvara och rapporterar rakt. Han vill ha **beslut, inte
 alternativlistor**, och han säger ifrån när något är fel — lyssna första gången.
 
-Fyra saker han uttryckligen sagt:
-
 - **Fråga inte om samma sak igen.** Har han svarat är det svarat.
 - **Återställningsövningen är ingen grind.** Han slänger sina kvitton när han vill.
-- **Bygg inte med påhittade data.** En tom kolumn är ärligare än en gissning, och han
-  har underkänt gränssnitt som påstod saker systemet inte kan.
-- **Appen är appen.** Inga meddelanden till beställaren i gränssnittet — inga
-  milstolpar, inga resonemang om varför något är utformat som det är, ingen
-  brasklapp om vad som kommer senare. All kommunikation sker i samtalet.
+- **Appen är appen.** Inga meddelanden till honom i gränssnittet — inga milstolpar,
+  inga resonemang om designval, ingen brasklapp om vad som kommer senare. All
+  kommunikation sker i samtalet.
 - **Han är inte anställd för att rätta kvitton.** Ingen skärm får presentera en lista
   att beta av. Det som visas är det som gått fel.
 - **Inga metaforer i gränssnitt eller adresser.** "Pass" var mitt ord och betydde
   ingenting för honom.
-- **Att det står i HTML att något fungerar är inget bevis på att det gör det.** Visa
-  med tester och med att han kör det.
-- **Färg får bära betydelse**, men måste dubbelkodas för tillgänglighetens skull.
-  Konfidensgrad är undantaget: den är en siffra i neutralt bläck, för en färgskala
-  skulle påstå en gräns ingen mätt.
+- **Inga "x av y"-räknare utspridda överallt.**
+- **Bygg inte med påhittade data.** En tom kolumn är ärligare än en gissning.
+- **Färg får bära betydelse**, men måste dubbelkodas. Konfidensgrad är undantaget: en
+  siffra i neutralt bläck, för en färgskala skulle påstå en gräns ingen mätt.
+- **Att det står i HTML att något fungerar är inget bevis.** Visa med tester, med
+  mätningar, och med att han kör det. Rendera och titta innan du påstår att något är
+  klart — det felet gjordes flera gånger i dag.
 
-Han har också, med rätta, sågat två saker jag gjorde: att bygga innan jag designat,
-och att designa utan att fråga. Ordningen som fungerade var **research → design →
-bygg**, med UX och UI som egna genomgångar.
+Han har med rätta sågat tre saker: att bygga innan jag designat, att designa utan att
+fråga, och att presentera tre färgställningar av samma layout som tre riktningar.
+Ordningen som fungerar är **research → design → bygg**, med UX och UI som egna
+genomgångar.
