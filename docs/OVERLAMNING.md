@@ -66,17 +66,25 @@ tom FTS-text betyder otolkat. Reservationer lever i minnet och aldrig på disk.
 därför räcker `POST /api/falt/omtolka` för att låta bättre regler nå gamla kvitton
 utan att en bild läses om. Rättelser skrivs över aldrig.
 
-**Rättningspasset** ligger på `/pass` och nås från arkivet när det finns något att
-göra. Kön är härledd som allt annat: indexet har en kolumn `unreviewed` som räknar hur
-många av butik, datum och belopp som ingen människa sett, och kvitton utan text hålls
-utanför — de hör till tolkningskön. `Enter` sparar fältet och faller till nästa,
-`Enter` i det sista fältet sparar och tar in nästa kvitto. **Ett fält man lämnar orört
-sparas inte**: tystnad är inte ett godkännande, och en påhittad bekräftelse hade
-förgiftat just den mätning `corrections` finns till för.
+**Aktiviteten** ligger på `/aktivitet`. Två avdelningar: *Pågår* (hur många som väntar
+på tolkning, och knappen som startar den på just den här datorn) och *Behöver dig* —
+och den senare innehåller **bara sådant som faktiskt gått fel**: bilder som aldrig kom
+fram, en tolkning som gav noll text, fält som inte gick att hitta. En rad leder till
+kvittovyn, där felet lagas, och försvinner sedan.
 
-Indexet bär nu en **schemaversion**. Stämmer den inte med koden kastas tabellerna vid
-start och byggs om ur `receipts/` — löftet "en schemaändring är en reindex" är
-därmed något koden gör, inte något dokumentationen påstår.
+Låg konfidens skapar ingen rad, och ett fält maskinen läst utan att någon kvitterat
+det är inte en uppgift. Det fanns en kö byggd på motsatsen — `/pass`, senare `/ratta` —
+och den revs 2026-08-30: den räknade varje fungerande tolkning som arbete åt
+beställaren, vilket är en anställningsmodell och inte det han bett om. Förebilden är
+Sonarrs *Activity*: systemet gör jobbet, listan är undantagen.
+
+**Kalibreringsurvalet** finns på servern (`POST /api/granskning/urval`,
+`GET /api/granskning`, `POST /api/receipts/:id/granskning`) och är testat, men **har
+ingen skärm**. Det är ett mätverktyg, inte en uppgift i appen, och var det ska visas
+är obestämt.
+
+Indexet bär en **schemaversion**. Stämmer den inte med koden kastas tabellerna vid
+start och byggs om ur `receipts/`.
 
 ## Vad som är mätt, och vad siffrorna betyder
 
@@ -107,15 +115,12 @@ inte vara ett inköpsdatum.
 
 ## Nästa steg
 
-1. **Granskningsurvalet** (M7). Hundra slumpade kvitton mot bilden, `review.sampled`.
-   Utan det finns inga siffror till M9. Skärmarna finns ritade: `design/Granska.dc.html`
-   och `design/GranskaFler.dc.html`. Passet är formen att bygga vidare på — men
-   granskningen är inte samma sak som rättningen, och urvalet måste dras oberoende av
-   konfidens, annars mäter det bara det man redan snubblat på.
-2. **Kvalitetsflaggan** (M8 omskriven). Tecken per rad, på servern, in i samma
-   granskningskö som låg konfidens.
-3. **Rättningspasset** är byggt 2026-08-30. Det som saknas där är prövat i handen, inte
-   i koden: om `Enter`-slingan verkligen är snabbare än att klicka sig igenom.
+1. **Aktiviteten är byggd men inte körd av beställaren.** Den ska ses på burken innan
+   något byggs ovanpå.
+2. **Kalibreringsurvalet behöver en plats.** API:t finns; skärmen gör det inte.
+   Mätning, inte uppgift.
+3. **Kvalitetsflaggan** (M8 omskriven). Tecken per rad, på servern. Ett kvitto under
+   gränsen är ett problem i aktivitetslistan — det är där den hör hemma.
 
 ## Så arbetar beställaren
 
@@ -128,6 +133,15 @@ Fyra saker han uttryckligen sagt:
 - **Återställningsövningen är ingen grind.** Han slänger sina kvitton när han vill.
 - **Bygg inte med påhittade data.** En tom kolumn är ärligare än en gissning, och han
   har underkänt gränssnitt som påstod saker systemet inte kan.
+- **Appen är appen.** Inga meddelanden till beställaren i gränssnittet — inga
+  milstolpar, inga resonemang om varför något är utformat som det är, ingen
+  brasklapp om vad som kommer senare. All kommunikation sker i samtalet.
+- **Han är inte anställd för att rätta kvitton.** Ingen skärm får presentera en lista
+  att beta av. Det som visas är det som gått fel.
+- **Inga metaforer i gränssnitt eller adresser.** "Pass" var mitt ord och betydde
+  ingenting för honom.
+- **Att det står i HTML att något fungerar är inget bevis på att det gör det.** Visa
+  med tester och med att han kör det.
 - **Färg får bära betydelse**, men måste dubbelkodas för tillgänglighetens skull.
   Konfidensgrad är undantaget: den är en siffra i neutralt bläck, för en färgskala
   skulle påstå en gräns ingen mätt.

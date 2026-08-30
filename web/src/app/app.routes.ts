@@ -40,9 +40,9 @@ export const routes: Routes = [
     loadComponent: () => import('./desktop/kvitto.component').then((m) => m.KvittoComponent),
   },
   {
-    path: 'pass',
-    title: 'Rättningspass',
-    loadComponent: () => import('./desktop/pass.component').then((m) => m.PassComponent),
+    path: 'aktivitet',
+    title: 'Aktivitet',
+    loadComponent: () => import('./desktop/aktivitet.component').then((m) => m.AktivitetComponent),
   },
   {
     path: 'matning',

@@ -1,0 +1,82 @@
+.yta { display: flex; flex-direction: column; min-height: 100dvh; background: var(--bg); }
+
+.topp {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 56px;
+  padding-inline: var(--space-2) var(--space-5);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.tillbaka {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap-tight);
+  min-height: var(--tap-comfort);
+  color: var(--accent);
+  font-size: var(--text-base);
+  text-decoration: none;
+}
+
+.tillbaka svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.topp h1 { font-size: var(--text-lg); }
+
+.kolumn { display: grid; gap: var(--space-7); width: min(52rem, 100%); margin: 0 auto; padding: var(--space-6) var(--space-5); }
+section { display: grid; gap: var(--space-3); }
+.rubrik { font-size: var(--text-sm); color: var(--ink-muted); letter-spacing: var(--tracking-label); text-transform: uppercase; }
+.tyst { color: var(--ink-faint); font-size: var(--text-base); }
+
+.kort { display: grid; gap: var(--space-2); padding: var(--d-card-pad); border-radius: var(--radius-md); background: var(--sel); }
+.kortrad { display: flex; align-items: center; gap: var(--d-gap); }
+.kortrad span { flex: 1 1 auto; font-size: var(--text-base); }
+
+.knapp {
+  min-height: var(--tap-comfort);
+  padding-inline: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+
+.knapp.primar { border: none; background: var(--accent); color: var(--on-accent); font-weight: var(--weight-bold); }
+
+.lista { display: grid; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
+
+.rad {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap);
+  padding: var(--d-pad-y) var(--d-pad-x);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.rad:last-child { border-bottom: none; }
+.rad:hover { background: var(--sunken); }
+
+/* En förlorad bild går inte att ta om — papperet är slängt. Den skillnaden bärs av
+   både färgen och av att texten säger vad som saknas, aldrig av färgen ensam. */
+.rad.allvarlig strong { color: var(--danger); }
+
+.tumnagel { width: var(--d-thumb-w); height: var(--d-thumb-h); flex: 0 0 auto; border-radius: var(--radius-xs); object-fit: cover; background: var(--sunken); }
+.radtext { flex: 1 1 auto; display: grid; gap: 2px; }
+.radtext strong { font-size: var(--text-base); font-weight: var(--weight-medium); }
+.radtext .tyst { font-size: var(--text-sm); }
+.pil { width: 20px; height: 20px; flex: 0 0 auto; fill: none; stroke: var(--ink-faint); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+.fel { color: var(--danger); font-size: var(--text-base); }
+.fel button {
+  margin-inline-start: var(--space-2);
+  min-height: var(--tap-min);
+  padding-inline: var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--danger);
+}

@@ -1,6 +1,5 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { AuthService } from '../shared/auth.service';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
 
@@ -37,7 +36,6 @@ type Grupp = { rubrik: string; rader: Rad[] };
 })
 export class ArkivComponent {
   private readonly router = inject(Router);
-  private readonly auth = inject(AuthService);
   /**
    * Tolkningen på skrivbordet startas bara av ett tryck här. Ingen schemaläggning,
    * ingen automatik: den här datorn arbetar när dess ägare säger till, och det är ett
@@ -49,12 +47,8 @@ export class ArkivComponent {
   readonly total = signal(0);
   readonly error = signal<string | null>(null);
 
-  /**
-   * Hur många kvitton som har fält ingen sett. Serverns räkning, hämtad hit bara för
-   * att kön ska synas: ett rättningspass går man in i med avsikt, och en avsikt kräver
-   * att man vet att det finns något att göra.
-   */
-  readonly attRatta = signal(0);
+  /** Hur många kvitton som gått fel. Bara siffran — listan bor i aktiviteten. */
+  readonly problem = signal(0);
 
   readonly fraga = signal('');
   readonly traffar = signal<Traff[] | null>(null);
@@ -101,17 +95,16 @@ export class ArkivComponent {
       const body = (await response.json()) as { total: number; receipts: Rad[] };
       this.rader.set(body.receipts);
       this.total.set(body.total);
-      await this.raknaAttRatta();
+      await this.raknaProblem();
     } catch {
       this.error.set('Kunde inte hämta kvittona. Är servern igång?');
     }
   }
 
-  /** Bara siffran behövs här — arbetslistan hämtas när passet börjar, inte nu. */
-  private async raknaAttRatta(): Promise<void> {
-    const svar = await fetch('/api/pass?limit=1');
+  private async raknaProblem(): Promise<void> {
+    const svar = await fetch('/api/aktivitet');
     if (!svar.ok) return;
-    this.attRatta.set(((await svar.json()) as { total: number }).total);
+    this.problem.set(((await svar.json()) as { problem: unknown[] }).problem.length);
   }
 
   onFraga(event: Event): void {
@@ -152,10 +145,6 @@ export class ArkivComponent {
     return new Date(iso).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
-  async loggaUt(): Promise<void> {
-    await this.auth.logout();
-    await this.router.navigateByUrl('/logga-in');
-  }
 }
 
 function dagrubrik(iso: string): string {

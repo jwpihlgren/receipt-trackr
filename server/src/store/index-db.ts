@@ -20,7 +20,7 @@ export type ReceiptIndex = Database.Database;
  * Det är hela poängen med ett härlett index — höj siffran när kolumnerna ändras
  * och skriv aldrig ett `ALTER TABLE`.
  */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 4;
 
 export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } {
   const db = new Database(path);
@@ -43,7 +43,10 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
       date        TEXT,
       total       REAL,
       currency    TEXT,
-      unreviewed  INTEGER NOT NULL DEFAULT 0,
+      expected    INTEGER,
+      tolkad      INTEGER NOT NULL DEFAULT 0,
+      sampled     INTEGER NOT NULL DEFAULT 0,
+      reviewed    INTEGER NOT NULL DEFAULT 0,
       indexed_at  TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS receipts_captured_at ON receipts (captured_at DESC);
@@ -57,23 +60,6 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
   return { db, rebuilt };
 }
 
-/**
- * Fälten ett rättningspass går igenom. `currency` står inte med: den utvinns aldrig
- * ur texten utan sätts till kronor, och den visas inte, så ett krav på att någon
- * bekräftar den vore ett krav ingen kan uppfylla — och då sinar kön aldrig.
- */
-const GRANSKADE = ["store", "date", "total"] as const;
-
-/**
- * Hur många av fälten som ingen människa sett. Ett fält som saknas helt räknas som
- * ogranskat: det är precis det fall där maskinen inte hittade något och en människa
- * behövs mest.
- */
-function unreviewedCount(receipt: Receipt): number {
-  const fields = receipt.fields as Record<string, { source?: string } | undefined>;
-  return GRANSKADE.filter((namn) => (fields[namn]?.source ?? "ocr") === "ocr").length;
-}
-
 const field = (receipt: Receipt, name: string): unknown =>
   (receipt.fields as Record<string, { value?: unknown } | undefined>)[name]?.value;
 
@@ -81,13 +67,16 @@ const field = (receipt: Receipt, name: string): unknown =>
 export function upsert(db: ReceiptIndex, receipt: Receipt): void {
   const tx = db.transaction((r: Receipt) => {
     db.prepare(
-      `INSERT INTO receipts (id, captured_at, backlog, segments, store, date, total, currency, unreviewed, indexed_at)
-       VALUES (@id, @captured_at, @backlog, @segments, @store, @date, @total, @currency, @unreviewed, @indexed_at)
+      `INSERT INTO receipts (id, captured_at, backlog, segments, store, date, total, currency,
+                             expected, tolkad, sampled, reviewed, indexed_at)
+       VALUES (@id, @captured_at, @backlog, @segments, @store, @date, @total, @currency,
+               @expected, @tolkad, @sampled, @reviewed, @indexed_at)
        ON CONFLICT(id) DO UPDATE SET
          captured_at = excluded.captured_at, backlog = excluded.backlog,
          segments = excluded.segments, store = excluded.store, date = excluded.date,
          total = excluded.total, currency = excluded.currency,
-         unreviewed = excluded.unreviewed, indexed_at = excluded.indexed_at`,
+         expected = excluded.expected, tolkad = excluded.tolkad, sampled = excluded.sampled,
+         reviewed = excluded.reviewed, indexed_at = excluded.indexed_at`,
     ).run({
       id: r.id,
       captured_at: r.capturedAt,
@@ -97,7 +86,13 @@ export function upsert(db: ReceiptIndex, receipt: Receipt): void {
       date: (field(r, "date") as string) ?? null,
       total: (field(r, "total") as number) ?? null,
       currency: (field(r, "currency") as string) ?? null,
-      unreviewed: unreviewedCount(r),
+      expected: r.expectedSegments,
+      // Att tolkningen *körts* är något annat än att den gav text. Utan den
+      // skillnaden går ett kvitto som väntar på sin tur inte att skilja från ett där
+      // maskinen läste och inte fick ut ett tecken.
+      tolkad: r.ocr ? 1 : 0,
+      sampled: r.review?.sampled ? 1 : 0,
+      reviewed: r.review?.verdict ? 1 : 0,
       indexed_at: new Date().toISOString(),
     });
     // FTS5 saknar upsert: raden ersätts i stället, vilket är samma sak här.
@@ -219,47 +214,120 @@ export function recent(db: ReceiptIndex, limit = 50, before?: string): ReceiptRo
 export const count = (db: ReceiptIndex): number =>
   (db.prepare("SELECT COUNT(*) AS n FROM receipts").get() as { n: number }).n;
 
-export type PassRow = {
+export type KvittoRad = {
   id: string;
   capturedAt: string;
   store: string | null;
   date: string | null;
   total: number | null;
   currency: string | null;
-  unreviewed: number;
+};
+
+export type Problem = KvittoRad & {
+  /** Utlovade bilder som aldrig kom fram. Noll betyder att kvittot är helt. */
+  saknadeBilder: number;
+  /** Tolkningen kördes och gav inte ett tecken. */
+  utanText: boolean;
+  /** Fält maskinen inte hittade alls. Tomt betyder att den hittade alla tre. */
+  saknadeFalt: string[];
 };
 
 /**
- * Arbetslistan för ett rättningspass: kvitton som är tolkade men vars fält ingen sett.
+ * Kvitton där något faktiskt gått fel.
  *
- * Två villkor, och båda behövs. `length(f.text) > 0` håller otolkade kvitton utanför —
- * de har inga fält att rätta och hör till tolkningskön, inte hit. `unreviewed > 0`
- * är själva kön, och den sinar när fälten är bekräftade eller rättade.
+ * Vad som *inte* står i villkoret är det viktiga: låg konfidens skapar ingen rad här,
+ * och ett fält som maskinen läst utan att någon kvitterat det är inte ett problem.
+ * Listan innehåller bara sådant som en människa måste laga för att kvittot ska vara
+ * helt — saknade bilder, en tolkning som gav noll text, och fält som inte gick att
+ * hitta. Fungerar systemet är listan tom.
  *
- * Äldst först, till skillnad från arkivlistan. Ett pass betas av framifrån: det som
- * legat längst är det som väntat längst, och ordningen ska inte kastas om av att ett
- * nytt kvitto kommer in medan man håller på.
+ * Otolkade kvitton står utanför: de väntar på sin tur och hör till det som pågår.
  */
-export function unreviewed(db: ReceiptIndex, limit = 100): PassRow[] {
+export function problem(db: ReceiptIndex, limit = 200): Problem[] {
+  const rader = db
+    .prepare(
+      `SELECT r.id AS id, r.captured_at AS capturedAt, r.store AS store, r.date AS date,
+              r.total AS total, r.currency AS currency,
+              r.segments AS segments, r.expected AS expected, r.tolkad AS tolkad,
+              length(f.text) AS tecken
+         FROM receipts r
+         JOIN receipts_fts f ON f.id = r.id
+        WHERE (r.expected IS NOT NULL AND r.segments < r.expected)
+           OR (r.tolkad = 1 AND length(f.text) = 0)
+           OR (r.tolkad = 1 AND (r.store IS NULL OR r.date IS NULL OR r.total IS NULL))
+        ORDER BY r.captured_at DESC
+        LIMIT ?`,
+    )
+    .all(limit) as (KvittoRad & { segments: number; expected: number | null; tolkad: number; tecken: number })[];
+
+  return rader.map(({ segments, expected, tolkad, tecken, ...rad }) => ({
+    ...rad,
+    saknadeBilder: expected === null ? 0 : Math.max(0, expected - segments),
+    utanText: tolkad === 1 && tecken === 0,
+    saknadeFalt:
+      tolkad === 1 && tecken > 0
+        ? [
+            ...(rad.store === null ? ["butik"] : []),
+            ...(rad.date === null ? ["datum"] : []),
+            ...(rad.total === null ? ["belopp"] : []),
+          ]
+        : [],
+  }));
+}
+
+/**
+ * Kalibreringsurvalets kö: dragna kvitton som ingen granskat än.
+ *
+ * Ordningen är slumpen som redan skett — urvalet drogs slumpmässigt, och att sedan
+ * beta av det i ULID-ordning tillför ingen skevhet. Det gör däremot listan
+ * förutsägbar att komma tillbaka till, vilket en slumpad ordning inte hade varit.
+ */
+export function ogranskatUrval(db: ReceiptIndex, limit = 200): KvittoRad[] {
   return db
     .prepare(
       `SELECT r.id AS id, r.captured_at AS capturedAt, r.store AS store, r.date AS date,
-              r.total AS total, r.currency AS currency, r.unreviewed AS unreviewed
+              r.total AS total, r.currency AS currency
          FROM receipts r
-         JOIN receipts_fts f ON f.id = r.id
-        WHERE length(f.text) > 0 AND r.unreviewed > 0
+        WHERE r.sampled = 1 AND r.reviewed = 0
         ORDER BY r.captured_at ASC
         LIMIT ?`,
     )
-    .all(limit) as PassRow[];
+    .all(limit) as KvittoRad[];
 }
 
-export function unreviewedTotal(db: ReceiptIndex): number {
+export type UrvalLage = { urval: number; granskade: number; kvar: number; dragbara: number };
+
+/**
+ * Hur urvalet står. `dragbara` är hur många tolkade kvitton som ännu inte är dragna —
+ * alltså hur mycket större urvalet skulle kunna bli om man drog om.
+ */
+export function urvalLage(db: ReceiptIndex): UrvalLage {
   const row = db
     .prepare(
-      `SELECT COUNT(*) AS n FROM receipts r JOIN receipts_fts f ON f.id = r.id
-        WHERE length(f.text) > 0 AND r.unreviewed > 0`,
+      `SELECT
+         (SELECT COUNT(*) FROM receipts WHERE sampled = 1) AS urval,
+         (SELECT COUNT(*) FROM receipts WHERE sampled = 1 AND reviewed = 1) AS granskade,
+         (SELECT COUNT(*) FROM receipts r JOIN receipts_fts f ON f.id = r.id
+           WHERE r.sampled = 0 AND length(f.text) > 0) AS dragbara`,
     )
-    .get() as { n: number };
-  return row.n;
+    .get() as { urval: number; granskade: number; dragbara: number };
+  return { ...row, kvar: row.urval - row.granskade };
+}
+
+/**
+ * Kvitton som får dras: tolkade, och inte redan i urvalet.
+ *
+ * Konfidensen står medvetet inte i villkoret. Ett urval som vet något om konfidensen
+ * när det dras kan inte användas för att mäta konfidensen — det är hela skälet till
+ * att den här funktionen finns i stället för att man granskar det som ser osäkert ut.
+ */
+export function dragbara(db: ReceiptIndex): string[] {
+  return (
+    db
+      .prepare(
+        `SELECT r.id AS id FROM receipts r JOIN receipts_fts f ON f.id = r.id
+          WHERE r.sampled = 0 AND length(f.text) > 0`,
+      )
+      .all() as { id: string }[]
+  ).map((r) => r.id);
 }

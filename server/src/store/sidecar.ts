@@ -20,6 +20,19 @@ export type Segment = {
   capture?: Record<string, unknown>;
 };
 
+/** `correct` = fälten stämde. `wrong` = minst ett var fel och rättades. `unreadable` = går inte att avgöra ur bilden. */
+export type Verdict = "correct" | "wrong" | "unreadable";
+
+export type Review = {
+  sampled: boolean;
+  reviewedAt?: string;
+  verdict?: Verdict;
+  /** Tid från att kvittot visades till att utfallet gavs. */
+  dwellMs?: number;
+  /** Om bilden hunnit laddas när utfallet gavs. Ett nej gör granskningen värdelös. */
+  sawImage?: boolean;
+};
+
 export type Receipt = {
   schema: typeof SCHEMA;
   id: string;
@@ -37,7 +50,17 @@ export type Receipt = {
   completedAt: string | null;
   fields: Record<string, unknown>;
   corrections: unknown[];
-  review: { sampled: boolean };
+  /**
+   * Kalibreringsurvalet. `sampled` sätts när kvittot **dragits** — slumpmässigt och
+   * oberoende av konfidens — och resten fylls när någon faktiskt granskat det mot
+   * bilden. Skillnaden bär hela mätningen: ett kvitto man råkat titta på säger bara
+   * något om vad man snubblade på, medan ett draget kvitto säger något om högen.
+   *
+   * `dwellMs` och `sawImage` finns för att en granskning som gick för fort, eller som
+   * gjordes utan att bilden hann visas, ska gå att räkna bort i efterhand i stället
+   * för att tyst förbättra siffran.
+   */
+  review: Review;
   ocr: unknown | null;
   tags: { user: string[]; auto: string[] };
   /** Hela råtexten, radbruten. Fylls av OCR-steget i M5. */

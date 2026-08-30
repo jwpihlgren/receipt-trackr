@@ -74,21 +74,17 @@
             <span class="tolktext">{{ otolkade() }} {{ otolkade() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
             <button type="button" class="tolkknapp primar" (click)="tolka()">Tolka här</button>
           </div>
-          <span class="tyst">Ordet <em>här</em> bär hela regeln: den här datorn arbetar bara när du säger till.</span>
         </div>
       }
 
-      @if (attRatta() > 0) {
+      @if (problem() > 0) {
         <div class="tolkremsa">
           <div class="tolkrad">
             <span class="tolktext">
-              {{ attRatta() }} {{ attRatta() === 1 ? 'kvitto har fält' : 'kvitton har fält' }} som ingen sett
+              {{ problem() }} {{ problem() === 1 ? 'kvitto behöver' : 'kvitton behöver' }} dig
             </span>
-            <a class="tolkknapp primar" routerLink="/pass">Rätta dem</a>
+            <a class="tolkknapp primar" routerLink="/aktivitet">Visa</a>
           </div>
-          <span class="tyst">
-            Ett kvitto i taget med bilden bredvid. <kbd>Enter</kbd> sparar fältet och faller vidare.
-          </span>
         </div>
       }
 

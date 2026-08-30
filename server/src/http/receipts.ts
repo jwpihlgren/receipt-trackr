@@ -8,7 +8,16 @@ import { join } from "node:path";
 import { stat } from "node:fs/promises";
 import { Archive, ConflictError, ImageError } from "../store/archive.js";
 import { InvalidIdError, isSafeFileName } from "../store/paths.js";
-import { count, ftsQuery, recent, search, unreviewed, unreviewedTotal } from "../store/index-db.js";
+import {
+  count,
+  ftsQuery,
+  ogranskatUrval,
+  pendingOcrCount,
+  problem,
+  recent,
+  search,
+  urvalLage,
+} from "../store/index-db.js";
 import { thumbName } from "../store/paths.js";
 
 const CONTENT_TYPES: Record<string, string> = { ".jpg": "image/jpeg", ".webp": "image/webp" };
@@ -157,46 +166,72 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
   );
 
   /**
-   * Flera fält på en gång — det rättningspasset sparar när man går vidare till nästa
-   * kvitto. Egen rutt i stället för en andra kroppsform på rutten ovanför: två
-   * betydelser i samma URL är den sortens sparsamhet som kostar mer att läsa än den
-   * sparar att skriva.
+   * Aktiviteten: vad som pågår, och vad som faktiskt gått fel.
+   *
+   * `pagar` är väntan och löser sig själv; `problem` kräver en människa. Låg konfidens
+   * hamnar i ingendera — konfidensen mäts, den beordrar ingen att göra något.
    */
-  app.post<{ Params: { id: string }; Body: { rattelser?: { namn?: string; value?: unknown; bekraftat?: boolean }[] } }>(
-    "/api/receipts/:id/falt/flera",
-    async (request, reply) => {
-      const rattelser = request.body?.rattelser;
-      if (!Array.isArray(rattelser) || rattelser.length === 0) {
-        return reply.code(400).send({ error: "missing_rattelser", message: "Skicka minst en rättelse." });
-      }
-      for (const rattelse of rattelser) {
-        if (!rattelse?.namn || !FALT.has(rattelse.namn)) {
-          return reply
-            .code(400)
-            .send({ error: "okant_falt", message: `Fältet ska vara ett av ${[...FALT].join(", ")}.` });
-        }
-        if (rattelse.value === undefined) {
-          return reply.code(400).send({ error: "missing_value", message: "Ange vad fältet ska bli." });
-        }
-      }
-      const receipt = await archive.rattaFalten(
-        request.params.id,
-        rattelser.map((r) => ({ namn: r.namn as string, value: r.value, bekraftat: r.bekraftat === true })),
-      );
-      return reply.send(receipt);
-    },
-  );
+  app.get("/api/aktivitet", async () => ({
+    pagar: { otolkade: pendingOcrCount(archive.db) },
+    problem: problem(archive.db),
+  }));
+
+  const VERDICTS = new Set(["correct", "wrong", "unreadable"]);
 
   /**
-   * Arbetslistan för ett rättningspass, och hur lång den är i sin helhet.
+   * Kalibreringsurvalet: hur det står, och vad som är kvar att granska.
    *
-   * `total` är hela kön, `receipts` är den bit passet orkar med i ett svep. Arkivet
-   * använder samma rutt med `limit=1` bara för att få siffran — en kö man ska gå in i
-   * med avsikt behöver synas innan man går in i den.
+   * `dragbara` säger hur många tolkade kvitton som ännu inte är dragna. Den siffran
+   * finns för att ett urval draget i går inte täcker det som kommit in i dag — och
+   * skillnaden ska synas i stället för att tystna.
    */
-  app.get<{ Querystring: { limit?: string } }>("/api/pass", async (request) => {
-    const limit = Math.min(Math.max(Number(request.query.limit ?? 100) || 100, 1), 500);
-    return { total: unreviewedTotal(archive.db), receipts: unreviewed(archive.db, limit) };
+  app.get("/api/granskning", async () => ({
+    ...urvalLage(archive.db),
+    receipts: ogranskatUrval(archive.db),
+  }));
+
+  app.post<{ Body: { antal?: number } }>("/api/granskning/urval", async (request, reply) => {
+    const antal = request.body?.antal ?? 100;
+    if (!Number.isInteger(antal) || antal < 1 || antal > 10000) {
+      return reply.code(400).send({ error: "ogiltigt_antal", message: "Urvalet ska vara 1–10000 kvitton." });
+    }
+    return reply.send(await archive.draUrval(antal));
+  });
+
+  app.post<{
+    Params: { id: string };
+    Body: {
+      verdict?: string;
+      dwellMs?: number;
+      sawImage?: boolean;
+      rattelser?: { namn?: string; value?: unknown; bekraftat?: boolean }[];
+    };
+  }>("/api/receipts/:id/granskning", async (request, reply) => {
+    const { verdict, dwellMs, sawImage, rattelser } = request.body ?? {};
+    if (!verdict || !VERDICTS.has(verdict)) {
+      return reply
+        .code(400)
+        .send({ error: "okant_utfall", message: `Utfallet ska vara ett av ${[...VERDICTS].join(", ")}.` });
+    }
+    const rader = Array.isArray(rattelser) ? rattelser : [];
+    for (const rad of rader) {
+      if (!rad?.namn || !FALT.has(rad.namn)) {
+        return reply.code(400).send({ error: "okant_falt", message: `Fältet ska vara ett av ${[...FALT].join(", ")}.` });
+      }
+      if (rad.value === undefined) {
+        return reply.code(400).send({ error: "missing_value", message: "Ange vad fältet ska bli." });
+      }
+    }
+    const receipt = await archive.granska(
+      request.params.id,
+      {
+        verdict: verdict as "correct" | "wrong" | "unreadable",
+        ...(typeof dwellMs === "number" ? { dwellMs } : {}),
+        ...(typeof sawImage === "boolean" ? { sawImage } : {}),
+      },
+      rader.map((r) => ({ namn: r.namn as string, value: r.value, bekraftat: r.bekraftat === true })),
+    );
+    return reply.send(receipt);
   });
 
   app.post("/api/reindex", async () => archive.reindex());

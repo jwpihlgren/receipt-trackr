@@ -6,9 +6,9 @@
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { indexPath, receiptDir, RECEIPTS_DIR } from "./paths.js";
-import { newReceipt, readSidecar, writeSidecar, type Receipt, type Segment } from "./sidecar.js";
+import { newReceipt, readSidecar, writeSidecar, type Receipt, type Segment, type Verdict } from "./sidecar.js";
 import { saveSegment, ImageError } from "./images.js";
-import { openIndex, upsert, type ReceiptIndex } from "./index-db.js";
+import { dragbara, openIndex, upsert, type ReceiptIndex } from "./index-db.js";
 import { utvinnUtanAttSkrivaOver, type Falten } from "../falt/index.js";
 
 export class ConflictError extends Error {}
@@ -204,6 +204,13 @@ export class Archive {
     if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
     if (rattelser.length === 0) return receipt;
 
+    this.tillampa(receipt, rattelser);
+    await this.persist(receipt);
+    return receipt;
+  }
+
+  /** Ändrar kvittot i minnet. Anroparen skriver — så att ett tryck blir en skrivning. */
+  private tillampa(receipt: Receipt, rattelser: Rattelse[]): void {
     const at = new Date().toISOString();
     const falten = receipt.fields as Record<string, { value?: unknown; confidence?: number } | undefined>;
     for (const { namn, value, bekraftat } of rattelser) {
@@ -226,6 +233,71 @@ export class Archive {
         source: bekraftat ? "confirmed" : "manual",
       } as { value?: unknown; confidence?: number };
     }
+  }
+
+  /**
+   * Drar kalibreringsurvalet — slumpmässigt, och **oberoende av konfidens**.
+   *
+   * Det sista är hela poängen och tål att stå i klartext: ett kvitto hamnar aldrig i
+   * granskningskön för att det ser osäkert ut. Ett fält som blev fel med hög konfidens
+   * dyker annars aldrig upp av sig självt, och felfrekvensen man räknar fram blir en
+   * siffra över det man råkat snubbla på i stället för över högen.
+   *
+   * `antal` är urvalets *måttstorlek*, inte hur många som dras nu: har tio kvitton
+   * redan dragits och man ber om hundra, dras nittio till. Finns det färre tolkade
+   * kvitton än så dras alla som finns — vilket är läget i ett litet arkiv, och inte
+   * ett fel utan en följd av att slumpen bara har mening när högen är större än vad
+   * man orkar granska.
+   */
+  async draUrval(antal: number): Promise<{ dragna: number; urval: number; kvarAttDra: number }> {
+    const kandidater = dragbara(this.db);
+    const redan = (this.db.prepare("SELECT COUNT(*) AS n FROM receipts WHERE sampled = 1").get() as { n: number }).n;
+    const behovs = Math.max(0, antal - redan);
+
+    // Fisher–Yates, och bara så långt som behövs.
+    for (let i = kandidater.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [kandidater[i], kandidater[j]] = [kandidater[j]!, kandidater[i]!];
+    }
+
+    const dragna = kandidater.slice(0, behovs);
+    for (const id of dragna) {
+      const receipt = await this.get(id);
+      if (!receipt) continue;
+      receipt.review = { ...receipt.review, sampled: true };
+      await this.persist(receipt);
+    }
+    return {
+      dragna: dragna.length,
+      urval: redan + dragna.length,
+      kvarAttDra: Math.max(0, kandidater.length - dragna.length),
+    };
+  }
+
+  /**
+   * Skriver ett granskningsutfall, och de rättelser som hörde till samma blick, i en
+   * enda skrivning. Utfallet och rättelserna beskriver ett ögonblick och ska inte
+   * kunna skiljas åt av en krasch däremellan.
+   *
+   * `sampled` rörs inte. Granskar någon ett kvitto som aldrig drogs ska det utfallet
+   * bevaras men **inte** räknas in i kalibreringen — och den skillnaden går bara att
+   * hålla om draget och granskningen är två skilda fakta på disken.
+   */
+  async granska(
+    id: string,
+    utfall: { verdict: Verdict; dwellMs?: number; sawImage?: boolean },
+    rattelser: Rattelse[] = [],
+  ): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    if (rattelser.length > 0) this.tillampa(receipt, rattelser);
+    receipt.review = {
+      ...receipt.review,
+      reviewedAt: new Date().toISOString(),
+      verdict: utfall.verdict,
+      ...(utfall.dwellMs === undefined ? {} : { dwellMs: utfall.dwellMs }),
+      ...(utfall.sawImage === undefined ? {} : { sawImage: utfall.sawImage }),
+    };
     await this.persist(receipt);
     return receipt;
   }

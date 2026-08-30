@@ -1,0 +1,66 @@
+<div class="yta">
+  <header class="topp">
+    <app-meny lage="dator" />
+    <a class="tillbaka" routerLink="/arkiv">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+      Kvitton
+    </a>
+    <h1>Aktivitet</h1>
+  </header>
+
+  <main class="kolumn">
+    @if (error(); as message) {
+      <p class="fel" role="alert">{{ message }} <button type="button" (click)="load()">Försök igen</button></p>
+    }
+
+    <section>
+      <h2 class="rubrik">Pågår</h2>
+
+      @if (tolkning.snapshot().kor) {
+        <div class="kort">
+          <div class="kortrad">
+            <span>Tolkar · {{ tolkning.snapshot().klaraIPasset }} klara, {{ otolkade() }} kvar</span>
+            <button type="button" class="knapp" (click)="tolkning.stanna()">Sluta efter det här</button>
+          </div>
+          <span class="tyst">{{ tolkning.snapshot().steg ?? 'Arbetar …' }}</span>
+        </div>
+      } @else if (otolkade() > 0) {
+        <div class="kort">
+          <div class="kortrad">
+            <span>{{ otolkade() }} {{ otolkade() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
+            <button type="button" class="knapp primar" (click)="tolka()">Tolka här</button>
+          </div>
+        </div>
+      } @else {
+        <p class="tyst">Ingenting pågår.</p>
+      }
+
+      @if (tolkning.snapshot().fel; as fel) {
+        <p class="fel" role="alert">Tolkningen stannade: {{ fel }}</p>
+      }
+    </section>
+
+    <section>
+      <h2 class="rubrik">Behöver dig</h2>
+
+      @if (data() === null) {
+        <p class="tyst">Hämtar …</p>
+      } @else if (problem().length === 0) {
+        <p class="tyst">Inget kvitto behöver dig.</p>
+      } @else {
+        <div class="lista">
+          @for (p of problem(); track p.id) {
+            <a class="rad" [class.allvarlig]="allvarligt(p)" [routerLink]="['/kvitto', p.id]">
+              <img class="tumnagel" [src]="'/api/receipts/' + p.id + '/thumbs/1'" alt="" loading="lazy" />
+              <div class="radtext">
+                <strong>{{ beskriv(p) }}</strong>
+                <span class="tyst">{{ rubrik(p) }} · {{ datum(p.date ?? p.capturedAt) }}</span>
+              </div>
+              <svg class="pil" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+            </a>
+          }
+        </div>
+      }
+    </section>
+  </main>
+</div>

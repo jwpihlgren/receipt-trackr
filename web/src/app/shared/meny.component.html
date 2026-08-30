@@ -10,21 +10,37 @@
         <span>Hemma hos er, på er egen burk.</span>
       </div>
 
+      <!--
+        Första gruppen är ytans egna skärmar. Telefonens uppladdningskö låg tidigare
+        här även i datorläget, men den kön bor i telefonens egen webbläsare — på
+        datorn var raden alltid tom och ledde till en skärm som inte hörde hemma där.
+      -->
       <div class="grupp">
-        <a routerLink="/kvitton" (click)="close()">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
-          <span>Kvitton</span>
-        </a>
-        <a routerLink="/uppladdning" (click)="close()">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
-          <span>På väg till arkivet</span>
-          @if (pavag() > 0) { <em class="bricka">{{ pavag() }}</em> }
-        </a>
-        @if (fast() > 0) {
-          <a class="illa" routerLink="/uppladdning" (click)="close()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
-            <span>Kom inte fram</span>
-            <em class="bricka farlig">{{ fast() }}</em>
+        @if (lage() === 'mobil') {
+          <a routerLink="/kvitton" (click)="close()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
+            <span>Kvitton</span>
+          </a>
+          <a routerLink="/uppladdning" (click)="close()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
+            <span>På väg till arkivet</span>
+            @if (pavag() > 0) { <em class="bricka">{{ pavag() }}</em> }
+          </a>
+          @if (fast() > 0) {
+            <a class="illa" routerLink="/uppladdning" (click)="close()">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
+              <span>Kom inte fram</span>
+              <em class="bricka farlig">{{ fast() }}</em>
+            </a>
+          }
+        } @else {
+          <a routerLink="/arkiv" (click)="close()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h13l3 3v15l-3-2-2 2-2-2-2 2-2-2-3 2V3Z" /><path d="M8 8h8" /><path d="M8 12h8" /><path d="M8 16h4" /></svg>
+            <span>Kvitton</span>
+          </a>
+          <a routerLink="/aktivitet" (click)="close()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>
+            <span>Aktivitet</span>
           </a>
         }
       </div>
@@ -43,10 +59,6 @@
             <span>Telefonläge</span>
           </a>
         }
-        <a routerLink="/matning" (click)="close()">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18" /><path d="m7 15 4-4 3 3 5-6" /></svg>
-          <span>Mätning</span>
-        </a>
         <a routerLink="/drift" (click)="close()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="7" rx="2" /><rect x="2" y="13" width="20" height="7" rx="2" /><path d="M6 7.5h.01" /><path d="M6 16.5h.01" /></svg>
           <span>Utrymme och drift</span>
