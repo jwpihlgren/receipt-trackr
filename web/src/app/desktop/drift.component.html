@@ -18,22 +18,22 @@
       <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
         <table class="table">
           <tbody>
-            <tr><th class="w-56 font-normal text-base-content/60">Arkivet ligger på</th><td>{{ h.data.path }}</td></tr>
+            <tr><th class="w-56 font-normal text-neutral">Arkivet ligger på</th><td>{{ h.data.path }}</td></tr>
             <tr>
-              <th class="font-normal text-base-content/60">Monteringspunkt</th>
-              <td>{{ h.data.mount ?? 'okänd' }} <span class="text-base-content/60">({{ h.data.filesystem ?? 'okänt filsystem' }})</span></td>
+              <th class="font-normal text-neutral">Monteringspunkt</th>
+              <td>{{ h.data.mount ?? 'okänd' }} <span class="text-neutral">({{ h.data.filesystem ?? 'okänt filsystem' }})</span></td>
             </tr>
             <tr>
-              <th class="font-normal text-base-content/60">Ledigt</th>
-              <td class="num">{{ h.data.free }} av {{ h.data.total }} <span class="text-base-content/60">· golv {{ h.data.minFree }}</span></td>
+              <th class="font-normal text-neutral">Ledigt</th>
+              <td class="num">{{ h.data.free }} av {{ h.data.total }} <span class="text-neutral">· golv {{ h.data.minFree }}</span></td>
             </tr>
-            <tr><th class="font-normal text-base-content/60">Säkerhetskopior</th><td>{{ h.backupDir ?? 'ingen katalog monterad' }}</td></tr>
-            <tr><th class="font-normal text-base-content/60">Version</th><td class="num">{{ h.version }}</td></tr>
+            <tr><th class="font-normal text-neutral">Säkerhetskopior</th><td>{{ h.backupDir ?? 'ingen katalog monterad' }}</td></tr>
+            <tr><th class="font-normal text-neutral">Version</th><td class="num">{{ h.version }}</td></tr>
           </tbody>
         </table>
       </div>
       } @else {
-        <div class="flex items-center gap-3 text-base-content/60">
+        <div class="flex items-center gap-3 text-neutral">
           <span class="loading loading-spinner loading-sm"></span> Läser status …
         </div>
       }

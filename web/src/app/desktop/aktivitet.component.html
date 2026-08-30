@@ -34,7 +34,7 @@
 
   <main class="p-4">
     @if (data() === null) {
-      <div class="flex items-center gap-3 p-4 text-base-content/60">
+      <div class="flex items-center gap-3 p-4 text-neutral">
         <span class="loading loading-spinner loading-sm"></span> Hämtar …
       </div>
     } @else {
@@ -68,7 +68,7 @@
                 <td>
                   <span class="badge badge-sm whitespace-nowrap" [class]="badge(rad)">{{ status(rad) }}</span>
                 </td>
-                <td class="num text-base-content/60">{{ fangat(rad.capturedAt) }}</td>
+                <td class="num text-neutral">{{ fangat(rad.capturedAt) }}</td>
                 <td class="text-right whitespace-nowrap">
                   @if (arbetarMed() === rad.id) {
                     <span class="loading loading-spinner loading-xs text-primary" aria-label="Tolkar"></span>

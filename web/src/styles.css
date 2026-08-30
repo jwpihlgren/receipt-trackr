@@ -93,6 +93,24 @@
   --noise: 0;
 }
 
+/* DaisyUI dämpar tabellhuvud och platshållare till 60 respektive 20 procent av
+ * bläcket. Mätt mot vitt ger det 4,6:1 och 1,9:1 — för svagt för text som bär
+ * kolumnens betydelse eller datumets format. Här ligger de på --color-neutral, som
+ * mäter 7,8:1 i ljust läge och 6,7:1 i mörkt.
+ *
+ * Reglerna står avsiktligt utanför @layer: det är enda sättet att vinna över
+ * DaisyUIs egna, och den gången är det meningen.
+ */
+.table :where(thead, tfoot) {
+  color: var(--color-neutral);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--color-neutral);
+  opacity: 0.75;
+}
+
 /* Bakgrunden bakom ett kvittofoto: något mörkare än sidan, så att papperets kant
    syns även när fotot är överexponerat i hörnen. DaisyUI har ingen motsvarighet. */
 @theme {

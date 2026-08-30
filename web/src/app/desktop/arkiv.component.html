@@ -2,7 +2,7 @@
   <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-2 sm:px-4">
     <app-meny lage="dator" />
     <h1 class="text-lg font-semibold">Kvitton</h1>
-    <span class="num text-sm text-base-content/60">{{ total() }}{{ filtrerat() ? ' träffar' : ' kvitton' }}</span>
+    <span class="num text-sm text-neutral">{{ total() }}{{ filtrerat() ? ' träffar' : ' kvitton' }}</span>
   </header>
 
   @if (ofardiga() > 0) {
@@ -57,12 +57,12 @@
 
   <main class="p-4">
     @if (rader() === null) {
-      <div class="flex items-center gap-3 p-4 text-base-content/60">
+      <div class="flex items-center gap-3 p-4 text-neutral">
         <span class="loading loading-spinner loading-sm"></span> Hämtar …
       </div>
     } @else {
       @if (rader()!.length === 0) {
-        <p class="p-4 text-base-content/60">
+        <p class="p-4 text-neutral">
           {{ filtrerat() ? 'Inget kvitto matchar filtret.' : 'Inga klara kvitton än.' }}
         </p>
       }
@@ -94,12 +94,12 @@
                 <td>
                   {{ rad.store }}
                   @if (rad.snippet) {
-                    <span class="ocr-text mt-0.5 block text-base-content/60">{{ rad.snippet }}</span>
+                    <span class="ocr-text mt-0.5 block text-neutral">{{ rad.snippet }}</span>
                   }
                 </td>
                 <td class="num whitespace-nowrap text-right">{{ belopp(rad) }} kr</td>
                 <td class="num">{{ rad.segments }}</td>
-                <td class="num whitespace-nowrap text-base-content/60">{{ fangat(rad.capturedAt) }}</td>
+                <td class="num whitespace-nowrap text-neutral">{{ fangat(rad.capturedAt) }}</td>
                 <td class="text-right">
                   <a class="btn btn-xs btn-ghost" [routerLink]="['/dator/kvitto', rad.id]">Öppna</a>
                 </td>

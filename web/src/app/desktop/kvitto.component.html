@@ -8,7 +8,7 @@
 
     @if (receipt(); as r) {
       <h1 class="text-lg font-semibold">{{ datum(r.capturedAt) }}</h1>
-      <span class="text-sm text-base-content/60">
+      <span class="text-sm text-neutral">
         {{ r.segments.length }} {{ r.segments.length === 1 ? 'bild' : 'bilder' }}
       </span>
       @if (harText()) {
@@ -44,7 +44,7 @@
 
       @if (visaText() && harText()) {
         <div class="flex w-full flex-col border-t border-base-300 bg-base-100 xl:w-[34rem] xl:border-l xl:border-t-0">
-          <div class="border-b border-base-300 px-4 py-3 text-sm tracking-wide text-base-content/60 uppercase">
+          <div class="border-b border-base-300 px-4 py-3 text-sm tracking-wide text-neutral uppercase">
             Råtexten
           </div>
           <pre class="ocr-text overflow-auto p-4">{{ r.text }}</pre>
@@ -104,9 +104,9 @@
         <div class="divider my-0"></div>
 
         <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-          <dt class="text-base-content/60">Fångat</dt>
+          <dt class="text-neutral">Fångat</dt>
           <dd>{{ datum(r.capturedAt) }} · {{ klocka(r.capturedAt) }}</dd>
-          <dt class="text-base-content/60">Bilder</dt>
+          <dt class="text-neutral">Bilder</dt>
           <dd>{{ r.segments.length }}@if (r.expectedSegments !== null) { av {{ r.expectedSegments }} }</dd>
         </dl>
 
@@ -125,7 +125,7 @@
               </div>
             </div>
           } @else {
-            <button type="button" class="link text-sm text-base-content/60 hover:text-error" (click)="fragaRadera()">
+            <button type="button" class="link text-sm text-neutral hover:text-error" (click)="fragaRadera()">
               Ta bort kvittot
             </button>
           }
@@ -133,7 +133,7 @@
       </aside>
     </div>
   } @else if (!error()) {
-    <div class="flex items-center gap-3 p-6 text-base-content/60">
+    <div class="flex items-center gap-3 p-6 text-neutral">
       <span class="loading loading-spinner loading-sm"></span> Hämtar …
     </div>
   }
