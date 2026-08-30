@@ -261,6 +261,48 @@ en trasig ruta i remsan ut som en förlorad bild.
 utan datum går inte att sortera eller filtrera på — det är en verklig lucka, inte en
 kvittering av något som redan fungerar. Beslutet står.
 
+## Skalet i cachen
+
+Appen har en service worker (`@angular/service-worker`) och ett webbmanifest sedan
+2026-08-30. Utan dem laddades **ingenting** i en butik utan täckning: kön i IndexedDB
+räddar bilder man hunnit ta, men bara om fliken redan är öppen — och utan app finns
+ingen kamera att öppna.
+
+Tre beslut, alla mätta:
+
+**Modellerna cachas inte i förväg.** `ngsw-config.json` har tre grupper: skalet och
+ikonerna med `prefetch`, och `tolkningen` — 37 MB modeller plus WASM-runtime — med
+`lazy`. En förcachning hade laddat ned 37 MB i butiken.
+
+**Registreringen sker efter två sekunder, inte "när appen är stabil".** Angulars
+standard är `registerWhenStable:30000`, och den här appen blir aldrig stabil: kön har
+en femtonsekunderstimer och tolkningen en på trettio. Standarden föll därför alltid
+tillbaka på sin bortre gräns, och den som öppnade appen och stängde den efter tjugo
+sekunder fick aldrig någon service worker alls. Uppmätt: med `registerWithDelay:2000`
+kontrollerar tjänsten sidan efter tre sekunder.
+
+**En ny version tas i bruk tyst**, utan ruta om att en uppdatering finns — men aldrig
+medan man står i fångsten eller på ett kvitto, för de skärmarna bär tillstånd som bara
+finns i minnet. Listan i `app.component.ts` heter `ARBETE_PAGAR`.
+
+Två fel som service workern avslöjade, båda värda att inte återinföra:
+
+**Nätverksfel är inte utloggning.** `auth.check()` svarade `false` när servern inte gick
+att nå, och skalet kastade den som stod i en källare till en inloggningsruta som inte
+går att logga in i. Den svarar nu `true | false | null`, och bara ett bestämt nej leder
+vidare.
+
+**API-svar cachades av webbläsaren.** Arkivet skickade inget `cache-control` alls, och
+utan nät svarade `/api/receipts` 200 med en gammal lista som skärmen visade som
+aktuell. Ett arkiv som ljuger tyst är sämre än ett som säger att det inte når servern.
+Alla `/api/`-svar bär nu `no-store`; bilderna är undantaget och behåller sin hårda cache
+eftersom de är oföränderliga. Det finns ett test.
+
+**Prövat med servern avstängd**, inte emulerad: appen öppnas, listan säger att den inte
+når arkivet, kameran fungerar, ett kvitto fångas och ligger kvar i kön — och går fram
+av sig själv när servern kommer tillbaka. Första besöket kräver några sekunder på nätet
+innan skalet ligger i cachen; det är ofrånkomligt och värt att veta.
+
 ## Mätsidan på `/debug` — tillfällig, ska bort
 
 Byggd 2026-08-30 på beställarens uttryckliga tillåtelse, för att han ska kunna köra

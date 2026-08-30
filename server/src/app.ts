@@ -69,9 +69,25 @@ export async function buildApp(config: Config, options: FastifyServerOptions = {
    * till en extern resurs slutar den ladda, tyst, och då är det den här kommentaren man
    * ska hitta.
    */
-  app.addHook("onSend", async (_request, reply) => {
+  app.addHook("onSend", async (request, reply) => {
     reply.header("cross-origin-opener-policy", "same-origin");
     reply.header("cross-origin-embedder-policy", "require-corp");
+
+    /**
+     * API-svar får aldrig ligga kvar i en cache.
+     *
+     * Utan den här raden skickade arkivet inget `cache-control` alls, och webbläsaren
+     * tog sig friheten att spara svaret ändå: utan nät svarade `/api/receipts` 200 med
+     * en gammal lista, och skärmen visade den som om den vore aktuell. Ett arkiv som
+     * ljuger tyst är sämre än ett som säger att det inte når servern. Detsamma gäller
+     * `/api/session` — ett sparat "inloggad" överlever utloggningen.
+     *
+     * Bilderna är undantaget och sätter sitt eget `cache-control`: de är oföränderliga
+     * och ska cachas hårt. Därför skrivs headern bara när rutten inte redan valt.
+     */
+    if (request.url.startsWith("/api/") && !reply.getHeader("cache-control")) {
+      reply.header("cache-control", "no-store");
+    }
   });
 
   // Webbygget serveras av samma process: en image, en tjänst, en port (krav 52).

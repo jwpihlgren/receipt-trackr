@@ -1,0 +1,33 @@
+{
+  "$schema": "../node_modules/@angular/service-worker/config/schema.json",
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "skalet",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": [
+          "/index.html",
+          "/manifest.webmanifest",
+          "/favicon.ico",
+          "/*.css",
+          "/*.js"
+        ]
+      }
+    },
+    {
+      "name": "ikoner",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "resources": { "files": ["/ikoner/**"] }
+    },
+    {
+      "name": "tolkningen",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": { "files": ["/modeller/**", "/ort/**"] }
+    }
+  ],
+  "navigationUrls": ["/**", "!/**/*.*", "!/api/**"]
+}

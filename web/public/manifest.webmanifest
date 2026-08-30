@@ -1,0 +1,16 @@
+{
+  "name": "Kvittoarkiv",
+  "short_name": "Kvittoarkiv",
+  "description": "Hushållets kvittoarkiv.",
+  "lang": "sv",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#17161a",
+  "theme_color": "#17161a",
+  "icons": [
+    { "src": "ikoner/ikon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "ikoner/ikon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "ikoner/ikon-512-maskerbar.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

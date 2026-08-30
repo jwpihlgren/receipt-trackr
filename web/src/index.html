@@ -6,6 +6,16 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+
+  <!--
+    Hemskärmen. Utan manifestet lever appen som en vanlig flik, och iOS vräker den
+    medan kameraappen ligger över — det är därför listan har en återhämtning för
+    "ett kvitto är påbörjat". theme-color målar systemraderna i appens egen färg;
+    apple-touch-icon behövs för att iOS inte läser manifestets ikoner.
+  -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#17161a">
+  <link rel="apple-touch-icon" href="ikoner/ikon-192.png">
 </head>
 <body>
   <app-root></app-root>

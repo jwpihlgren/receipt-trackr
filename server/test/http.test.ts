@@ -190,4 +190,28 @@ describe("kvitto-API:t", () => {
     const phrase = await app.inject({ method: "GET", url: '/api/receipts?q="kakel badrum"' });
     expect(phrase.json().receipts).toHaveLength(0);
   });
+
+  /**
+   * Utan `no-store` sparade webbläsaren API-svaren på eget bevåg: utan nät svarade
+   * `/api/receipts` 200 med en gammal lista, och skärmen visade den som aktuell.
+   * Bilderna är undantaget — de är oföränderliga och ska cachas hårt.
+   */
+  it("låter aldrig ett API-svar cachas, men behåller den hårda cachen på bilderna", async () => {
+    const id = ulid();
+    await app.inject({ method: "POST", url: "/api/receipts", payload: { id } });
+    const png = await sharp({ create: { width: 8, height: 12, channels: 3, background: "#fff" } })
+      .jpeg()
+      .toBuffer();
+    const { headers, payload } = multipart("file", "segment-1.jpg", png);
+    await app.inject({ method: "POST", url: `/api/receipts/${id}/segments/1`, headers, payload });
+
+    for (const url of ["/api/receipts", `/api/receipts/${id}`, "/api/session", "/api/health"]) {
+      const svar = await app.inject({ method: "GET", url });
+      expect(svar.headers["cache-control"], url).toBe("no-store");
+    }
+
+    const bild = await app.inject({ method: "GET", url: `/api/receipts/${id}/files/segment-01.jpg` });
+    expect(bild.statusCode).toBe(200);
+    expect(bild.headers["cache-control"]).toContain("immutable");
+  });
 });
