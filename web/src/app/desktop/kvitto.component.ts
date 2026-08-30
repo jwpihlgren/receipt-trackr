@@ -72,78 +72,101 @@ export class KvittoComponent {
   readonly harText = computed(() => (this.receipt()?.text ?? '').trim().length > 0);
 
   readonly falt = FALT;
-  readonly redigerar = signal<string | null>(null);
-  readonly utkast = signal<string>('');
-  readonly sparar = signal<string | null>(null);
-  readonly sparat = signal<string | null>(null);
-
-  /** Har någon utvinning körts alls? Skiljer "inga fält" från "inget läst". */
-  readonly harFalt = computed(() => FALT.some((f) => this.varde(f.namn) !== undefined));
+  readonly utkast = signal<Record<string, string>>({ store: '', date: '', total: '' });
+  readonly sparar = signal(false);
+  readonly sparat = signal(false);
 
   varde(namn: string): Falt | undefined {
     return this.receipt()?.fields?.[namn];
   }
 
-  /** Maskinläst värde markeras. Bekräftat gör det inte — det tysta är det säkra. */
+  /** Maskinläst och orört. Bekräftat eller rättat markeras inte — det tysta är det säkra. */
   maskinlast(namn: string): boolean {
     return this.varde(namn)?.source === 'ocr';
   }
 
-  visaVarde(namn: string): string {
+  private text(namn: string): string {
     const f = this.varde(namn);
-    if (f === undefined) return '—';
-    return namn === 'total' ? `${f.value} kr` : String(f.value);
+    if (f === undefined) return '';
+    return namn === 'total' ? String(f.value).replace('.', ',') : String(f.value);
   }
 
-  borjaRedigera(namn: string): void {
-    const f = this.varde(namn);
-    this.utkast.set(f === undefined ? '' : String(f.value));
-    this.redigerar.set(namn);
+  private fyllUtkast(): void {
+    this.utkast.set(Object.fromEntries(FALT.map((f) => [f.namn, this.text(f.namn)])));
   }
 
-  onUtkast(event: Event): void {
-    this.utkast.set((event.target as HTMLInputElement).value);
+  onUtkast(namn: string, event: Event): void {
+    this.sparat.set(false);
+    this.utkast.update((u) => ({ ...u, [namn]: (event.target as HTMLInputElement).value }));
   }
 
-  avbryt(): void {
-    this.redigerar.set(null);
+  valjKandidat(namn: string, value: string | number): void {
+    this.sparat.set(false);
+    this.utkast.update((u) => ({ ...u, [namn]: String(value).replace('.', ',') }));
   }
 
-  async bekrafta(namn: string): Promise<void> {
-    const f = this.varde(namn);
-    if (f === undefined) return;
-    await this.skicka(namn, f.value, true);
+  /** Vad som skiljer formuläret från det som ligger i arkivet. Tomma fält hoppas över. */
+  private andringar(): { namn: string; value: string | number; bekraftat: boolean }[] {
+    const ut: { namn: string; value: string | number; bekraftat: boolean }[] = [];
+    for (const f of FALT) {
+      const skrivet = (this.utkast()[f.namn] ?? '').trim();
+      if (!skrivet) continue;
+      const befintligt = this.varde(f.namn);
+      if (f.sort === 'tal') {
+        const tal = Number(skrivet.replace(',', '.'));
+        if (!Number.isFinite(tal)) continue;
+        if (befintligt !== undefined && Number(befintligt.value) === tal) continue;
+        ut.push({ namn: f.namn, value: tal, bekraftat: false });
+      } else {
+        if (befintligt !== undefined && String(befintligt.value) === skrivet) continue;
+        ut.push({ namn: f.namn, value: skrivet, bekraftat: false });
+      }
+    }
+    return ut;
   }
 
-  async spara(namn: string): Promise<void> {
-    const sort = FALT.find((f) => f.namn === namn)?.sort;
-    const ratt = this.utkast().trim();
-    if (!ratt) return;
-    await this.skicka(namn, sort === 'tal' ? Number(ratt.replace(',', '.')) : ratt, false);
-    this.redigerar.set(null);
-  }
+  readonly harAndringar = computed(() => {
+    // Läser signalerna så att knappen räknas om när man skriver.
+    this.utkast();
+    this.receipt();
+    return this.andringar().length > 0;
+  });
 
-  async valjKandidat(namn: string, value: string | number): Promise<void> {
-    await this.skicka(namn, value, false);
-  }
-
-  private async skicka(namn: string, value: unknown, bekraftat: boolean): Promise<void> {
-    this.sparar.set(namn);
+  async spara(): Promise<void> {
+    const rattelser = this.andringar();
+    if (rattelser.length === 0) return;
+    this.sparar.set(true);
     try {
-      const svar = await fetch(`/api/receipts/${this.id()}/falt`, {
+      const svar = await fetch(`/api/receipts/${this.id()}/falt/flera`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ namn, value, bekraftat }),
+        body: JSON.stringify({ rattelser }),
       });
       if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
       if (!svar.ok) throw new Error(String(svar.status));
       this.receipt.set((await svar.json()) as Receipt);
-      this.sparat.set(namn);
-      setTimeout(() => this.sparat.update((v) => (v === namn ? null : v)), 2000);
+      this.fyllUtkast();
+      this.sparat.set(true);
     } catch {
       this.error.set('Rättelsen gick inte att spara.');
     } finally {
-      this.sparar.set(null);
+      this.sparar.set(false);
+    }
+  }
+
+  /** Lägger kvittot i tolkningskön igen. Bilderna är kvar; texten räknas om. */
+  async lasOm(): Promise<void> {
+    this.sparar.set(true);
+    try {
+      const svar = await fetch(`/api/receipts/${this.id()}/lasom`, { method: 'POST' });
+      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (!svar.ok) throw new Error(String(svar.status));
+      this.receipt.set((await svar.json()) as Receipt);
+      this.fyllUtkast();
+    } catch {
+      this.error.set('Kvittot gick inte att lägga tillbaka i kön.');
+    } finally {
+      this.sparar.set(false);
     }
   }
 
@@ -163,6 +186,7 @@ export class KvittoComponent {
       if (!response.ok) throw new Error(String(response.status));
       const receipt = (await response.json()) as Receipt;
       this.receipt.set(receipt);
+      this.fyllUtkast();
       // Finns text men inga fält är texten det enda som faktiskt går att visa. Att
       // gömma den bakom en knapp gjorde att tolkningen såg ut att inte ha hänt.
       if (receipt.text.trim().length > 0 && Object.keys(receipt.fields).length === 0) {

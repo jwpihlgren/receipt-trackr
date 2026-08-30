@@ -166,6 +166,36 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
   );
 
   /**
+   * Flera fält i en enda skrivning. Kvittovyn sparar hela panelen på ett tryck, och
+   * tre skrivningar efter varandra vore tre chanser att krascha mitt i något
+   * användaren upplevde som en handling.
+   */
+  app.post<{ Params: { id: string }; Body: { rattelser?: { namn?: string; value?: unknown; bekraftat?: boolean }[] } }>(
+    "/api/receipts/:id/falt/flera",
+    async (request, reply) => {
+      const rattelser = request.body?.rattelser;
+      if (!Array.isArray(rattelser) || rattelser.length === 0) {
+        return reply.code(400).send({ error: "missing_rattelser", message: "Skicka minst en rättelse." });
+      }
+      for (const rattelse of rattelser) {
+        if (!rattelse?.namn || !FALT.has(rattelse.namn)) {
+          return reply
+            .code(400)
+            .send({ error: "okant_falt", message: `Fältet ska vara ett av ${[...FALT].join(", ")}.` });
+        }
+        if (rattelse.value === undefined) {
+          return reply.code(400).send({ error: "missing_value", message: "Ange vad fältet ska bli." });
+        }
+      }
+      const receipt = await archive.rattaFalten(
+        request.params.id,
+        rattelser.map((r) => ({ namn: r.namn as string, value: r.value, bekraftat: r.bekraftat === true })),
+      );
+      return reply.send(receipt);
+    },
+  );
+
+  /**
    * Aktiviteten: allt som inte är färdigt, med sitt läge. Ett färdigt kvitto står
    * inte här, och ingenting står här bara för att konfidensen är låg.
    */
@@ -231,6 +261,14 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
     );
     return reply.send(receipt);
   });
+
+  /**
+   * Läs om bilden. Kastar texten så att kvittot hamnar i tolkningskön igen — det är
+   * den dyra vägen, och den enda som hjälper när bilden lästes tecken för tecken.
+   */
+  app.post<{ Params: { id: string } }>("/api/receipts/:id/lasom", async (request, reply) =>
+    reply.send(await archive.lasOm(request.params.id)),
+  );
 
   app.post("/api/reindex", async () => archive.reindex());
 

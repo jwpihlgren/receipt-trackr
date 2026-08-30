@@ -61,81 +61,59 @@
           </div>
         }
 
-        @for (f of falt; track f.namn) {
-          <div class="falt">
-            <span class="etikett">{{ f.etikett }}</span>
-
-            @if (redigerar() === f.namn) {
+        <div class="formular">
+          @for (f of falt; track f.namn) {
+            <div class="falt">
+              <label class="etikett" [attr.for]="'falt-' + f.namn">{{ f.etikett }}</label>
               <input
                 class="ratta"
+                [class.stor]="f.namn === 'total'"
+                [id]="'falt-' + f.namn"
                 type="text"
-                [value]="utkast()"
-                (input)="onUtkast($event)"
-                (keydown.enter)="spara(f.namn)"
-                (keydown.escape)="avbryt()"
-                autofocus
+                [value]="utkast()[f.namn]"
+                [placeholder]="f.namn === 'date' ? 'ÅÅÅÅ-MM-DD' : ''"
+                [attr.inputmode]="f.sort === 'tal' ? 'decimal' : null"
+                (input)="onUtkast(f.namn, $event)"
+                (keydown.enter)="spara()"
               />
-              <div class="rattrad">
-                <button type="button" class="liten primar" (click)="spara(f.namn)">Spara</button>
-                <button type="button" class="liten" (click)="avbryt()">Avbryt</button>
-                <span class="fotnot">Enter sparar · Esc ångrar</span>
-              </div>
-            } @else {
-              <div class="vardrad">
-                <button
-                  type="button"
-                  class="varde"
-                  [class.maskin]="maskinlast(f.namn)"
-                  [class.stor]="f.namn === 'total'"
-                  (click)="borjaRedigera(f.namn)"
-                  [attr.aria-label]="'Rätta ' + f.etikett"
-                >
-                  {{ visaVarde(f.namn) }}
-                </button>
-
-                @if (varde(f.namn); as v) {
-                  @if (v.source === 'ocr') {
-                    <span class="konfidens num">{{ v.confidence }}</span>
-                    <button type="button" class="liten" [disabled]="sparar() === f.namn" (click)="bekrafta(f.namn)">
-                      Stämmer
-                    </button>
-                  }
-                }
-
-                @if (sparat() === f.namn) { <span class="sparat">Sparat</span> }
-              </div>
 
               @if (varde(f.namn); as v) {
-                @if (v.source === 'ocr' && v.candidates?.length) {
-                  <div class="kandidater">
-                    <span class="fotnot">Även läst som</span>
-                    @for (k of v.candidates; track k.value) {
-                      <button type="button" class="kandidat" (click)="valjKandidat(f.namn, k.value)">{{ k.value }}</button>
+                @if (v.source === 'ocr') {
+                  <div class="undertext">
+                    <span class="proveniens maskinell">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M8 9h8" /><path d="M8 13h5" /></svg>
+                      Maskinläst
+                    </span>
+                    <span class="konfidens num">{{ v.confidence }}</span>
+                    @if (v.candidates?.length) {
+                      <span class="fotnot">Även läst som</span>
+                      @for (k of v.candidates; track k.value) {
+                        <button type="button" class="kandidat" (click)="valjKandidat(f.namn, k.value)">{{ k.value }}</button>
+                      }
                     }
                   </div>
-                }
-                @if (v.source !== 'ocr') {
+                } @else {
                   <span class="proveniens bekraftad">
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5 5L20 7" /></svg>
                     {{ v.source === 'confirmed' ? 'Bekräftat av dig' : 'Rättat av dig' }}
                   </span>
-                } @else {
-                  <span class="proveniens maskinell">
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M8 9h8" /><path d="M8 13h5" /></svg>
-                    Maskinläst — inte granskat
-                  </span>
                 }
+              } @else {
+                <span class="fotnot">Maskinen hittade inget här</span>
               }
+            </div>
+          }
+
+          <div class="sparrad">
+            <button type="button" class="primar" [disabled]="!harAndringar() || sparar()" (click)="spara()">
+              Spara
+            </button>
+            @if (sparat()) { <span class="sparat">Sparat</span> }
+            @if (harText()) {
+              <button type="button" class="liten" [disabled]="sparar()" (click)="lasOm()">Läs om bilden</button>
             }
           </div>
-        }
-
-        @if (harText() && !harFalt()) {
-          <div class="notis">
-            <strong>Texten är utläst, men inga fält kunde hittas i den</strong>
-            <span>{{ r.text.length }} tecken lästes. Skriv in värdena själv — de sparas som dina.</span>
-          </div>
-        }
+        </div>
 
         <div class="avdelare"></div>
 

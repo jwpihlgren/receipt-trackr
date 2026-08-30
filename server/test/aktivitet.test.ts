@@ -171,6 +171,51 @@ describe("aktiviteten", () => {
     expect((await rader()).receipts).toHaveLength(0);
   });
 
+  /**
+   * Flaggan säger "lita inte på maskinen här". Har någon skrivit in alla tre värdena
+   * själv finns ingen maskinläsning kvar att misstro, och raden ska försvinna — annars
+   * står ett kvitto man redan lagat kvar i tabellen för alltid.
+   */
+  it("släpper svagt läst text när alla tre fälten satts för hand", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, HELT, 4.0);
+    expect((await rader()).receipts[0].lage).toBe("svag_text");
+
+    await app.inject({
+      method: "POST",
+      url: `/api/receipts/${id}/falt/flera`,
+      payload: {
+        rattelser: [
+          { namn: "store", value: "Coop" },
+          { namn: "date", value: "2026-08-29" },
+          { namn: "total", value: 284.5 },
+        ],
+      },
+    });
+
+    expect((await rader()).receipts).toHaveLength(0);
+  });
+
+  it("lägger tillbaka kvittot i tolkningskön när bilden ska läsas om", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, HELT, 4.0);
+
+    // Rättelsen ska överleva omläsningen: bilderna är sanningen, texten är härledd,
+    // men en människas ord om ett fält är ingetdera och får inte kastas.
+    await app.inject({ method: "POST", url: `/api/receipts/${id}/falt`, payload: { namn: "store", value: "Ica" } });
+    const svar = await app.inject({ method: "POST", url: `/api/receipts/${id}/lasom` });
+    expect(svar.statusCode).toBe(200);
+    expect(svar.json().text).toBe("");
+    expect(svar.json().ocr).toBeNull();
+    expect(svar.json().fields.store).toMatchObject({ value: "Ica", source: "manual" });
+
+    const efter = await rader();
+    expect(efter.vantar).toBe(1);
+    expect(efter.receipts[0]).toMatchObject({ id, lage: "vantar" });
+  });
+
   it("bygger om indexet av sig självt när schemaversionen är en annan", async () => {
     const id = ulid();
     await fanga(id, 3);

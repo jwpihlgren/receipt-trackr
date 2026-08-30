@@ -69,6 +69,45 @@ export class AktivitetComponent {
     await this.load();
   }
 
+  readonly arbetar = signal(false);
+
+  /**
+   * Räknar om fälten ur texten som redan lästs, för hela arkivet. Billigt: ingen bild
+   * öppnas. Det är vägen när utvinningsreglerna blivit bättre sedan kvittot tolkades.
+   */
+  async tolkaOmFalt(): Promise<void> {
+    this.arbetar.set(true);
+    try {
+      const svar = await fetch('/api/falt/omtolka', { method: 'POST' });
+      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (!svar.ok) throw new Error(String(svar.status));
+      await this.load();
+    } catch {
+      this.error.set('Omtolkningen gick inte att köra.');
+    } finally {
+      this.arbetar.set(false);
+    }
+  }
+
+  /**
+   * Läser om bilden: kastar texten så att kvittot hamnar i tolkningskön igen. Dyrt,
+   * och den enda vägen när det som lästes inte går att lita på.
+   */
+  async lasOm(id: string): Promise<void> {
+    this.arbetar.set(true);
+    try {
+      const svar = await fetch(`/api/receipts/${id}/lasom`, { method: 'POST' });
+      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (!svar.ok) throw new Error(String(svar.status));
+      await this.tolkning.rakna();
+      await this.load();
+    } catch {
+      this.error.set('Kvittot gick inte att lägga tillbaka i kön.');
+    } finally {
+      this.arbetar.set(false);
+    }
+  }
+
   /** Kvittot som tolkas just nu, om den här datorn är den som tolkar. */
   readonly tolkasNu = computed(() => (this.tolkning.snapshot().kor ? this.tolkning.snapshot().steg : null));
 

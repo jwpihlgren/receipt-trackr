@@ -22,7 +22,7 @@
 
 .tillbaka svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .topp h1 { font-size: var(--text-lg); }
-.topp .knapp { margin-inline-start: auto; }
+.topp .knapp:first-of-type { margin-inline-start: auto; }
 .tyst { color: var(--ink-faint); font-size: var(--text-sm); }
 
 .remsa {
@@ -81,9 +81,22 @@ tbody tr:last-child td { border-bottom: none; }
 .lage.illa .prick { background: var(--danger); }
 .lage.illa { color: var(--danger); }
 
-.atgard { text-align: end; white-space: nowrap; }
-.atgard a { color: var(--accent); text-decoration: none; }
-.atgard a:hover { text-decoration: underline; }
+.atgard { display: flex; justify-content: flex-end; gap: var(--space-3); white-space: nowrap; }
+.atgard a,
+.atgard button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  cursor: pointer;
+}
+.atgard a:hover,
+.atgard button:hover:not(:disabled) { text-decoration: underline; }
+.atgard button:disabled { color: var(--ink-faint); cursor: default; }
+
+.knapp:disabled { color: var(--ink-faint); cursor: default; }
 
 .fel { padding: var(--space-3) var(--space-5); color: var(--danger); font-size: var(--text-base); }
 .fel button {

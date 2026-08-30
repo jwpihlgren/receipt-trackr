@@ -114,35 +114,51 @@
 
 /* ---- fälten ---------------------------------------------------------- */
 /*
- * Proveniens är ett tillstånd, inte en grad, och tillstånd får bära färg. Men aldrig
- * färg ensam: varje skillnad här är kodad tre gånger — i formen (prickad
- * understrykning eller inte), i ord ("Maskinläst — inte granskat" mot "Bekräftat av
- * dig"), och i färg. Ta bort färgen och betydelsen står kvar; det är provet.
+ * Panelen är ett formulär, inte en läsvy med dolda redigeringslägen. Fälten låg förut
+ * som text man kunde klicka på, och ett fält maskinen inte hittat ritades som ett
+ * tankstreck — vilket varken såg klickbart ut eller var det för någon som inte redan
+ * visste. Nu står tre inmatningsfält framme, tomma där maskinen inte hittade något.
  *
- * Konfidensgraden är däremot fortfarande neutral, och det är en annan sak: en siffra
- * mellan noll och ett har inga tillstånd att koda, och en färgskala över den skulle
- * påstå en gräns som ingen mätt. Immich har landat i samma sak från andra hållet —
- * deras OCR-rutor bär ett konfidensfält som medvetet aldrig ritas ut.
+ * Proveniensen står under fältet i både ord och färg, aldrig i färg ensam. Konfidensen
+ * är fortfarande en siffra i neutralt bläck: en färgskala över den skulle påstå en
+ * gräns ingen mätt.
  */
 
-.vardrad { display: flex; align-items: baseline; gap: var(--d-gap); flex-wrap: wrap; }
+.formular { display: grid; gap: var(--space-5); }
 
-.varde {
-  padding: 0;
-  border: none;
-  background: none;
+.ratta {
+  width: 100%;
+  min-height: var(--tap-comfort);
+  padding-inline: var(--d-pad-x);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
   color: var(--ink);
   font-size: var(--text-base);
-  text-align: start;
-  cursor: text;
 }
 
-.varde.stor { font-size: var(--text-2xl); font-weight: var(--weight-bold); }
-.varde.maskin { border-bottom: 1px dotted var(--warn); padding-block-end: 2px; }
-.varde:hover { color: var(--accent); }
+.ratta.stor { font-size: var(--text-2xl); font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }
+.ratta:focus { border-color: var(--accent); }
 
+.undertext { display: flex; align-items: baseline; gap: var(--d-gap-tight); flex-wrap: wrap; }
 .konfidens { color: var(--ink-faint); font-size: var(--text-xs); }
+
+.sparrad { display: flex; align-items: center; gap: var(--d-gap); }
 .sparat { color: var(--ok); font-size: var(--text-sm); }
+
+.primar {
+  min-height: var(--tap-comfort);
+  padding-inline: var(--space-6);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  cursor: pointer;
+}
+
+.primar:disabled { background: var(--line); color: var(--ink-faint); cursor: default; }
 
 .liten {
   min-height: 36px;
@@ -156,24 +172,10 @@
   margin-inline-start: auto;
 }
 
-.liten.primar { border: none; background: var(--accent); color: var(--on-accent); margin-inline-start: 0; }
+.liten:disabled { color: var(--ink-faint); cursor: default; }
 
-.ratta {
-  min-height: var(--d-control-h);
-  padding-inline: var(--d-pad-x);
-  border: 2px solid var(--accent);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  font-size: var(--text-base);
-}
-
-.rattrad { display: flex; align-items: center; gap: var(--d-gap-tight); }
-.rattrad .fotnot { margin-inline-start: auto; }
-
-/* Kandidaterna är OCR:ens övriga läsningar, inte förslag vi hittat på. Att klicka en
-   av dem är en rättelse som vilken annan som helst. */
-.kandidater { display: flex; align-items: baseline; gap: var(--d-gap-tight); flex-wrap: wrap; }
-
+/* Kandidaterna är OCR:ens övriga läsningar, inte förslag vi hittat på. Ett klick
+   fyller fältet; det sparas först när du trycker Spara, som allt annat. */
 .kandidat {
   min-height: 28px;
   padding-inline: var(--space-2);

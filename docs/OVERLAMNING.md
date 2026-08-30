@@ -85,6 +85,17 @@ kan ha hög konfidens och fyllda fält och ändå vara fel rakt igenom. Gränsen
 `server/src/store/index-db.ts` och vilar på sjutton segment i M5a: 4,0 och 5,4 på de
 suddiga mot 11 i normalfallet. Saknas måttet flaggas ingenting — okänt är inte dåligt.
 
+**Två omtolkningar, och de är olika dyra.** *Tolka om fälten* (`POST /api/falt/omtolka`,
+knapp i aktiviteten) räknar om fälten ur texten som redan lästs, för hela arkivet —
+ingen bild öppnas, och det är vägen när utvinningsreglerna blivit bättre. *Läs om
+bilden* (`POST /api/receipts/:id/lasom`) kastar texten så att kvittot hamnar i
+tolkningskön igen; det är den enda vägen när det som lästes inte går att lita på.
+Rättelser överlever båda.
+
+**Kvittovyns fältpanel är ett formulär.** Den var tidigare text man kunde klicka på,
+och ett fält maskinen inte hittat ritades som ett tankstreck — det gick att rätta men
+såg inte ut att gå. Beställaren hittade det inte, och han hade rätt.
+
 **Kalibreringsurvalet** finns på servern (`POST /api/granskning/urval`,
 `GET /api/granskning`, `POST /api/receipts/:id/granskning`) och är testat, men **har
 ingen skärm**. Det är ett mätverktyg, inte en uppgift i appen, och var det ska visas

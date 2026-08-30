@@ -20,7 +20,7 @@ export type ReceiptIndex = Database.Database;
  * Det är hela poängen med ett härlett index — höj siffran när kolumnerna ändras
  * och skriv aldrig ett `ALTER TABLE`.
  */
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } {
   const db = new Database(path);
@@ -46,6 +46,7 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
       expected    INTEGER,
       tolkad      INTEGER NOT NULL DEFAULT 0,
       tecken_per_rad REAL,
+      manuella    INTEGER NOT NULL DEFAULT 0,
       sampled     INTEGER NOT NULL DEFAULT 0,
       reviewed    INTEGER NOT NULL DEFAULT 0,
       indexed_at  TEXT NOT NULL
@@ -73,6 +74,21 @@ function teckenPerRad(receipt: Receipt): number | null {
   return typeof varde === "number" && Number.isFinite(varde) ? varde : null;
 }
 
+/**
+ * Hur många av de tre fälten en människa satt själv.
+ *
+ * Behövs för kvalitetsflaggan: den säger "lita inte på maskinen här", och när någon
+ * skrivit in alla tre värdena för hand finns ingen maskinläsning kvar att misstro.
+ * Utan det här skulle ett kvitto man redan lagat stå kvar i tabellen för alltid.
+ */
+function manuella(receipt: Receipt): number {
+  const fields = receipt.fields as Record<string, { source?: string } | undefined>;
+  return ["store", "date", "total"].filter((namn) => {
+    const kalla = fields[namn]?.source;
+    return kalla === "manual" || kalla === "confirmed";
+  }).length;
+}
+
 const field = (receipt: Receipt, name: string): unknown =>
   (receipt.fields as Record<string, { value?: unknown } | undefined>)[name]?.value;
 
@@ -81,15 +97,16 @@ export function upsert(db: ReceiptIndex, receipt: Receipt): void {
   const tx = db.transaction((r: Receipt) => {
     db.prepare(
       `INSERT INTO receipts (id, captured_at, backlog, segments, store, date, total, currency,
-                             expected, tolkad, tecken_per_rad, sampled, reviewed, indexed_at)
+                             expected, tolkad, tecken_per_rad, manuella, sampled, reviewed, indexed_at)
        VALUES (@id, @captured_at, @backlog, @segments, @store, @date, @total, @currency,
-               @expected, @tolkad, @tecken_per_rad, @sampled, @reviewed, @indexed_at)
+               @expected, @tolkad, @tecken_per_rad, @manuella, @sampled, @reviewed, @indexed_at)
        ON CONFLICT(id) DO UPDATE SET
          captured_at = excluded.captured_at, backlog = excluded.backlog,
          segments = excluded.segments, store = excluded.store, date = excluded.date,
          total = excluded.total, currency = excluded.currency,
          expected = excluded.expected, tolkad = excluded.tolkad,
-         tecken_per_rad = excluded.tecken_per_rad, sampled = excluded.sampled,
+         tecken_per_rad = excluded.tecken_per_rad, manuella = excluded.manuella,
+         sampled = excluded.sampled,
          reviewed = excluded.reviewed, indexed_at = excluded.indexed_at`,
     ).run({
       id: r.id,
@@ -106,6 +123,7 @@ export function upsert(db: ReceiptIndex, receipt: Receipt): void {
       // maskinen läste och inte fick ut ett tecken.
       tolkad: r.ocr ? 1 : 0,
       tecken_per_rad: teckenPerRad(r),
+      manuella: manuella(r),
       sampled: r.review?.sampled ? 1 : 0,
       reviewed: r.review?.verdict ? 1 : 0,
       indexed_at: new Date().toISOString(),
@@ -276,14 +294,15 @@ export function ofardiga(db: ReceiptIndex, limit = 500): Ofardigt[] {
       `SELECT r.id AS id, r.captured_at AS capturedAt, r.store AS store, r.date AS date,
               r.total AS total, r.currency AS currency,
               r.segments AS segments, r.expected AS expected, r.tolkad AS tolkad,
-              r.tecken_per_rad AS teckenPerRad, length(f.text) AS tecken
+              r.tecken_per_rad AS teckenPerRad, r.manuella AS manuella, length(f.text) AS tecken
          FROM receipts r
          JOIN receipts_fts f ON f.id = r.id
         WHERE NOT (
                 r.expected IS NOT NULL AND r.segments >= r.expected
                 AND r.tolkad = 1 AND length(f.text) > 0
                 AND r.store IS NOT NULL AND r.date IS NOT NULL AND r.total IS NOT NULL
-                AND (r.tecken_per_rad IS NULL OR r.tecken_per_rad >= ${TECKEN_PER_RAD_GRANS})
+                AND (r.tecken_per_rad IS NULL OR r.tecken_per_rad >= ${TECKEN_PER_RAD_GRANS}
+                     OR r.manuella = 3)
               )
         ORDER BY r.captured_at DESC
         LIMIT ?`,
@@ -294,9 +313,10 @@ export function ofardiga(db: ReceiptIndex, limit = 500): Ofardigt[] {
     tolkad: number;
     tecken: number;
     teckenPerRad: number | null;
+    manuella: number;
   })[];
 
-  return rader.map(({ segments, expected, tolkad, tecken, teckenPerRad, ...rad }) => {
+  return rader.map(({ segments, expected, tolkad, tecken, teckenPerRad, manuella, ...rad }) => {
     const saknadeBilder = expected === null ? 0 : Math.max(0, expected - segments);
     const saknadeFalt =
       tolkad === 1 && tecken > 0
@@ -317,7 +337,7 @@ export function ofardiga(db: ReceiptIndex, limit = 500): Ofardigt[] {
             ? "vantar"
             : tecken === 0
               ? "utan_text"
-              : teckenPerRad !== null && teckenPerRad < TECKEN_PER_RAD_GRANS
+              : teckenPerRad !== null && teckenPerRad < TECKEN_PER_RAD_GRANS && manuella < 3
                 ? // Före saknade fält, för det är svagt läst text som orsakar dem.
                   "svag_text"
                 : "saknar_falt";

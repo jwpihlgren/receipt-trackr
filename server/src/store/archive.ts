@@ -303,6 +303,22 @@ export class Archive {
   }
 
   /**
+   * Lägger tillbaka kvittot i tolkningskön genom att kasta det härledda.
+   *
+   * Ofarligt av samma skäl som allt annat här: bilderna är sanningen, texten är
+   * härledd. Fälten står kvar — en människas rättelse ska överleva en omläsning, och
+   * maskinens egna värden skrivs över av sig själva när den nya texten kommer.
+   */
+  async lasOm(id: string): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    receipt.text = "";
+    receipt.ocr = null;
+    await this.persist(receipt);
+    return receipt;
+  }
+
+  /**
    * Räknar om fälten ur texten som redan finns, för alla kvitton.
    *
    * Det här är hela vinsten med att utvinningen bor på servern: blir reglerna bättre
