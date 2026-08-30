@@ -78,6 +78,13 @@ och den revs 2026-08-30: den räknade varje fungerande tolkning som arbete åt
 beställaren, vilket är en anställningsmodell och inte det han bett om. Förebilden är
 Sonarrs *Activity*: systemet gör jobbet, listan är undantagen.
 
+**Kvalitetsflaggan** (M8) sitter i samma tabell. Måttet är tecken per läst rad, räknat
+av klienten som läste bilden och lagrat i `ocr.teckenPerRad`. Under 7 får kvittot läget
+`svag_text` — den felklassen är annars osynlig, för en bild som lästs tecken för tecken
+kan ha hög konfidens och fyllda fält och ändå vara fel rakt igenom. Gränsen står i
+`server/src/store/index-db.ts` och vilar på sjutton segment i M5a: 4,0 och 5,4 på de
+suddiga mot 11 i normalfallet. Saknas måttet flaggas ingenting — okänt är inte dåligt.
+
 **Kalibreringsurvalet** finns på servern (`POST /api/granskning/urval`,
 `GET /api/granskning`, `POST /api/receipts/:id/granskning`) och är testat, men **har
 ingen skärm**. Det är ett mätverktyg, inte en uppgift i appen, och var det ska visas
@@ -119,8 +126,8 @@ inte vara ett inköpsdatum.
    något byggs ovanpå.
 2. **Kalibreringsurvalet behöver en plats.** API:t finns; skärmen gör det inte.
    Mätning, inte uppgift.
-3. **Kvalitetsflaggan** (M8 omskriven). Tecken per rad, på servern. Ett kvitto under
-   gränsen är ett problem i aktivitetslistan — det är där den hör hemma.
+3. **Gränsen 7 är inte prövad mot beställarens hög.** Den kommer ur sjutton segment.
+   Flaggar den för mycket eller för lite ska siffran flyttas, inte förklaras bort.
 
 ## Så arbetar beställaren
 
