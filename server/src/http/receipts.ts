@@ -13,7 +13,7 @@ import {
   ftsQuery,
   ogranskatUrval,
   pendingOcrCount,
-  problem,
+  ofardiga,
   recent,
   search,
   urvalLage,
@@ -166,15 +166,13 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
   );
 
   /**
-   * Aktiviteten: vad som pågår, och vad som faktiskt gått fel.
-   *
-   * `pagar` är väntan och löser sig själv; `problem` kräver en människa. Låg konfidens
-   * hamnar i ingendera — konfidensen mäts, den beordrar ingen att göra något.
+   * Aktiviteten: allt som inte är färdigt, med sitt läge. Ett färdigt kvitto står
+   * inte här, och ingenting står här bara för att konfidensen är låg.
    */
-  app.get("/api/aktivitet", async () => ({
-    pagar: { otolkade: pendingOcrCount(archive.db) },
-    problem: problem(archive.db),
-  }));
+  app.get("/api/aktivitet", async () => {
+    const rader = ofardiga(archive.db);
+    return { total: count(archive.db), vantar: pendingOcrCount(archive.db), receipts: rader };
+  });
 
   const VERDICTS = new Set(["correct", "wrong", "unreadable"]);
 

@@ -223,27 +223,29 @@ export type KvittoRad = {
   currency: string | null;
 };
 
-export type Problem = KvittoRad & {
-  /** Utlovade bilder som aldrig kom fram. Noll betyder att kvittot är helt. */
+/** Vad som står i vägen för att kvittot ska vara färdigt. Ett enda ord per rad. */
+export type Lage = "bilder" | "ofullstandig" | "vantar" | "utan_text" | "saknar_falt";
+
+export type Ofardigt = KvittoRad & {
+  lage: Lage;
+  /** Utlovade bilder som aldrig kom fram. */
   saknadeBilder: number;
-  /** Tolkningen kördes och gav inte ett tecken. */
-  utanText: boolean;
-  /** Fält maskinen inte hittade alls. Tomt betyder att den hittade alla tre. */
+  /** Fält maskinen inte hittade. */
   saknadeFalt: string[];
+  tecken: number;
 };
 
 /**
- * Kvitton där något faktiskt gått fel.
+ * Allt som inte är färdigt, oavsett vad som saknas.
  *
- * Vad som *inte* står i villkoret är det viktiga: låg konfidens skapar ingen rad här,
- * och ett fält som maskinen läst utan att någon kvitterat det är inte ett problem.
- * Listan innehåller bara sådant som en människa måste laga för att kvittot ska vara
- * helt — saknade bilder, en tolkning som gav noll text, och fält som inte gick att
- * hitta. Fungerar systemet är listan tom.
+ * Ett kvitto är färdigt när fångsten är avslutad, alla utlovade bilder finns,
+ * tolkningen körts och gett text, och butik, datum och belopp går att läsa ur den.
+ * Allt annat står här med sitt läge — det som väntar på sin tur lika väl som det som
+ * gått fel, för båda är saker som ännu inte landat.
  *
- * Otolkade kvitton står utanför: de väntar på sin tur och hör till det som pågår.
+ * Låg konfidens gör inte ett kvitto ofärdigt. Konfidensen mäts, den beordrar inget.
  */
-export function problem(db: ReceiptIndex, limit = 200): Problem[] {
+export function ofardiga(db: ReceiptIndex, limit = 500): Ofardigt[] {
   const rader = db
     .prepare(
       `SELECT r.id AS id, r.captured_at AS capturedAt, r.store AS store, r.date AS date,
@@ -252,27 +254,40 @@ export function problem(db: ReceiptIndex, limit = 200): Problem[] {
               length(f.text) AS tecken
          FROM receipts r
          JOIN receipts_fts f ON f.id = r.id
-        WHERE (r.expected IS NOT NULL AND r.segments < r.expected)
-           OR (r.tolkad = 1 AND length(f.text) = 0)
-           OR (r.tolkad = 1 AND (r.store IS NULL OR r.date IS NULL OR r.total IS NULL))
+        WHERE NOT (
+                r.expected IS NOT NULL AND r.segments >= r.expected
+                AND r.tolkad = 1 AND length(f.text) > 0
+                AND r.store IS NOT NULL AND r.date IS NOT NULL AND r.total IS NOT NULL
+              )
         ORDER BY r.captured_at DESC
         LIMIT ?`,
     )
     .all(limit) as (KvittoRad & { segments: number; expected: number | null; tolkad: number; tecken: number })[];
 
-  return rader.map(({ segments, expected, tolkad, tecken, ...rad }) => ({
-    ...rad,
-    saknadeBilder: expected === null ? 0 : Math.max(0, expected - segments),
-    utanText: tolkad === 1 && tecken === 0,
-    saknadeFalt:
+  return rader.map(({ segments, expected, tolkad, tecken, ...rad }) => {
+    const saknadeBilder = expected === null ? 0 : Math.max(0, expected - segments);
+    const saknadeFalt =
       tolkad === 1 && tecken > 0
         ? [
             ...(rad.store === null ? ["butik"] : []),
             ...(rad.date === null ? ["datum"] : []),
             ...(rad.total === null ? ["belopp"] : []),
           ]
-        : [],
-  }));
+        : [];
+    // Ordningen är angelägenhetens. En förlorad bild går inte att ta om och står
+    // därför först, oavsett vad mer som saknas på samma kvitto.
+    const lage: Lage =
+      saknadeBilder > 0
+        ? "bilder"
+        : expected === null
+          ? "ofullstandig"
+          : tolkad === 0
+            ? "vantar"
+            : tecken === 0
+              ? "utan_text"
+              : "saknar_falt";
+    return { ...rad, lage, saknadeBilder, saknadeFalt, tecken };
+  });
 }
 
 /**

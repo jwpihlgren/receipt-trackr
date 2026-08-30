@@ -6,61 +6,74 @@
       Kvitton
     </a>
     <h1>Aktivitet</h1>
+    @if (data()) {
+      <span class="tyst num">{{ rader().length }} av {{ total() }} inte klara</span>
+    }
+    <button type="button" class="knapp" (click)="load()" aria-label="Uppdatera">Uppdatera</button>
   </header>
 
-  <main class="kolumn">
-    @if (error(); as message) {
-      <p class="fel" role="alert">{{ message }} <button type="button" (click)="load()">Försök igen</button></p>
-    }
+  @if (error(); as message) {
+    <p class="fel" role="alert">{{ message }} <button type="button" (click)="load()">Försök igen</button></p>
+  }
 
-    <section>
-      <h2 class="rubrik">Pågår</h2>
+  @if (tolkning.snapshot().kor) {
+    <div class="remsa">
+      <span class="remstext">Tolkar · {{ tolkning.snapshot().klaraIPasset }} klara, {{ vantar() }} kvar</span>
+      @if (tolkasNu(); as steg) { <span class="tyst">{{ steg }}</span> }
+      <button type="button" class="knapp" (click)="tolkning.stanna()">Sluta efter det här</button>
+    </div>
+  } @else if (vantar() > 0) {
+    <div class="remsa">
+      <span class="remstext">{{ vantar() }} {{ vantar() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
+      <button type="button" class="knapp primar" (click)="tolka()">Tolka här</button>
+    </div>
+  }
 
-      @if (tolkning.snapshot().kor) {
-        <div class="kort">
-          <div class="kortrad">
-            <span>Tolkar · {{ tolkning.snapshot().klaraIPasset }} klara, {{ otolkade() }} kvar</span>
-            <button type="button" class="knapp" (click)="tolkning.stanna()">Sluta efter det här</button>
-          </div>
-          <span class="tyst">{{ tolkning.snapshot().steg ?? 'Arbetar …' }}</span>
-        </div>
-      } @else if (otolkade() > 0) {
-        <div class="kort">
-          <div class="kortrad">
-            <span>{{ otolkade() }} {{ otolkade() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
-            <button type="button" class="knapp primar" (click)="tolka()">Tolka här</button>
-          </div>
-        </div>
-      } @else {
-        <p class="tyst">Ingenting pågår.</p>
-      }
+  @if (tolkning.snapshot().fel; as fel) {
+    <p class="fel" role="alert">Tolkningen stannade: {{ fel }}</p>
+  }
 
-      @if (tolkning.snapshot().fel; as fel) {
-        <p class="fel" role="alert">Tolkningen stannade: {{ fel }}</p>
-      }
-    </section>
-
-    <section>
-      <h2 class="rubrik">Behöver dig</h2>
-
-      @if (data() === null) {
-        <p class="tyst">Hämtar …</p>
-      } @else if (problem().length === 0) {
-        <p class="tyst">Inget kvitto behöver dig.</p>
-      } @else {
-        <div class="lista">
-          @for (p of problem(); track p.id) {
-            <a class="rad" [class.allvarlig]="allvarligt(p)" [routerLink]="['/kvitto', p.id]">
-              <img class="tumnagel" [src]="'/api/receipts/' + p.id + '/thumbs/1'" alt="" loading="lazy" />
-              <div class="radtext">
-                <strong>{{ beskriv(p) }}</strong>
-                <span class="tyst">{{ rubrik(p) }} · {{ datum(p.date ?? p.capturedAt) }}</span>
-              </div>
-              <svg class="pil" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
-            </a>
+  <main class="innehall">
+    @if (data() === null) {
+      <p class="tyst">Hämtar …</p>
+    } @else if (rader().length === 0) {
+      <p class="tyst">Alla {{ total() }} kvitton är klara.</p>
+    } @else {
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" class="bildkol"><span class="sr-only">Bild</span></th>
+            <th scope="col">Butik</th>
+            <th scope="col" class="talkol">Belopp</th>
+            <th scope="col">Datum</th>
+            <th scope="col">Status</th>
+            <th scope="col">Fångat</th>
+            <th scope="col"><span class="sr-only">Öppna</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (rad of rader(); track rad.id) {
+            <tr [class.vald]="false">
+              <td class="bildkol">
+                <img [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
+              </td>
+              <td>{{ butik(rad) }}</td>
+              <td class="talkol num">{{ belopp(rad) }}</td>
+              <td class="num">{{ rad.date ?? '—' }}</td>
+              <td>
+                <span class="lage" [class.illa]="grad(rad) === 'illa'" [class.obs]="grad(rad) === 'obs'">
+                  <span class="prick" aria-hidden="true"></span>
+                  {{ status(rad) }}
+                </span>
+              </td>
+              <td class="tyst num">{{ fangat(rad.capturedAt) }}</td>
+              <td class="atgard">
+                <a [routerLink]="['/kvitto', rad.id]">Öppna</a>
+              </td>
+            </tr>
           }
-        </div>
-      }
-    </section>
+        </tbody>
+      </table>
+    }
   </main>
 </div>

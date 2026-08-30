@@ -49,37 +49,48 @@ describe("aktiviteten", () => {
 
   const HELT = "COOP KONSUM\n2026-08-29\nATT BETALA 284,50";
 
+  const rader = async () => (await app.inject({ method: "GET", url: "/api/aktivitet" })).json();
+
   /**
-   * Kärnan i hela vyn: ett kvitto som maskinen läst rätt är färdigt. Att ingen
-   * kvitterat fälten gör det inte till en uppgift, och låg konfidens gör det inte heller.
+   * Kärnan i hela vyn: ett kvitto som gått hela vägen står inte i tabellen. Att ingen
+   * kvitterat fälten gör det inte ofärdigt, och låg konfidens gör det inte heller.
    */
-  it("lämnar ett helt tolkat kvitto utanför, hur okvitterat det än är", async () => {
+  it("lämnar ett färdigt kvitto utanför, hur okvitterat det än är", async () => {
     const id = ulid();
     await fanga(id);
     await tolka(id, HELT);
 
-    const svar = await app.inject({ method: "GET", url: "/api/aktivitet" });
-    expect(svar.statusCode).toBe(200);
-    expect(svar.json().problem).toHaveLength(0);
-    expect(svar.json().pagar.otolkade).toBe(0);
+    const svar = await rader();
+    expect(svar.receipts).toHaveLength(0);
+    expect(svar.total).toBe(1);
+    expect(svar.vantar).toBe(0);
   });
 
-  it("räknar ett otolkat kvitto som pågående, inte som ett problem", async () => {
-    await fanga(ulid());
+  it("tar upp det som väntar på tolkning — ofärdigt är ofärdigt", async () => {
+    const id = ulid();
+    await fanga(id);
 
-    const svar = await app.inject({ method: "GET", url: "/api/aktivitet" });
-    expect(svar.json().pagar.otolkade).toBe(1);
-    expect(svar.json().problem).toHaveLength(0);
+    const svar = await rader();
+    expect(svar.vantar).toBe(1);
+    expect(svar.receipts).toHaveLength(1);
+    expect(svar.receipts[0]).toMatchObject({ id, lage: "vantar" });
   });
 
-  it("tar upp bilder som aldrig kom fram", async () => {
+  it("tar upp en fångst som aldrig avslutades", async () => {
+    const id = ulid();
+    await app.inject({ method: "POST", url: "/api/receipts", payload: { id } });
+    await app.inject({ method: "POST", url: `/api/receipts/${id}/segments/1`, ...multipart(await jpeg()) });
+
+    expect((await rader()).receipts[0]).toMatchObject({ id, lage: "ofullstandig" });
+  });
+
+  /** En förlorad bild går inte att ta om, och väger därför tyngre än allt annat. */
+  it("sätter saknade bilder före övrigt som saknas på samma kvitto", async () => {
     const id = ulid();
     await fanga(id, 3);
-    await tolka(id, HELT);
+    await tolka(id, "text utan datum eller summa");
 
-    const svar = await app.inject({ method: "GET", url: "/api/aktivitet" });
-    expect(svar.json().problem).toHaveLength(1);
-    expect(svar.json().problem[0]).toMatchObject({ id, saknadeBilder: 2 });
+    expect((await rader()).receipts[0]).toMatchObject({ id, lage: "bilder", saknadeBilder: 2 });
   });
 
   it("tar upp en tolkning som inte gav ett tecken", async () => {
@@ -87,8 +98,7 @@ describe("aktiviteten", () => {
     await fanga(id);
     await tolka(id, "");
 
-    const svar = await app.inject({ method: "GET", url: "/api/aktivitet" });
-    expect(svar.json().problem[0]).toMatchObject({ id, utanText: true, saknadeFalt: [] });
+    expect((await rader()).receipts[0]).toMatchObject({ id, lage: "utan_text", saknadeFalt: [] });
   });
 
   it("namnger fälten maskinen inte hittade", async () => {
@@ -97,19 +107,17 @@ describe("aktiviteten", () => {
     await tolka(id, "NAGON TEXT UTAN NAGOT ALLS");
 
     // Butiken saknas nästan aldrig: utvinningen tar översta raden som kandidat, och
-    // ett kvitto har alltid en översta rad. Datum och belopp är de som faktiskt kan
-    // utebli, och det är dem listan då ska namnge.
-    const svar = await app.inject({ method: "GET", url: "/api/aktivitet" });
-    expect(svar.json().problem[0].saknadeFalt).toEqual(["datum", "belopp"]);
+    // ett kvitto har alltid en översta rad. Datum och belopp är de som kan utebli.
+    const rad = (await rader()).receipts[0];
+    expect(rad.lage).toBe("saknar_falt");
+    expect(rad.saknadeFalt).toEqual(["datum", "belopp"]);
   });
 
-  it("släpper kvittot ur listan när fältet skrivits in för hand", async () => {
+  it("släpper kvittot ur tabellen när fältet skrivits in för hand", async () => {
     const id = ulid();
     await fanga(id);
     await tolka(id, "COOP KONSUM\n2026-08-29\nnagot utan summa");
-    expect((await app.inject({ method: "GET", url: "/api/aktivitet" })).json().problem[0].saknadeFalt).toEqual([
-      "belopp",
-    ]);
+    expect((await rader()).receipts[0].saknadeFalt).toEqual(["belopp"]);
 
     await app.inject({
       method: "POST",
@@ -117,7 +125,7 @@ describe("aktiviteten", () => {
       payload: { namn: "total", value: 284.5 },
     });
 
-    expect((await app.inject({ method: "GET", url: "/api/aktivitet" })).json().problem).toHaveLength(0);
+    expect((await rader()).receipts).toHaveLength(0);
   });
 
   it("bygger om indexet av sig självt när schemaversionen är en annan", async () => {
@@ -132,7 +140,7 @@ describe("aktiviteten", () => {
 
     app = await buildApp(loadConfig({ DATA_DIR: dir, MIN_FREE_BYTES: "1" }), { logger: false });
     const svar = await app.inject({ method: "GET", url: "/api/aktivitet" });
-    expect(svar.json().problem[0]).toMatchObject({ id, saknadeBilder: 2 });
+    expect(svar.json().receipts[0]).toMatchObject({ id, lage: "bilder", saknadeBilder: 2 });
   });
 
 });

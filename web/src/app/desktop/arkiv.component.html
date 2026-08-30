@@ -77,13 +77,13 @@
         </div>
       }
 
-      @if (problem() > 0) {
+      @if (ofardiga() > 0) {
         <div class="tolkremsa">
           <div class="tolkrad">
             <span class="tolktext">
-              {{ problem() }} {{ problem() === 1 ? 'kvitto behöver' : 'kvitton behöver' }} dig
+              {{ ofardiga() }} {{ ofardiga() === 1 ? 'kvitto är' : 'kvitton är' }} inte klara
             </span>
-            <a class="tolkknapp primar" routerLink="/aktivitet">Visa</a>
+            <a class="tolkknapp primar" routerLink="/aktivitet">Aktivitet</a>
           </div>
         </div>
       }

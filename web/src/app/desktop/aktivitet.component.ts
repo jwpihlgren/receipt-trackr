@@ -3,31 +3,33 @@ import { Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
 
-type Problem = {
+type Lage = 'bilder' | 'ofullstandig' | 'vantar' | 'utan_text' | 'saknar_falt';
+
+type Rad = {
   id: string;
   capturedAt: string;
   store: string | null;
   date: string | null;
   total: number | null;
   currency: string | null;
+  lage: Lage;
   saknadeBilder: number;
-  utanText: boolean;
   saknadeFalt: string[];
+  tecken: number;
 };
 
-type Aktivitet = { pagar: { otolkade: number }; problem: Problem[] };
+type Aktivitet = { total: number; vantar: number; receipts: Rad[] };
 
 /**
- * Vad systemet håller på med, och vad som gått fel.
+ * Allt som inte är färdigt, i en tabell, med läget som kolumn.
  *
- * Listan innehåller bara sådant en människa måste laga: bilder som aldrig kom fram,
- * en tolkning som gav noll text, fält som inte gick att hitta. Ett fält maskinen läst
- * är färdigt och står inte här — låg konfidens skapar ingen rad, för konfidensen mäts
- * men beordrar ingenting. Fungerar allt är sidan tom, och det är rätt läge.
+ * Färdigt betyder: fångsten avslutad, alla bilder framme, tolkningen körd och
+ * butik, datum och belopp lästa. Ett kvitto som klarat det står inte här. Låg
+ * konfidens gör ingen rad — konfidensen mäts men beordrar ingenting.
  */
 @Component({
   selector: 'app-aktivitet',
-  host: { 'data-density': 'comfortable' },
+  host: { 'data-density': 'compact' },
   imports: [RouterLink, MenyComponent],
   templateUrl: './aktivitet.component.html',
   styleUrl: './aktivitet.component.css',
@@ -39,8 +41,10 @@ export class AktivitetComponent {
   readonly data = signal<Aktivitet | null>(null);
   readonly error = signal<string | null>(null);
 
-  readonly problem = computed(() => this.data()?.problem ?? []);
-  readonly otolkade = computed(() => this.tolkning.snapshot().vantande);
+  readonly rader = computed(() => this.data()?.receipts ?? []);
+  readonly vantar = computed(() => this.data()?.vantar ?? 0);
+  readonly total = computed(() => this.data()?.total ?? 0);
+  readonly fardiga = computed(() => Math.max(0, this.total() - this.rader().length));
 
   constructor() {
     void this.load();
@@ -64,31 +68,48 @@ export class AktivitetComponent {
     await this.load();
   }
 
-  /** Ett problem i taget, med kvittots eget språk. Aldrig en kod. */
-  beskriv(p: Problem): string {
-    if (p.saknadeBilder > 0) {
-      return `${p.saknadeBilder} ${p.saknadeBilder === 1 ? 'bild' : 'bilder'} kom aldrig fram`;
+  /** Kvittot som tolkas just nu, om den här datorn är den som tolkar. */
+  readonly tolkasNu = computed(() => (this.tolkning.snapshot().kor ? this.tolkning.snapshot().steg : null));
+
+  status(rad: Rad): string {
+    switch (rad.lage) {
+      case 'bilder':
+        return `${rad.saknadeBilder} ${rad.saknadeBilder === 1 ? 'bild' : 'bilder'} saknas`;
+      case 'ofullstandig':
+        return 'Fångsten avslutades inte';
+      case 'vantar':
+        return 'Väntar på tolkning';
+      case 'utan_text':
+        return 'Ingen text lästes';
+      case 'saknar_falt':
+        return `Saknar ${lista(rad.saknadeFalt)}`;
     }
-    if (p.utanText) return 'Tolkningen läste ingen text';
-    const f = p.saknadeFalt;
-    if (f.length === 3) return 'Varken butik, datum eller belopp hittades';
-    if (f.length === 2) return `${stor(f[0]!)} och ${f[1]} hittades inte`;
-    if (f.length === 1) return `${stor(f[0]!)} hittades inte`;
-    return 'Något saknas';
   }
 
-  /** Saknad bild väger tyngst: papperet är slängt och bilden går inte att få igen. */
-  allvarligt(p: Problem): boolean {
-    return p.saknadeBilder > 0;
+  /** Tre grader, och var och en har både en färg och ett eget ord i statusen. */
+  grad(rad: Rad): 'illa' | 'obs' | 'vantan' {
+    if (rad.lage === 'bilder') return 'illa';
+    if (rad.lage === 'vantar') return 'vantan';
+    return 'obs';
   }
 
-  rubrik(p: Problem): string {
-    return p.store ?? 'Okänd butik';
+  butik(rad: Rad): string {
+    return rad.store ?? '—';
   }
 
-  datum(iso: string): string {
-    return new Date(iso).toLocaleDateString('sv-SE', { day: 'numeric', month: 'long' });
+  belopp(rad: Rad): string {
+    return rad.total === null ? '—' : `${rad.total.toFixed(2).replace('.', ',')} kr`;
+  }
+
+  fangat(iso: string): string {
+    return new Date(iso).toLocaleString('sv-SE', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   }
 }
 
-const stor = (ord: string): string => ord.charAt(0).toUpperCase() + ord.slice(1);
+const lista = (ord: string[]): string =>
+  ord.length <= 1 ? (ord[0] ?? 'fält') : `${ord.slice(0, -1).join(', ')} och ${ord.at(-1)}`;

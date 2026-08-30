@@ -47,8 +47,8 @@ export class ArkivComponent {
   readonly total = signal(0);
   readonly error = signal<string | null>(null);
 
-  /** Hur många kvitton som gått fel. Bara siffran — listan bor i aktiviteten. */
-  readonly problem = signal(0);
+  /** Hur många kvitton som inte är klara. Bara siffran — tabellen bor i aktiviteten. */
+  readonly ofardiga = signal(0);
 
   readonly fraga = signal('');
   readonly traffar = signal<Traff[] | null>(null);
@@ -103,16 +103,16 @@ export class ArkivComponent {
       const body = (await response.json()) as { total: number; receipts: Rad[] };
       this.rader.set(body.receipts);
       this.total.set(body.total);
-      await this.raknaProblem();
+      await this.raknaOfardiga();
     } catch {
       this.error.set('Kunde inte hämta kvittona. Är servern igång?');
     }
   }
 
-  private async raknaProblem(): Promise<void> {
+  private async raknaOfardiga(): Promise<void> {
     const svar = await fetch('/api/aktivitet');
     if (!svar.ok) return;
-    this.problem.set(((await svar.json()) as { problem: unknown[] }).problem.length);
+    this.ofardiga.set(((await svar.json()) as { receipts: unknown[] }).receipts.length);
   }
 
   onFraga(event: Event): void {

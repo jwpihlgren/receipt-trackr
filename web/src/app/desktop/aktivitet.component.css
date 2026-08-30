@@ -22,55 +22,70 @@
 
 .tillbaka svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .topp h1 { font-size: var(--text-lg); }
+.topp .knapp { margin-inline-start: auto; }
+.tyst { color: var(--ink-faint); font-size: var(--text-sm); }
 
-.kolumn { display: grid; gap: var(--space-7); width: min(52rem, 100%); margin: 0 auto; padding: var(--space-6) var(--space-5); }
-section { display: grid; gap: var(--space-3); }
-.rubrik { font-size: var(--text-sm); color: var(--ink-muted); letter-spacing: var(--tracking-label); text-transform: uppercase; }
-.tyst { color: var(--ink-faint); font-size: var(--text-base); }
+.remsa {
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap);
+  padding: var(--d-pad-y) var(--space-5);
+  background: var(--sel);
+  border-bottom: 1px solid var(--line);
+}
 
-.kort { display: grid; gap: var(--space-2); padding: var(--d-card-pad); border-radius: var(--radius-md); background: var(--sel); }
-.kortrad { display: flex; align-items: center; gap: var(--d-gap); }
-.kortrad span { flex: 1 1 auto; font-size: var(--text-base); }
+.remstext { font-size: var(--text-base); }
+.remsa .knapp { margin-inline-start: auto; }
 
 .knapp {
-  min-height: var(--tap-comfort);
-  padding-inline: var(--space-5);
+  min-height: 36px;
+  padding-inline: var(--space-4);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-sm);
   background: var(--surface);
   color: var(--ink);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 
 .knapp.primar { border: none; background: var(--accent); color: var(--on-accent); font-weight: var(--weight-bold); }
 
-.lista { display: grid; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); overflow: hidden; }
+.innehall { padding: var(--space-5); overflow-x: auto; }
 
-.rad {
-  display: flex;
-  align-items: center;
-  gap: var(--d-gap);
-  padding: var(--d-pad-y) var(--d-pad-x);
-  border-bottom: 1px solid var(--line);
-  color: var(--ink);
-  text-decoration: none;
+table { width: 100%; border-collapse: collapse; background: var(--surface); }
+th, td { padding: var(--d-pad-y) var(--d-pad-x); text-align: start; border-bottom: 1px solid var(--line); }
+th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  color: var(--ink-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  white-space: nowrap;
 }
+td { font-size: var(--text-sm); }
+tbody tr:hover { background: var(--sunken); }
+tbody tr:last-child td { border-bottom: none; }
 
-.rad:last-child { border-bottom: none; }
-.rad:hover { background: var(--sunken); }
+.talkol { text-align: end; }
+.bildkol { width: calc(var(--d-thumb-w) + var(--d-pad-x) * 2); }
+.bildkol img { width: var(--d-thumb-w); height: var(--d-thumb-h); border-radius: var(--radius-xs); object-fit: cover; background: var(--sunken); }
 
-/* En förlorad bild går inte att ta om — papperet är slängt. Den skillnaden bärs av
-   både färgen och av att texten säger vad som saknas, aldrig av färgen ensam. */
-.rad.allvarlig strong { color: var(--danger); }
+/* Läget bärs alltid av ordet. Pricken och färgen är en andra kodning ovanpå, aldrig
+   den enda — tas färgen bort står det fortfarande vad som saknas. */
+.lage { display: flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+.prick { width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: var(--ink-faint); }
+.lage.obs .prick { background: var(--warn); }
+.lage.illa .prick { background: var(--danger); }
+.lage.illa { color: var(--danger); }
 
-.tumnagel { width: var(--d-thumb-w); height: var(--d-thumb-h); flex: 0 0 auto; border-radius: var(--radius-xs); object-fit: cover; background: var(--sunken); }
-.radtext { flex: 1 1 auto; display: grid; gap: 2px; }
-.radtext strong { font-size: var(--text-base); font-weight: var(--weight-medium); }
-.radtext .tyst { font-size: var(--text-sm); }
-.pil { width: 20px; height: 20px; flex: 0 0 auto; fill: none; stroke: var(--ink-faint); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.atgard { text-align: end; white-space: nowrap; }
+.atgard a { color: var(--accent); text-decoration: none; }
+.atgard a:hover { text-decoration: underline; }
 
-.fel { color: var(--danger); font-size: var(--text-base); }
+.fel { padding: var(--space-3) var(--space-5); color: var(--danger); font-size: var(--text-base); }
 .fel button {
   margin-inline-start: var(--space-2);
   min-height: var(--tap-min);
