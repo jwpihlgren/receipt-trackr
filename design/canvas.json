@@ -11,6 +11,10 @@
     {
       "id": "page-3",
       "name": "Skrivbordet"
+    },
+    {
+      "id": "page-4",
+      "name": "Riktningar"
     }
   ],
   "artboards": [
@@ -123,22 +127,22 @@
       "title": "Logga in"
     },
     {
-      "file": "SkrivbordArkiv.dc.html",
+      "file": "SkrivbordKvitton.dc.html",
       "page": "page-3",
       "x": 0,
       "y": 0,
       "w": 1440,
       "h": 900,
-      "title": "Arkivet"
+      "title": "Kvitton"
     },
     {
-      "file": "SkrivbordSok.dc.html",
+      "file": "SkrivbordAktivitet.dc.html",
       "page": "page-3",
       "x": 1560,
       "y": 0,
       "w": 1440,
       "h": 900,
-      "title": "Sökträffar"
+      "title": "Aktivitet"
     },
     {
       "file": "SkrivbordKvitto.dc.html",
@@ -150,31 +154,40 @@
       "title": "Ett kvitto"
     },
     {
-      "file": "SkrivbordText.dc.html",
-      "page": "page-3",
-      "x": 1560,
-      "y": 1080,
-      "w": 1600,
-      "h": 900,
-      "title": "Med råtexten"
-    },
-    {
-      "file": "SkrivbordPass.dc.html",
-      "page": "page-3",
-      "x": 0,
-      "y": 2160,
-      "w": 1440,
-      "h": 900,
-      "title": "Rättningspass"
-    },
-    {
       "file": "SkrivbordDrift.dc.html",
       "page": "page-3",
       "x": 1560,
-      "y": 2160,
+      "y": 1080,
       "w": 1440,
       "h": 900,
-      "title": "Utrymme och drift"
+      "title": "Drift"
+    },
+    {
+      "file": "RiktningMork.dc.html",
+      "page": "page-4",
+      "x": 0,
+      "y": 0,
+      "w": 720,
+      "h": 480,
+      "title": "A · Mörk arbetsbänk"
+    },
+    {
+      "file": "RiktningPapper.dc.html",
+      "page": "page-4",
+      "x": 820,
+      "y": 0,
+      "w": 720,
+      "h": 480,
+      "title": "B · Papper"
+    },
+    {
+      "file": "RiktningKontor.dc.html",
+      "page": "page-4",
+      "x": 1640,
+      "y": 0,
+      "w": 720,
+      "h": 480,
+      "title": "C · Kontor"
     }
   ],
   "annotations": [
@@ -227,40 +240,40 @@
       "text": "Galleriimporten är nedgraderad till reparation: den bild som togs när fliken vräktes, och kvittot någon annan fotograferat.\nDen finns på tre ställen — tomma listan, återupptagningsrutan och menyn. Aldrig bredvid kameraknappen."
     },
     {
-      "id": "skrivbord",
+      "id": "ia",
       "page": "page-3",
       "x": 0,
-      "y": -220,
+      "y": -260,
       "w": 1440,
-      "text": "Skrivbordet är två lägen, inte tre paneler.\nArkivet är en centrerad kolumn på 1152px. Arbetslistan finns bara under ett rättningspass — en permanent vänsterspalt förutsätter en kö som aldrig sinar, och er är tom nio dagar av tio.\nPaperless-ngx valde bort samma sak och ersatte den med Spara och nästa."
+      "text": "Två destinationer, inte tre paneler.\nKvitton är arkivet: bara klara kvitton, sorterade på kvittots eget datum, med fritext, butik och datumintervall i samma filterrad.\nAktivitet är allt som inte är klart, oavsett läge — det som väntar lika väl som det som gått fel. Låg konfidens skapar ingen rad.\nEtt kvitto är klart när fångsten är avslutad, alla bilder finns, tolkningen körts och gett text, och butik, datum och belopp gick att läsa."
     },
     {
-      "id": "provenens",
-      "page": "page-3",
-      "x": 0,
-      "y": 940,
-      "w": 1440,
-      "text": "Prickad understrykning = maskinläst. Bekräftat värde saknar markör — det tysta är det säkra.\nKonfidenssiffran står bredvid, aldrig som färg: tokens.css säger uttryckligen att semantiska färger aldrig får bära konfidensgrad. Immich gör samma val och ritar aldrig ut sitt konfidensfält.\n\"Även läst som\" är OCR:ens övriga kandidater. Datamodellen bär dem redan."
-    },
-    {
-      "id": "text",
+      "id": "tabellen",
       "page": "page-3",
       "x": 1560,
-      "y": 940,
-      "w": 1600,
-      "text": "Råtexten som egen spalt kräver 1600px. Under 1400 byter den ut bilden i stället för att klämma den.\nIngen undersökt produkt gör det här — Paperless har texten som en redigerbar textarea i en flik, Evernote kan strukturellt inte visa den alls. Texten är bevis och ska inte gå att redigera bort."
+      "y": -260,
+      "w": 1440,
+      "text": "Tabellen efter Stripes mönster: högerställda tabellsiffror, dämpade linjer, status som chip.\nChipet bär ordet först och färgen som andra kodning — tas färgen bort står det fortfarande vad som saknas.\nRadhöjd 44px, 13px text. Tätheten kommer ur typografin, inte ur ramar (Linear).\nÅtgärderna ligger i raden, inte bakom en meny: Läs om bilden tolkar direkt i webbläsaren och visar en snurra i raden."
     },
     {
-      "id": "pass",
+      "id": "kvittot",
       "page": "page-3",
       "x": 0,
-      "y": 3100,
+      "y": 2020,
       "w": 1440,
-      "text": "Passet är det enda läget med tre spalter, och man går in i det med avsikt.\nEnter sparar och faller vidare. Ingen tyst autospar vid blur — det är just gränsen mellan maskinläst och människorättat som suddas då, och den gränsen är hela poängen."
+      "text": "Kvittovyn hävdar sig inte. Inga märken för maskinläst, ingen konfidenssiffra, ingen kandidatlista — ett kvitto som ligger bland Kvitton är per definition rätt, och kandidaterna gjorde det för lätt att skriva över ett riktigt värde.\nFälten är ett vanligt formulär. De var text man klickade på, och ett saknat fält ritades som ett tankstreck; det gick att rätta men såg inte ut att gå.\nBilden ligger mot nästan svart så att papperets kant syns även när fotot är överexponerat i hörnen.\nTa bort kvittot står sist, utan färg tills den påkallas: det är den enda handlingen i appen som inte går att ta tillbaka."
+    },
+    {
+      "id": "riktningar",
+      "page": "page-4",
+      "x": 0,
+      "y": -300,
+      "w": 2360,
+      "text": "Tre riktningar för skrivbordet. Samma skärm, samma innehåll, tre hållningar.\n\nA · Mörk arbetsbänk — äkta grå ytor, inte svart, med höjd som ljushetsskillnad. Kvittobilderna lyser mot bakgrunden i stället för att smälta in i den, och chrome försvinner. Varm bärnsten som accent. Kostnad: mörkt läge är ett val för hela appen, och telefonytan är inte ritad för det än.\n\nB · Papper — dagens palett, städad. Ärlig mot materialet och lugn att titta på. Kostnad: på en tabellsida utan bilder blir den blek, och det är en del av varför skärmarna känns halvfärdiga.\n\nC · Kontor — kall neutral grå, tätt och kantigt, blå accent. Läsbarast av de tre i dagsljus och närmast ett vanligt verktyg. Kostnad: den ser ut som varje annat administrationsgränssnitt och har inget eget."
     }
   ],
   "launch": {
     "view": "canvas",
-    "page": "page-1"
+    "page": "page-4"
   }
 }

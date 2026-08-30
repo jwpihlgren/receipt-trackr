@@ -21,3 +21,7 @@ data/
 # OCR-modellerna hämtas vid bygget av scripts/hamta-modeller.mjs. 36 MB binärer som
 # går att hämta igen hör inte hemma i historiken — arkivet ska bära kvitton.
 /web/public/modeller/
+
+# Seedad designduk — byggs om ur design/*.dc.html + canvas.json
+design/*.html
+!design/kvittoflodet-mobil.html
