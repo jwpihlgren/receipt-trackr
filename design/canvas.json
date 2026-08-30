@@ -172,22 +172,22 @@
       "title": "A · Mörk arbetsbänk"
     },
     {
-      "file": "RiktningPapper.dc.html",
+      "file": "RiktningGalleri.dc.html",
       "page": "page-4",
       "x": 820,
       "y": 0,
       "w": 720,
       "h": 480,
-      "title": "B · Papper"
+      "title": "B · Galleri"
     },
     {
-      "file": "RiktningKontor.dc.html",
+      "file": "RiktningKassabok.dc.html",
       "page": "page-4",
       "x": 1640,
       "y": 0,
       "w": 720,
       "h": 480,
-      "title": "C · Kontor"
+      "title": "C · Kassabok"
     }
   ],
   "annotations": [
@@ -269,7 +269,7 @@
       "x": 0,
       "y": -300,
       "w": 2360,
-      "text": "Tre riktningar för skrivbordet. Samma skärm, samma innehåll, tre hållningar.\n\nA · Mörk arbetsbänk — äkta grå ytor, inte svart, med höjd som ljushetsskillnad. Kvittobilderna lyser mot bakgrunden i stället för att smälta in i den, och chrome försvinner. Varm bärnsten som accent. Kostnad: mörkt läge är ett val för hela appen, och telefonytan är inte ritad för det än.\n\nB · Papper — dagens palett, städad. Ärlig mot materialet och lugn att titta på. Kostnad: på en tabellsida utan bilder blir den blek, och det är en del av varför skärmarna känns halvfärdiga.\n\nC · Kontor — kall neutral grå, tätt och kantigt, blå accent. Läsbarast av de tre i dagsljus och närmast ett vanligt verktyg. Kostnad: den ser ut som varje annat administrationsgränssnitt och har inget eget."
+      "text": "Tre riktningar för skrivbordet. Inte tre färgställningar av samma sak — de skiljer sig i vad de gör till huvudsak.\n\nA · Mörk arbetsbänk — kvittot är en RAD. Tät tabell, äkta grå ytor, status som chip, allt synligt samtidigt. Bilderna lyser mot mörkret i stället för att smälta in i pappersfärgen. Bäst när man letar efter ett kvitto man kan beskriva: butik, datum, belopp. Kostnad: mörkt läge är ett val för hela appen, och telefonens fångstflöde är inte ritat för det.\n\nB · Galleri — kvittot är ett FOTOGRAFI. Ingen tabell alls: en vägg av papper grupperad på månad, med butik och belopp under varje bild. Man känner igen kvittot på hur det ser ut, vilket är hur man faktiskt minns dem. Otolkade kvitton syns som luckor med en snurra. Kostnad: sämre för att jämföra belopp, och skalar sämre när högen växer — trettio kvitton är en vägg, tusen är en tapet.\n\nC · Kassabok — kvittot är ett BELOPP. Ingen bild i listan, ingen chrome, hårfina linjer och månadssumma under strecket. Läser man arkivet för att veta vad något kostade är det här den kortaste vägen dit, och den enda riktningen som svarar på frågan \"vad handlade vi för i augusti\". Kostnad: bilden är gömd ett klick bort, och en felläst rad är svårare att upptäcka utan miniatyren bredvid."
     }
   ],
   "launch": {
