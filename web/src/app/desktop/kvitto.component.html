@@ -1,5 +1,6 @@
 <div class="yta">
   <header class="topp">
+    <app-meny lage="dator" />
     <a class="tillbaka" routerLink="/arkiv">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
       Kvitton
@@ -53,17 +54,29 @@
           </div>
         }
 
+        @if (harText()) {
+          <div class="notis klar">
+            <strong>Texten är utläst</strong>
+            <span>{{ r.text.length }} tecken. Butik, datum och belopp plockas ur den i M6 — tills dess står de tomma.</span>
+          </div>
+        } @else {
+          <div class="notis">
+            <strong>Inte tolkat än</strong>
+            <span>Telefonen tolkar av sig själv när appen är öppen. Vid datorn gör du det med <em>Tolka här</em> i arkivet.</span>
+          </div>
+        }
+
         <div class="falt">
           <span class="etikett">BUTIK</span>
-          <span class="tomt">Inte tolkat än</span>
+          <span class="tomt">—</span>
         </div>
         <div class="falt">
           <span class="etikett">DATUM</span>
-          <span class="tomt">Inte tolkat än</span>
+          <span class="tomt">—</span>
         </div>
         <div class="falt">
           <span class="etikett">BELOPP</span>
-          <span class="tomt">Inte tolkat än</span>
+          <span class="tomt">—</span>
         </div>
 
         <div class="avdelare"></div>
@@ -80,8 +93,7 @@
         </div>
 
         <p class="fotnot">
-          Textutläsningen körs på klienten och är inte byggd än. Fram till dess finns bilden och
-          summan av den — inte fälten. En tom kolumn är ärligare än en gissning.
+          Fälten fylls av fältutvinningen i M6. En tom kolumn är ärligare än en gissning.
         </p>
       </aside>
     </div>

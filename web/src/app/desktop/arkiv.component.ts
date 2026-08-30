@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../shared/auth.service';
 import { TolkningService } from '../ocr/tolkning.service';
+import { MenyComponent } from '../shared/meny.component';
 
 type Rad = {
   id: string;
@@ -11,6 +12,7 @@ type Rad = {
   date: string | null;
   total: number | null;
   currency: string | null;
+  tecken: number;
 };
 
 type Traff = { id: string; capturedAt: string; store: string | null; total: number | null; snippet: string };
@@ -29,7 +31,7 @@ type Grupp = { rubrik: string; rader: Rad[] };
 @Component({
   selector: 'app-arkiv',
   host: { 'data-density': 'comfortable' },
-  imports: [RouterLink],
+  imports: [RouterLink, MenyComponent],
   templateUrl: './arkiv.component.html',
   styleUrl: './arkiv.component.css',
 })

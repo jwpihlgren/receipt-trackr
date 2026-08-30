@@ -153,16 +153,29 @@ export type ReceiptRow = {
   date: string | null;
   total: number | null;
   currency: string | null;
+  /**
+   * Hur många tecken texten har. Noll betyder otolkat.
+   *
+   * Raden behöver den, och skälet är ett fel den här listan hade: den visade `store`
+   * som enda tecken på att något hänt, och `store` fylls först av fältutvinningen i
+   * M6. Tolkningen kunde alltså läsa hela kvittot utan att det syntes någonstans, och
+   * det såg ut som att ingenting fungerade. Texten finns före fälten, och då ska den
+   * också gå att se.
+   */
+  tecken: number;
 };
 
 /** Senaste kvittona, nyast först. Indexet har redan sorteringen som kolumn. */
 export function recent(db: ReceiptIndex, limit = 50, before?: string): ReceiptRow[] {
-  const where = before ? "WHERE captured_at < ?" : "";
+  const where = before ? "WHERE r.captured_at < ?" : "";
   const params = before ? [before, limit] : [limit];
   return db
     .prepare(
-      `SELECT id, captured_at AS capturedAt, segments, store, date, total, currency
-       FROM receipts ${where} ORDER BY captured_at DESC LIMIT ?`,
+      `SELECT r.id AS id, r.captured_at AS capturedAt, r.segments AS segments,
+              r.store AS store, r.date AS date, r.total AS total, r.currency AS currency,
+              length(f.text) AS tecken
+       FROM receipts r LEFT JOIN receipts_fts f ON f.id = r.id
+       ${where} ORDER BY r.captured_at DESC LIMIT ?`,
     )
     .all(...params) as ReceiptRow[];
 }

@@ -5,7 +5,7 @@
   align-items: center;
   gap: var(--space-4);
   min-height: 56px;
-  padding-inline: var(--space-5);
+  padding-inline: var(--space-2) var(--space-5);
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   flex: 0 0 auto;
@@ -83,6 +83,8 @@
 
 .notis { display: grid; gap: var(--space-1); padding: var(--d-card-pad); border-radius: var(--radius-md); }
 .notis.varning { background: var(--warn-soft); border: 1px solid var(--warn); }
+.notis.klar { background: var(--ok-soft); border: 1px solid var(--ok); }
+.notis:not(.varning):not(.klar) { background: var(--sunken); border: 1px solid var(--line); }
 .notis strong { font-size: var(--text-base); font-weight: var(--weight-bold); }
 .notis span { color: var(--ink-muted); font-size: var(--text-base); line-height: var(--leading-body); }
 

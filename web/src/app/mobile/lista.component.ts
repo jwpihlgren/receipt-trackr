@@ -2,7 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { QueueService } from './queue.service';
 import { CaptureFlowService } from './capture-flow.service';
-import { MenyComponent } from './meny.component';
+import { MenyComponent } from '../shared/meny.component';
 import { TolkningService } from '../ocr/tolkning.service';
 
 export type ReceiptRow = {
@@ -13,6 +13,8 @@ export type ReceiptRow = {
   date: string | null;
   total: number | null;
   currency: string | null;
+  /** Noll = ingen text utläst än. Det är listans enda ärliga tolkningsmått före M6. */
+  tecken: number;
 };
 
 type Grupp = { rubrik: string; rader: ReceiptRow[] };

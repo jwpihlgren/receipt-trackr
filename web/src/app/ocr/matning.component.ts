@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { MenyComponent } from '../shared/meny.component';
 import type { Niva, Rotation, Tider } from './ocr.worker';
 import type { Orientering } from './orientering';
 import { OcrService } from './ocr.service';
@@ -36,7 +37,7 @@ type Rad = {
 @Component({
   selector: 'app-matning',
   host: { 'data-density': 'comfortable' },
-  imports: [],
+  imports: [MenyComponent],
   templateUrl: './matning.component.html',
   styleUrl: './matning.component.css',
 })

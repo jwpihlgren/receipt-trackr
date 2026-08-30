@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
+import { MenyComponent } from '../shared/meny.component';
 
 /** Svaret från `/api/health` — samma form som servern lovar i http/health.ts. */
 export type Health = {
@@ -28,7 +29,7 @@ export type Health = {
 @Component({
   selector: 'app-drift',
   host: { 'data-density': 'comfortable' },
-  imports: [RouterLink],
+  imports: [RouterLink, MenyComponent],
   templateUrl: './drift.component.html',
   styleUrl: './drift.component.css',
 })

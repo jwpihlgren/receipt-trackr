@@ -1,5 +1,6 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { MenyComponent } from '../shared/meny.component';
 import { QueueService } from './queue.service';
 
 /**
@@ -14,7 +15,7 @@ import { QueueService } from './queue.service';
 @Component({
   selector: 'app-upload',
   host: { 'data-density': 'comfortable' },
-  imports: [RouterLink],
+  imports: [RouterLink, MenyComponent],
   templateUrl: './upload.component.html',
   styleUrl: './upload.component.css',
 })

@@ -1,12 +1,7 @@
 <div class="yta">
   <header class="topp">
+    <app-meny lage="dator" />
     <span class="marke">Kvittoarkiv</span>
-    <nav>
-      <a routerLink="/kvitton">Telefonläge</a>
-      <a routerLink="/matning">Mätning</a>
-      <a routerLink="/drift">Utrymme och drift</a>
-      <button type="button" (click)="loggaUt()">Logga ut</button>
-    </nav>
   </header>
 
   <main class="kolumn">
@@ -109,6 +104,8 @@
                 <span class="butik">
                   @if (rad.store) {
                     {{ rad.store }}@if (rad.total !== null) { <span class="tyst"> · {{ rad.total }} kr</span> }
+                  } @else if (rad.tecken > 0) {
+                    <span class="tolkad">Tolkad</span> <span class="tyst">· {{ rad.tecken }} tecken · fälten kommer i M6</span>
                   } @else {
                     <span class="tyst">Inte tolkat än</span>
                   }

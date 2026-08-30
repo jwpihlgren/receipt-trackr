@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { MenyComponent } from '../shared/meny.component';
 
 type Segment = { file: string; sha256: string; bytes: number; width: number; height: number };
 
@@ -30,7 +31,7 @@ type Receipt = {
 @Component({
   selector: 'app-kvitto',
   host: { 'data-density': 'comfortable' },
-  imports: [RouterLink],
+  imports: [RouterLink, MenyComponent],
   templateUrl: './kvitto.component.html',
   styleUrl: './kvitto.component.css',
 })
@@ -70,7 +71,13 @@ export class KvittoComponent {
         return;
       }
       if (!response.ok) throw new Error(String(response.status));
-      this.receipt.set((await response.json()) as Receipt);
+      const receipt = (await response.json()) as Receipt;
+      this.receipt.set(receipt);
+      // Finns text men inga fält är texten det enda som faktiskt går att visa. Att
+      // gömma den bakom en knapp gjorde att tolkningen såg ut att inte ha hänt.
+      if (receipt.text.trim().length > 0 && Object.keys(receipt.fields).length === 0) {
+        this.visaText.set(true);
+      }
     } catch {
       this.error.set('Kunde inte hämta kvittot. Är servern igång?');
     }

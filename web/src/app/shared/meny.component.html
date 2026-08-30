@@ -32,10 +32,17 @@
       <div class="avdelare"></div>
 
       <div class="grupp">
-        <a routerLink="/arkiv" (click)="close()">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
-          <span>Datorläge</span>
-        </a>
+        @if (lage() === 'mobil') {
+          <a routerLink="/arkiv" (click)="close()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" /><path d="M8 21h8" /><path d="M12 17v4" /></svg>
+            <span>Datorläge</span>
+          </a>
+        } @else {
+          <a routerLink="/kvitton" (click)="close()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></svg>
+            <span>Telefonläge</span>
+          </a>
+        }
         <a routerLink="/matning" (click)="close()">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18" /><path d="m7 15 4-4 3 3 5-6" /></svg>
           <span>Mätning</span>
