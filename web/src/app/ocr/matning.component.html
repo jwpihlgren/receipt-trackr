@@ -9,13 +9,35 @@
       <div class="notis varning">
         <strong>Sidan är inte cross-origin isolated</strong>
         <span>
-          WASM kör då entrådat och siffrorna blir sämre än de behöver vara. Kontrollera att
-          servern skickar <code>Cross-Origin-Opener-Policy</code> och
-          <code>Cross-Origin-Embedder-Policy</code> — mät gärna ändå, men skriv upp att det
-          var av.
+          Flertrådad WASM kräver secure context. Över rå http på en IP-adress är den inte
+          uppfylld, och WASM kör då entrådat — headrarna skickas men har ingen verkan.
+          Mät ändå; det är den konfiguration du faktiskt kör. Vill du se skillnaden,
+          kör om samma mätning över tailnet-adressen.
         </span>
       </div>
     }
+
+    <div class="val">
+      <span class="etikett">BILDER</span>
+      <div class="knappar">
+        <button type="button" [class.vald]="kalla() === 'arkiv'" (click)="valjKalla('arkiv')">Ur arkivet</button>
+        <button type="button" [class.vald]="kalla() === 'filer'" (click)="valjKalla('filer')">Egna filer</button>
+      </div>
+
+      @if (kalla() === 'arkiv') {
+        @if (arkivet(); as kvitton) {
+          <span class="tyst">{{ kvitton.length }} kvitton i arkivet. Originalbilderna används, inte tumnaglarna.</span>
+          <label class="skjut">
+            Mät på de {{ antal() }} senaste
+            <input type="range" min="1" [max]="kvitton.length || 1" [value]="antal()" (input)="onAntal($event)" />
+          </label>
+        } @else {
+          <span class="tyst">Läser arkivet …</span>
+        }
+      } @else {
+        <span class="tyst">För bilder som inte ligger i arkivet — till exempel spikens <code>samples/gamla</code>.</span>
+      }
+    </div>
 
     <div class="val">
       <span class="etikett">MODELLNIVÅ</span>
@@ -27,22 +49,33 @@
           small <span class="tyst">30 MB</span>
         </button>
       </div>
-      <span class="tyst">
-        M0 valde tiny: den läste fler tecken än small på under en tredjedel av tiden.
-        Kryssa i båda för att pröva om det gäller här också.
-      </span>
+      <span class="tyst">M0 valde tiny: den läste fler tecken än small på under en tredjedel av tiden.</span>
     </div>
 
     <div class="val">
-      <span class="etikett">BILDER</span>
-      <label class="knapp primar" [class.av]="!!korande()">
-        Välj kvittobilder
-        <input type="file" accept="image/*" multiple [disabled]="!!korande()" (change)="onFiler($event)" />
-      </label>
+      <span class="etikett">UPPRÄTNING</span>
+      <div class="knappar">
+        @for (r of rotationsval; track r) {
+          <button type="button" [class.vald]="rotation() === r" (click)="valjRotation(r)">{{ rotationsetikett(r) }}</button>
+        }
+      </div>
       <span class="tyst">
-        Samma bilder som i <code>spike/samples/gamla</code> ger tal som går att jämföra rakt av.
-        Filerna lämnar aldrig telefonen — allt körs här.
+        <code>auto</code> kör M0:s regel: andelen höga textrutor avgör om sidan ligger ned,
+        en provläsning åt båda hållen avgör åt vilket håll. Tvinga en vinkel för att jämföra.
       </span>
+    </div>
+
+    <div class="korval">
+      @if (kalla() === 'arkiv') {
+        <button type="button" class="knapp primar" [disabled]="!!korande() || !arkivet()?.length" (click)="koraArkiv()">
+          Kör mätningen
+        </button>
+      } @else {
+        <label class="knapp primar" [class.av]="!!korande()">
+          Välj kvittobilder
+          <input type="file" accept="image/*" multiple [disabled]="!!korande()" (change)="onFiler($event)" />
+        </label>
+      }
     </div>
 
     @if (korande(); as status) {
@@ -53,7 +86,7 @@
       <div class="tabell">
         <div class="rad huvud">
           <span>nivå</span><span>bilder</span><span>tecken</span><span>ms</span>
-          <span>tolkning</span><span>median</span><span>p10</span>
+          <span>uppräting</span><span>tolkning</span><span>median</span><span>vridna</span>
         </div>
         @for (s of sammanfattning(); track s.niva) {
           <div class="rad">
@@ -61,9 +94,10 @@
             <span class="num">{{ s.bilder }}</span>
             <span class="num">{{ s.tecken }}</span>
             <span class="num">{{ s.ms }}</span>
+            <span class="num">{{ s.rataMs }}</span>
             <span class="num">{{ s.tolkMs }}</span>
             <span class="num">{{ s.median }}</span>
-            <span class="num">{{ s.p10 }}</span>
+            <span class="num">{{ s.vridna }}/{{ s.bilder }}</span>
           </div>
         }
       </div>
@@ -79,7 +113,7 @@
 
     @if (fel().length) {
       <div class="notis farlig">
-        <strong>{{ fel().length }} {{ fel().length === 1 ? 'bild gick inte att läsa' : 'bilder gick inte att läsa' }}</strong>
+        <strong>{{ fel().length }} {{ fel().length === 1 ? 'fel' : 'fel' }}</strong>
         @for (f of fel(); track f) { <span>{{ f }}</span> }
       </div>
     }

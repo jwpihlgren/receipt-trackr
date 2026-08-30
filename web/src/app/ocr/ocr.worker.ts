@@ -13,6 +13,7 @@
  */
 import { PaddleOcrService } from 'ppu-paddle-ocr/web';
 import * as ort from 'onnxruntime-web';
+import { kalibrera, roteraDuk, type Orientering } from './orientering';
 
 /** M0 mätte fram tiny som vinnare. `small` finns med för att M5a ska kunna mäta om det. */
 export type Niva = 'tiny' | 'small';
@@ -36,16 +37,28 @@ const MODELLER: Record<Niva, { detection: string; recognition: string; character
  */
 const BREDD = 1600;
 
-export type OcrBegaran = { id: string; niva: Niva; bytes: ArrayBuffer };
+/** `auto` kör M0:s uppräteningsregel. Talen tvingar en vridning, för jämförelse. */
+export type Rotation = 'auto' | 0 | 90 | 180 | 270;
+
+export type OcrBegaran = { id: string; niva: Niva; bytes: ArrayBuffer; rotation: Rotation };
 
 export type OcrRad = { text: string; confidence: number };
 
 export type OcrSvar =
-  | { typ: 'klar'; id: string; niva: Niva; text: string; rader: OcrRad[]; ms: Tider; bild: { bredd: number; hojd: number } }
+  | {
+      typ: 'klar';
+      id: string;
+      niva: Niva;
+      text: string;
+      rader: OcrRad[];
+      ms: Tider;
+      bild: { bredd: number; hojd: number };
+      orientering: Orientering | null;
+    }
   | { typ: 'fel'; id: string; niva: Niva; meddelande: string }
   | { typ: 'redo'; niva: Niva; ms: number; leverantorer: string[] };
 
-export type Tider = { avkoda: number; forbehandla: number; tolka: number; totalt: number };
+export type Tider = { avkoda: number; forbehandla: number; rata: number; tolka: number; totalt: number };
 
 // Runtimen ligger i imagen, inte på ett CDN — samma skäl som modellerna.
 ort.env.wasm.wasmPaths = '/ort/';
@@ -64,7 +77,10 @@ function service(niva: Niva): Promise<PaddleOcrService> {
   return redan;
 }
 
-/** Avkodar och skalar. Bilden är redan upprätt: orienteringen bakas in vid fångst. */
+/**
+ * Avkodar och skalar. EXIF respekteras när den finns — men den finns sällan: 91 % av
+ * backloggens bilder saknar taggen, och för dem avgörs riktningen på pixlarna efteråt.
+ */
 async function forbered(bytes: ArrayBuffer): Promise<{ duk: OffscreenCanvas; bredd: number; hojd: number }> {
   const bitmap = await createImageBitmap(new Blob([bytes]), { imageOrientation: 'from-image' });
   const skala = bitmap.width > BREDD ? BREDD / bitmap.width : 1;
@@ -96,13 +112,33 @@ addEventListener('message', async (event: MessageEvent<OcrBegaran | { typ: 'varm
     return;
   }
 
-  const { id, niva, bytes } = data as OcrBegaran;
+  const { id, niva, bytes, rotation } = data as OcrBegaran;
   const t0 = performance.now();
   try {
     const s = await service(niva);
     const t1 = performance.now();
-    const { duk, bredd, hojd } = await forbered(bytes);
+    const forsta = await forbered(bytes);
     const t2 = performance.now();
+
+    /**
+     * Uppräteningen är inte en detalj utan halva mätningen. En liggande bild läses
+     * tecken för tecken eller inte alls, och 91 % av backloggen saknar EXIF-taggen —
+     * så riktningen måste avgöras på pixlarna. Se orientering.ts.
+     */
+    let orientering: Orientering | null = null;
+    let duk = forsta.duk;
+    if (rotation === 'auto') {
+      orientering = await kalibrera(
+        duk,
+        (d) => s.detect(d) as Promise<{ boxes: { x: number; y: number; width: number; height: number }[] }>,
+        (d) => s.recognize(d, { flatten: true, noCache: true }) as Promise<{ results?: { text: string; confidence: number }[] }>,
+      );
+      if (orientering.rotation !== 0) duk = roteraDuk(duk, orientering.rotation);
+    } else if (rotation !== 0) {
+      duk = roteraDuk(duk, rotation);
+    }
+    const t2b = performance.now();
+
     const resultat = (await s.recognize(duk, { flatten: true })) as {
       text: string;
       results: { text: string; confidence: number }[];
@@ -126,10 +162,12 @@ addEventListener('message', async (event: MessageEvent<OcrBegaran | { typ: 'varm
       ms: {
         avkoda: Math.round(t1 - t0),
         forbehandla: Math.round(t2 - t1),
-        tolka: Math.round(t3 - t2),
+        rata: Math.round(t2b - t2),
+        tolka: Math.round(t3 - t2b),
         totalt: Math.round(t3 - t0),
       },
-      bild: { bredd, hojd },
+      bild: { bredd: duk.width, hojd: duk.height },
+      orientering,
     } satisfies OcrSvar);
   } catch (fel) {
     postMessage({ typ: 'fel', id, niva, meddelande: (fel as Error).message } satisfies OcrSvar);
