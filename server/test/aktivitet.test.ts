@@ -44,8 +44,12 @@ describe("aktiviteten", () => {
     await app.inject({ method: "POST", url: `/api/receipts/${id}/complete`, payload: { segments } });
   }
 
-  const tolka = (id: string, text: string) =>
-    app.inject({ method: "POST", url: `/api/jobb/${id}`, payload: { text, ocr: { niva: "tiny" } } });
+  const tolka = (id: string, text: string, teckenPerRad?: number) =>
+    app.inject({
+      method: "POST",
+      url: `/api/jobb/${id}`,
+      payload: { text, ocr: { niva: "tiny", ...(teckenPerRad === undefined ? {} : { teckenPerRad }) } },
+    });
 
   const HELT = "COOP KONSUM\n2026-08-29\nATT BETALA 284,50";
 
@@ -111,6 +115,45 @@ describe("aktiviteten", () => {
     const rad = (await rader()).receipts[0];
     expect(rad.lage).toBe("saknar_falt");
     expect(rad.saknadeFalt).toEqual(["datum", "belopp"]);
+  });
+
+  /**
+   * Felklassen M5a mätte upp: detektorn ramar in rader, igenkänningen läser dem tecken
+   * för tecken, och konfidensen kan ändå vara hög. Ett sådant kvitto ser färdigt ut
+   * och är det inte — därför står det i tabellen trots att alla tre fälten finns.
+   */
+  it("tar upp ett kvitto som lästes tecken för tecken, fast fälten finns", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, HELT, 4.0);
+
+    const rad = (await rader()).receipts[0];
+    expect(rad).toMatchObject({ id, lage: "svag_text", teckenPerRad: 4 });
+  });
+
+  it("lämnar normalt läst text i fred", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, HELT, 11);
+
+    expect((await rader()).receipts).toHaveLength(0);
+  });
+
+  /** Måttet saknas på kvitton tolkade innan det fanns. Okänt är inte samma sak som dåligt. */
+  it("flaggar inte ett kvitto som saknar måttet", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, HELT);
+
+    expect((await rader()).receipts).toHaveLength(0);
+  });
+
+  it("sätter svagt läst text före saknade fält — det förra orsakar det senare", async () => {
+    const id = ulid();
+    await fanga(id);
+    await tolka(id, "COOP KONSUM\nnagot utan summa", 3.2);
+
+    expect((await rader()).receipts[0]).toMatchObject({ id, lage: "svag_text" });
   });
 
   it("släpper kvittot ur tabellen när fältet skrivits in för hand", async () => {

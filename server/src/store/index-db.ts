@@ -20,7 +20,7 @@ export type ReceiptIndex = Database.Database;
  * Det är hela poängen med ett härlett index — höj siffran när kolumnerna ändras
  * och skriv aldrig ett `ALTER TABLE`.
  */
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } {
   const db = new Database(path);
@@ -45,6 +45,7 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
       currency    TEXT,
       expected    INTEGER,
       tolkad      INTEGER NOT NULL DEFAULT 0,
+      tecken_per_rad REAL,
       sampled     INTEGER NOT NULL DEFAULT 0,
       reviewed    INTEGER NOT NULL DEFAULT 0,
       indexed_at  TEXT NOT NULL
@@ -60,6 +61,18 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
   return { db, rebuilt };
 }
 
+/**
+ * Tecken per läst rad — kvalitetsmåttet från M5a, räknat av klienten som läste bilden.
+ *
+ * `null` när måttet inte finns: kvitton som tolkades innan det skrevs, och kvitton som
+ * inte tolkats alls. Det är inte samma sak som ett dåligt värde och får inte behandlas
+ * som ett.
+ */
+function teckenPerRad(receipt: Receipt): number | null {
+  const varde = (receipt.ocr as { teckenPerRad?: unknown } | null)?.teckenPerRad;
+  return typeof varde === "number" && Number.isFinite(varde) ? varde : null;
+}
+
 const field = (receipt: Receipt, name: string): unknown =>
   (receipt.fields as Record<string, { value?: unknown } | undefined>)[name]?.value;
 
@@ -68,14 +81,15 @@ export function upsert(db: ReceiptIndex, receipt: Receipt): void {
   const tx = db.transaction((r: Receipt) => {
     db.prepare(
       `INSERT INTO receipts (id, captured_at, backlog, segments, store, date, total, currency,
-                             expected, tolkad, sampled, reviewed, indexed_at)
+                             expected, tolkad, tecken_per_rad, sampled, reviewed, indexed_at)
        VALUES (@id, @captured_at, @backlog, @segments, @store, @date, @total, @currency,
-               @expected, @tolkad, @sampled, @reviewed, @indexed_at)
+               @expected, @tolkad, @tecken_per_rad, @sampled, @reviewed, @indexed_at)
        ON CONFLICT(id) DO UPDATE SET
          captured_at = excluded.captured_at, backlog = excluded.backlog,
          segments = excluded.segments, store = excluded.store, date = excluded.date,
          total = excluded.total, currency = excluded.currency,
-         expected = excluded.expected, tolkad = excluded.tolkad, sampled = excluded.sampled,
+         expected = excluded.expected, tolkad = excluded.tolkad,
+         tecken_per_rad = excluded.tecken_per_rad, sampled = excluded.sampled,
          reviewed = excluded.reviewed, indexed_at = excluded.indexed_at`,
     ).run({
       id: r.id,
@@ -91,6 +105,7 @@ export function upsert(db: ReceiptIndex, receipt: Receipt): void {
       // skillnaden går ett kvitto som väntar på sin tur inte att skilja från ett där
       // maskinen läste och inte fick ut ett tecken.
       tolkad: r.ocr ? 1 : 0,
+      tecken_per_rad: teckenPerRad(r),
       sampled: r.review?.sampled ? 1 : 0,
       reviewed: r.review?.verdict ? 1 : 0,
       indexed_at: new Date().toISOString(),
@@ -224,7 +239,15 @@ export type KvittoRad = {
 };
 
 /** Vad som står i vägen för att kvittot ska vara färdigt. Ett enda ord per rad. */
-export type Lage = "bilder" | "ofullstandig" | "vantar" | "utan_text" | "saknar_falt";
+export type Lage = "bilder" | "ofullstandig" | "vantar" | "utan_text" | "svag_text" | "saknar_falt";
+
+/**
+ * Gränsen för tecken per läst rad, mätt i M5a: de två suddiga segmenten gav 4,0 och
+ * 5,4 mot normalfallets 11. Under den här siffran har detektorn ramat in rader som
+ * igenkänningen sedan läst tecken för tecken, och texten är inte att lita på — hur
+ * hög konfidensen än råkar vara.
+ */
+const TECKEN_PER_RAD_GRANS = 7;
 
 export type Ofardigt = KvittoRad & {
   lage: Lage;
@@ -233,6 +256,8 @@ export type Ofardigt = KvittoRad & {
   /** Fält maskinen inte hittade. */
   saknadeFalt: string[];
   tecken: number;
+  /** Tecken per läst rad. `null` när måttet saknas — inte samma sak som noll. */
+  teckenPerRad: number | null;
 };
 
 /**
@@ -251,20 +276,27 @@ export function ofardiga(db: ReceiptIndex, limit = 500): Ofardigt[] {
       `SELECT r.id AS id, r.captured_at AS capturedAt, r.store AS store, r.date AS date,
               r.total AS total, r.currency AS currency,
               r.segments AS segments, r.expected AS expected, r.tolkad AS tolkad,
-              length(f.text) AS tecken
+              r.tecken_per_rad AS teckenPerRad, length(f.text) AS tecken
          FROM receipts r
          JOIN receipts_fts f ON f.id = r.id
         WHERE NOT (
                 r.expected IS NOT NULL AND r.segments >= r.expected
                 AND r.tolkad = 1 AND length(f.text) > 0
                 AND r.store IS NOT NULL AND r.date IS NOT NULL AND r.total IS NOT NULL
+                AND (r.tecken_per_rad IS NULL OR r.tecken_per_rad >= ${TECKEN_PER_RAD_GRANS})
               )
         ORDER BY r.captured_at DESC
         LIMIT ?`,
     )
-    .all(limit) as (KvittoRad & { segments: number; expected: number | null; tolkad: number; tecken: number })[];
+    .all(limit) as (KvittoRad & {
+    segments: number;
+    expected: number | null;
+    tolkad: number;
+    tecken: number;
+    teckenPerRad: number | null;
+  })[];
 
-  return rader.map(({ segments, expected, tolkad, tecken, ...rad }) => {
+  return rader.map(({ segments, expected, tolkad, tecken, teckenPerRad, ...rad }) => {
     const saknadeBilder = expected === null ? 0 : Math.max(0, expected - segments);
     const saknadeFalt =
       tolkad === 1 && tecken > 0
@@ -285,8 +317,11 @@ export function ofardiga(db: ReceiptIndex, limit = 500): Ofardigt[] {
             ? "vantar"
             : tecken === 0
               ? "utan_text"
-              : "saknar_falt";
-    return { ...rad, lage, saknadeBilder, saknadeFalt, tecken };
+              : teckenPerRad !== null && teckenPerRad < TECKEN_PER_RAD_GRANS
+                ? // Före saknade fält, för det är svagt läst text som orsakar dem.
+                  "svag_text"
+                : "saknar_falt";
+    return { ...rad, lage, saknadeBilder, saknadeFalt, tecken, teckenPerRad };
   });
 }
 

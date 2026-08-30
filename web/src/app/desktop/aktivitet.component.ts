@@ -3,7 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
 
-type Lage = 'bilder' | 'ofullstandig' | 'vantar' | 'utan_text' | 'saknar_falt';
+type Lage = 'bilder' | 'ofullstandig' | 'vantar' | 'utan_text' | 'svag_text' | 'saknar_falt';
 
 type Rad = {
   id: string;
@@ -16,6 +16,7 @@ type Rad = {
   saknadeBilder: number;
   saknadeFalt: string[];
   tecken: number;
+  teckenPerRad: number | null;
 };
 
 type Aktivitet = { total: number; vantar: number; receipts: Rad[] };
@@ -81,6 +82,8 @@ export class AktivitetComponent {
         return 'Väntar på tolkning';
       case 'utan_text':
         return 'Ingen text lästes';
+      case 'svag_text':
+        return 'Bilden gick knappt att läsa';
       case 'saknar_falt':
         return `Saknar ${lista(rad.saknadeFalt)}`;
     }
@@ -88,7 +91,7 @@ export class AktivitetComponent {
 
   /** Tre grader, och var och en har både en färg och ett eget ord i statusen. */
   grad(rad: Rad): 'illa' | 'obs' | 'vantan' {
-    if (rad.lage === 'bilder') return 'illa';
+    if (rad.lage === 'bilder' || rad.lage === 'svag_text') return 'illa';
     if (rad.lage === 'vantar') return 'vantan';
     return 'obs';
   }
