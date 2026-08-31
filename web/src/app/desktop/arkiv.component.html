@@ -87,8 +87,21 @@
         {{ filtrerat() ? 'Inget kvitto matchar filtret.' : 'Inga klara kvitton än.' }}
       </p>
     } @else {
-      <p class="num mb-2 text-sm text-neutral">
-        {{ total() }}{{ filtrerat() ? (total() === 1 ? ' träff' : ' träffar') : (total() === 1 ? ' kvitto' : ' kvitton') }}
+      <!--
+        Antalet och summan står ovanför tabellen, inte i en tfoot. Summan är det man
+        kommer till arkivet för att se, och en träffmängd på hundra rader gömde den
+        längst ned bakom en skrollning.
+
+        Båda gäller hela träffmängden, inte de rader som syns: servern räknar dem på
+        samma filter och räknar köp, så att tre foton av samma kvitto inte adderas
+        tre gånger.
+      -->
+      <p class="num mb-2 flex flex-wrap items-baseline gap-x-2 text-sm text-neutral">
+        <span>
+          {{ total() }}{{ filtrerat() ? (total() === 1 ? ' träff' : ' träffar') : (total() === 1 ? ' kvitto' : ' kvitton') }}
+        </span>
+        <span aria-hidden="true">·</span>
+        <span>Summa <span class="text-base font-semibold text-base-content">{{ summaText() }} kr</span></span>
       </p>
       <!--
         Kolumnbredderna är satta på det som har en känd bredd — datum, belopp, antal,
@@ -207,18 +220,6 @@
               </tr>
             }
           </tbody>
-          <!--
-            Summan gäller hela träffmängden, inte de rader som syns: servern räknar
-            den på samma filter och räknar köp, så att tre foton av samma kvitto inte
-            adderas tre gånger.
-          -->
-          <tfoot>
-            <tr>
-              <td colspan="5" class="text-right">Summa</td>
-              <td class="num text-right text-base font-semibold text-base-content">{{ summaText() }} kr</td>
-              <td colspan="3"></td>
-            </tr>
-          </tfoot>
         </table>
       </div>
     }
