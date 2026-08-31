@@ -122,9 +122,7 @@
 }
 
 .knapp svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-/* Inputen ligger utanför knapparna nu, men måste finnas i layouten: `display: none`
-   gör den oklickbar i vissa webbläsare, och det är knappen som klickar på den. */
-.dold { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.knapp input[type='file'] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
 .primar { min-height: var(--tap-primary); border: none; background: var(--accent); color: var(--on-accent); font-weight: var(--weight-bold); }
 .kontur { min-height: var(--tap-comfort); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
@@ -190,6 +188,13 @@
   }
 }
 
+/* Knappen är en <label> runt ett filinput — ett tryck öppnar telefonens egen kamera.
+   Fokus hör till knappen, inte till den osynliga inputen: utan det här ritade
+   tangentbordsfokus en ring runt en punkt på 1×1 px någonstans i kanten. */
+.knapp:has(input:focus-visible) {
+  outline: var(--focus-width) solid var(--focus-color);
+  outline-offset: var(--focus-offset);
+}
 
 .tolkar .stoppa {
   margin-inline-start: auto;

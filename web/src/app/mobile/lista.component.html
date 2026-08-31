@@ -91,35 +91,20 @@
     }
   </div>
 
-  <!--
-    Inputen ligger utanför knapparna och knapparna öppnar dem själva, med `click()`
-    innan någon signal skrivs. En `<label>` runt ett filinput förlitar sig på att
-    webbläsaren hinner utföra etikettens standardåtgärd efter vår klickhanterare, och
-    det höll inte: på fångstskärmen revs etiketten bort mitt i sitt eget klick, och
-    första bilden på varje kvitto togs aldrig. Samma form på båda skärmarna.
-  -->
-  <input
-    #kamera
-    type="file"
-    accept="image/*"
-    capture="environment"
-    class="dold"
-    tabindex="-1"
-    aria-hidden="true"
-    (change)="onFiles($event)"
-  />
-  <input #galleri type="file" accept="image/*" multiple class="dold" tabindex="-1" aria-hidden="true" (change)="onFiles($event)" />
-
   <div class="handzon">
-    <button type="button" class="knapp primar" (click)="openCamera()">
+    <label class="knapp primar">
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z" />
         <circle cx="12" cy="13" r="3.5" />
       </svg>
       Öppna kameran
-    </button>
+      <input type="file" accept="image/*" capture="environment" (click)="openCamera()" (change)="onFiles($event)" />
+    </label>
 
-    <button type="button" class="knapp kontur" (click)="oppnaGalleri()">Lägg till från bilder</button>
+    <label class="knapp kontur">
+      Lägg till från bilder
+      <input type="file" accept="image/*" multiple (change)="onFiles($event)" />
+    </label>
   </div>
 
   <!--
