@@ -163,6 +163,53 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
   });
 
   /**
+   * Massradering, bakom en grind som servern håller.
+   *
+   * Att radera är det enda i arkivet som inte går att ta tillbaka: bilderna är
+   * sanningen, papperet är slängt, och det finns ingen papperskorg. En knapp som
+   * raderar femtio kvitton på ett tryck måste därför vara svårare att träffa av
+   * misstag än allt annat — och grinden hör hemma **här**, inte bara i formuläret.
+   * Ett API som tar emot en lista med id och raderar är ett felaktigt anrop från att
+   * tömma arkivet; ett som kräver ordet är det inte.
+   */
+  app.post<{ Body: { ids?: unknown; bekraftelse?: unknown } }>("/api/receipts/radera", async (request, reply) => {
+    const { ids, bekraftelse } = request.body ?? {};
+    if (!Array.isArray(ids) || ids.length === 0 || ids.some((v) => typeof v !== "string")) {
+      return reply.code(400).send({ error: "missing_ids", message: "Skicka kvittona som ska tas bort." });
+    }
+    if (typeof bekraftelse !== "string" || bekraftelse.trim().toLowerCase() !== "radera") {
+      return reply.code(400).send({
+        error: "missing_bekraftelse",
+        message: 'Skriv "radera" för att ta bort kvittona.',
+      });
+    }
+
+    /**
+     * **Ett id är ett köp, inte ett fotografi.** Arkivets rader är köp — tre bilder av
+     * samma kvitto är en rad — och den som tar bort raden menar köpet. Utan den här
+     * utvidgningen försvann en medlem, nästa tog dess plats som radens ansikte, och
+     * raden stod kvar fast raderingen svarat att den lyckats.
+     */
+    const alla = new Set<string>();
+    for (const id of ids as string[]) {
+      alla.add(id);
+      for (const medlem of gruppFor(archive.db, id)?.medlemmar ?? []) alla.add(medlem.id);
+    }
+
+    // En i taget, i ordning: raderingen är index först och filer sedan, och den
+    // ordningen får inte vävas ihop mellan kvitton. Det som inte fanns räknas för
+    // sig — ett omtaget anrop efter en tappad uppkoppling ska inte se ut som ett fel.
+    let borttagna = 0;
+    let saknades = 0;
+    for (const id of alla) {
+      const { borttaget } = await archive.taBort(id);
+      if (borttaget) borttagna++;
+      else saknades++;
+    }
+    return reply.send({ borttagna, saknades });
+  });
+
+  /**
    * "Inte samma köp": vägen ut ur en felaktig sammanslagning.
    *
    * Utan `ids` gäller nejet hela gruppen kvittot står i — det är vad någon menar som

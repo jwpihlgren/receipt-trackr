@@ -43,11 +43,17 @@
           ett papper, men den som öppnade ett kvitto med fyra bilder såg en och trodde
           att de andra tre hade tappats bort.
         -->
-        <div class="flex min-h-0 flex-1 justify-center overflow-y-auto p-6">
+        <!--
+          Bilden tar den yta som finns. Den låg förut i en fast bredd på 448 px och
+          lämnade halva skärmen tom på en stor skärm, medan den på en liten trängdes
+          ihop ändå. Nu styr både bredden och höjden: papperet fyller rutan utan att
+          skäras av, och proportionen bär vridningen.
+        -->
+        <div class="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-6">
           @if (aktuell(); as b) {
             <button
               type="button"
-              class="relative block w-full max-w-md cursor-zoom-in self-start overflow-hidden shadow-md"
+              class="relative block h-full max-h-full w-auto max-w-full cursor-zoom-in overflow-hidden shadow-md"
               [style.aspect-ratio]="ramAspekt(b)"
               [attr.aria-label]="'Visa bild ' + b.index + ' större'"
               (click)="oppnaVisaren(vald())"

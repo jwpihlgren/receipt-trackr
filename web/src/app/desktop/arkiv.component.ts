@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
@@ -49,8 +49,14 @@ export class ArkivComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  /** Kvittens för radering, som sker på en annan sida. Slocknar av sig själv. */
-  readonly raderat = signal(false);
+  /**
+   * Hur många kvitton som just togs bort. Noll betyder ingen kvittens att visa.
+   *
+   * Den var ett ja/nej och sattes av en flagga i adressen, från raderingen på
+   * kvittosidan. Nu raderas det också härifrån, flera åt gången, och då är antalet
+   * det som säger vad som hände.
+   */
+  readonly raderat = signal(0);
   readonly tolkning = inject(TolkningService);
 
   readonly rader = signal<Rad[] | null>(null);
@@ -83,6 +89,18 @@ export class ArkivComponent {
   readonly sortera = signal<Kolumn>('date');
   readonly stigande = signal(false);
 
+  /**
+   * Markerade kvitton, och rutan som står mellan dem och raderingen.
+   *
+   * Att radera är det enda i arkivet som inte går att ta tillbaka. Grinden är därför
+   * ett ord man skriver — inte en knapp till att trycka på — och servern prövar
+   * samma ord: ett formulär är ingen spärr, det är en artighet.
+   */
+  readonly valda = signal(new Set<string>());
+  readonly bekraftelse = signal('');
+  readonly raderar = signal(false);
+  private readonly rutan = viewChild<ElementRef<HTMLDialogElement>>('raderaRuta');
+
   readonly fraga = signal('');
   readonly butik = signal('');
   readonly fran = signal('');
@@ -99,9 +117,9 @@ export class ArkivComponent {
     if (franAnalysen) this.kategori.set(franAnalysen);
 
     if (this.route.snapshot.queryParamMap.has('raderat')) {
-      this.raderat.set(true);
+      this.raderat.set(1);
       void this.router.navigate([], { queryParams: {}, replaceUrl: true });
-      setTimeout(() => this.raderat.set(false), 4000);
+      setTimeout(() => this.raderat.set(0), 4000);
     }
 
     void this.load();
@@ -164,6 +182,77 @@ export class ArkivComponent {
       this.stigande.set(FORSTA_RIKTNINGEN[kolumn]);
     }
     void this.load();
+  }
+
+  readonly allaValda = computed(() => {
+    const rader = this.rader() ?? [];
+    return rader.length > 0 && rader.every((r) => this.valda().has(r.id));
+  });
+  readonly nagraValda = computed(() => this.valda().size > 0 && !this.allaValda());
+
+  vaxla(id: string): void {
+    this.valda.update((valda) => {
+      const ny = new Set(valda);
+      if (!ny.delete(id)) ny.add(id);
+      return ny;
+    });
+  }
+
+  valjAlla(event: Event): void {
+    const pa = (event.target as HTMLInputElement).checked;
+    this.valda.set(pa ? new Set((this.rader() ?? []).map((r) => r.id)) : new Set());
+  }
+
+  avmarkera(): void {
+    this.valda.set(new Set());
+  }
+
+  fragaRadera(): void {
+    this.bekraftelse.set('');
+    this.rutan()?.nativeElement.showModal();
+  }
+
+  avbrytRadera(): void {
+    this.rutan()?.nativeElement.close();
+  }
+
+  onBekraftelse(event: Event): void {
+    this.bekraftelse.set((event.target as HTMLInputElement).value);
+  }
+
+  /** Ordet måste stämma här också — men det är serverns prövning som är spärren. */
+  readonly farRadera = computed(() => this.bekraftelse().trim().toLowerCase() === 'radera');
+
+  /**
+   * Hur många kvitton de valda köpen består av. En rad är ett köp, och ett köp kan
+   * vara tre foton — det ska stå i rutan, inte upptäckas efteråt.
+   */
+  readonly valdaKvitton = computed(() =>
+    (this.rader() ?? []).filter((r) => this.valda().has(r.id)).reduce((n, r) => n + Math.max(1, r.medlemmar), 0),
+  );
+
+  async radera(): Promise<void> {
+    if (!this.farRadera()) return;
+    this.raderar.set(true);
+    try {
+      const svar = await fetch('/api/receipts/radera', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ids: [...this.valda()], bekraftelse: this.bekraftelse() }),
+      });
+      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (!svar.ok) throw new Error(String(svar.status));
+      const { borttagna } = (await svar.json()) as { borttagna: number };
+      this.rutan()?.nativeElement.close();
+      this.avmarkera();
+      this.raderat.set(borttagna);
+      setTimeout(() => this.raderat.set(0), 4000);
+      await this.load();
+    } catch {
+      this.error.set('Kvittona gick inte att ta bort.');
+    } finally {
+      this.raderar.set(false);
+    }
   }
 
   onFraga(event: Event): void {

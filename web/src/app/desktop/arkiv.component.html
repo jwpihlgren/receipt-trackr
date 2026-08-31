@@ -4,9 +4,11 @@
     <h1 class="text-lg font-semibold">Kvitton</h1>
   </header>
 
-  @if (raderat()) {
+  @if (raderat() > 0) {
     <div role="status" class="alert alert-soft alert-success mx-4 mt-4 w-auto">
-      <span>Kvittot är borttaget.</span>
+      <span>
+        {{ raderat() }} {{ raderat() === 1 ? 'kvitto är borttaget' : 'kvitton är borttagna' }}.
+      </span>
     </div>
   }
 
@@ -90,7 +92,32 @@
       <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
         <table class="table table-sm">
           <thead>
-            <tr>
+            <!-- Höjden sitter på raden: markeringens knappar är en pixel högre än
+                 rubriktexten, och den pixeln skulle flytta hela listan. -->
+            <tr class="h-12">
+              <th class="h-12 w-10">
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm"
+                  aria-label="Markera alla"
+                  [checked]="allaValda()"
+                  [indeterminate]="nagraValda()"
+                  (change)="valjAlla($event)"
+                />
+              </th>
+              @if (valda().size > 0) {
+                <th class="h-12 py-0" colspan="7">
+                  <div class="flex items-center gap-3">
+                    <span class="num text-base-content">
+                      {{ valda().size }} {{ valda().size === 1 ? 'kvitto valt' : 'kvitton valda' }}
+                    </span>
+                    <button type="button" class="btn btn-sm btn-error ml-auto" (click)="fragaRadera()">
+                      Ta bort
+                    </button>
+                    <button type="button" class="btn btn-sm btn-ghost" (click)="avmarkera()">Avmarkera</button>
+                  </div>
+                </th>
+              } @else {
               <th class="w-14"><span class="sr-only">Bild</span></th>
               <th class="w-28">
                 <button type="button" class="sortknapp" (click)="sorteraPa('date')">
@@ -124,11 +151,21 @@
                 </button>
               </th>
               <th class="w-20 text-right"><span class="sr-only">Öppna</span></th>
+              }
             </tr>
           </thead>
           <tbody>
             @for (rad of rader(); track rad.id) {
-              <tr class="hover:bg-base-200">
+              <tr class="hover:bg-base-200" [class.bg-base-200]="valda().has(rad.id)">
+                <td>
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm"
+                    [attr.aria-label]="'Välj ' + (rad.store ?? 'kvitto')"
+                    [checked]="valda().has(rad.id)"
+                    (change)="vaxla(rad.id)"
+                  />
+                </td>
                 <td>
                   <img
                     class="tumnagel liten"
@@ -170,7 +207,7 @@
           -->
           <tfoot>
             <tr>
-              <td colspan="4" class="text-right">Summa</td>
+              <td colspan="5" class="text-right">Summa</td>
               <td class="num text-right text-base font-semibold text-base-content">{{ summaText() }} kr</td>
               <td colspan="3"></td>
             </tr>
@@ -179,4 +216,50 @@
       </div>
     }
   </main>
+
+  <!--
+    Grinden. Att radera är det enda i arkivet som inte går att ta tillbaka — bilderna
+    är sanningen och papperet är slängt — och därför står ett ord mellan tanken och
+    handlingen. Rutan är en riktig <dialog> med showModal(): Esc, fokusfälla och
+    inert bakgrund kommer därifrån. Ordet prövas också av servern; ett formulär är
+    ingen spärr, det är en artighet.
+  -->
+  <dialog #raderaRuta class="modal" (close)="bekraftelse.set('')">
+    <div class="modal-box">
+      <h2 class="text-lg font-semibold">
+        Ta bort {{ valda().size }} {{ valda().size === 1 ? 'kvitto' : 'kvitton' }}?
+      </h2>
+      <p class="mt-2 leading-relaxed">
+        @if (valdaKvitton() > valda().size) {
+          Köpen är fotograferade flera gånger — {{ valdaKvitton() }} kvitton tas bort.
+        }
+        Bilderna, texten och allt du skrivit in försvinner för alltid. Det finns ingen
+        papperskorg, och papperet är slängt.
+      </p>
+      <label class="label mt-4" for="radera-ord">Skriv <strong>radera</strong> för att bekräfta</label>
+      <input
+        id="radera-ord"
+        class="input w-full"
+        type="text"
+        autocomplete="off"
+        [value]="bekraftelse()"
+        (input)="onBekraftelse($event)"
+      />
+      <div class="modal-action">
+        <button type="button" class="btn" (click)="avbrytRadera()">Avbryt</button>
+        <button
+          type="button"
+          class="btn btn-error"
+          [disabled]="!farRadera() || raderar()"
+          (click)="radera()"
+        >
+          @if (raderar()) { <span class="loading loading-spinner loading-xs"></span> }
+          Ta bort
+        </button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+      <button type="submit">Avbryt</button>
+    </form>
+  </dialog>
 </div>

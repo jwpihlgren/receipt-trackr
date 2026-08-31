@@ -9,6 +9,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
@@ -16,6 +17,8 @@ import { Archive, ConflictError } from "../src/store/archive.js";
 import { receiptDir } from "../src/store/paths.js";
 import { ulid } from "../src/store/ulid.js";
 import { arkiv } from "../src/store/index-db.js";
+import { buildApp } from "../src/app.js";
+import { loadConfig } from "../src/config.js";
 
 const jpeg = (bredd = 600, hojd = 800, farg = "#cccccc"): Promise<Buffer> =>
   sharp({ create: { width: bredd, height: hojd, channels: 3, background: farg } })
@@ -114,6 +117,111 @@ describe("bilderna på ett arkiverat kvitto", () => {
     const receipt = (await archive.get(id))!;
     expect(receipt.text).toBe("");
     expect(receipt.ocr).toBeNull();
+  });
+});
+
+describe("massradering", () => {
+  let dir: string;
+  let archive: Archive;
+  let app: Awaited<ReturnType<typeof buildApp>>;
+  let ids: string[];
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), "receipt-trackr-radera-"));
+    archive = Archive.open(dir);
+    ids = [];
+    for (let i = 0; i < 3; i++) {
+      const id = ulid(Date.UTC(2026, 3, 11) + i * 60_000);
+      ids.push(id);
+      await archive.create({ id });
+      await archive.addSegment(id, 1, await jpeg());
+      await archive.complete(id, 1);
+    }
+    archive.close();
+    app = await buildApp(loadConfig({ DATA_DIR: dir, MIN_FREE_BYTES: "1", AUTH_DISABLED: "true" }), {
+      logger: false,
+    });
+    await app.ready();
+  });
+  afterEach(async () => {
+    await app.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  /**
+   * Grinden hör hemma i servern, inte bara i formuläret. Ett API som tar emot en
+   * lista med id och raderar är ett felaktigt anrop från att tömma arkivet.
+   */
+  it("vägrar radera utan ordet", async () => {
+    const svar = await app.inject({ method: "POST", url: "/api/receipts/radera", payload: { ids } });
+    expect(svar.statusCode).toBe(400);
+    expect(svar.json().error).toBe("missing_bekraftelse");
+    for (const id of ids) expect((await stat(receiptDir(dir, id))).isDirectory()).toBe(true);
+  });
+
+  it("vägrar ett ord som nästan stämmer", async () => {
+    const svar = await app.inject({
+      method: "POST",
+      url: "/api/receipts/radera",
+      payload: { ids, bekraftelse: "raderaa" },
+    });
+    expect(svar.statusCode).toBe(400);
+  });
+
+  it("tar bort kvittona och deras filer när ordet stämmer", async () => {
+    const svar = await app.inject({
+      method: "POST",
+      url: "/api/receipts/radera",
+      payload: { ids, bekraftelse: "Radera " },
+    });
+    expect(svar.statusCode).toBe(200);
+    expect(svar.json()).toEqual({ borttagna: 3, saknades: 0 });
+    for (const id of ids) await expect(stat(receiptDir(dir, id))).rejects.toThrow();
+  });
+
+  /**
+   * Arkivets rader är köp. Tar man bort raden menar man köpet — inte det fotografi
+   * som råkade företräda det. Utan den regeln försvann en medlem, nästa tog dess
+   * plats som radens ansikte, och raden stod kvar fast svaret sa att det lyckats.
+   */
+  it("tar hela köpet när kvittot står i en grupp", async () => {
+    const grupp = Archive.open(dir);
+    const syskon: string[] = [];
+    let i = 0;
+    for (const fil of ["colorama-90-a", "colorama-90-b", "colorama-90-c"]) {
+      const text = (
+        JSON.parse(readFileSync(join(import.meta.dirname, "fixtures/kvitton.json"), "utf8")) as {
+          kvitton: { fil: string; text: string }[];
+        }
+      ).kvitton.find((k) => k.fil === fil)!.text;
+      const id = ulid(Date.UTC(2026, 7, 28) + i++ * 60_000);
+      syskon.push(id);
+      await grupp.create({ id, capturedAt: "2026-08-28T12:47:00.000Z" });
+      await grupp.addSegment(id, 1, await jpeg());
+      await grupp.complete(id, 1);
+      await grupp.saveOcr(id, text, { teckenPerRad: 11 });
+    }
+    grupp.close();
+
+    const svar = await app.inject({
+      method: "POST",
+      url: "/api/receipts/radera",
+      payload: { ids: [syskon[0]], bekraftelse: "radera" },
+    });
+
+    expect(svar.json().borttagna).toBe(3);
+    for (const id of syskon) await expect(stat(receiptDir(dir, id))).rejects.toThrow();
+  });
+
+  /** Ett omtaget anrop efter en tappad uppkoppling är inte ett fel. */
+  it("räknar det som redan var borta för sig", async () => {
+    await app.inject({ method: "POST", url: "/api/receipts/radera", payload: { ids, bekraftelse: "radera" } });
+    const igen = await app.inject({
+      method: "POST",
+      url: "/api/receipts/radera",
+      payload: { ids, bekraftelse: "radera" },
+    });
+    expect(igen.json()).toEqual({ borttagna: 0, saknades: 3 });
   });
 });
 
