@@ -11,6 +11,10 @@ type Jobb = {
 
 export type TolkningsLage = {
   vantande: number;
+  /** Hur många av de väntande som redan är utdelade till någon enhet. */
+  reserverade: number;
+  /** Slagen av enheter som arbetar just nu: `telefon`, `dator`, `okand`. */
+  enheter: string[];
   kor: boolean;
   aktuellt: string | null;
   steg: string | null;
@@ -48,6 +52,8 @@ export class TolkningService {
 
   private readonly lage = signal<TolkningsLage>({
     vantande: 0,
+    reserverade: 0,
+    enheter: [],
     kor: false,
     aktuellt: null,
     steg: null,
@@ -67,6 +73,26 @@ export class TolkningService {
    * bildsteg inuti ett kvitto.
    */
   readonly aktuellt = computed(() => this.lage().aktuellt);
+
+  /**
+   * Kvitton som väntar och som **ingen** redan läser. Det är den enda siffran en knapp
+   * får bygga på: kön minus det som är utdelat.
+   */
+  readonly lediga = computed(() => Math.max(0, this.lage().vantande - this.lage().reserverade));
+
+  /**
+   * Vem som läser, i klartext — eller `null` när ingen gör det.
+   *
+   * Aktiviteten sa "Väntar på tolkning" med en knapp bredvid medan telefonen läste
+   * samma kvitton. Skärmen bad om ett handgrepp för ett arbete som redan pågick, och
+   * det är precis den sortens uppmaning appen inte ska ge.
+   */
+  readonly nagonLaser = computed(() => {
+    const l = this.lage();
+    if (l.reserverade === 0) return null;
+    const antal = `${l.reserverade} ${l.reserverade === 1 ? 'kvitto' : 'kvitton'}`;
+    return `${enhetsord(l.enheter)} läser ${antal}`;
+  });
 
   /**
    * Vad som läses just nu, i klartext — på ett ställe, för både importen och
@@ -105,8 +131,13 @@ export class TolkningService {
     try {
       const svar = await fetch('/api/jobb');
       if (!svar.ok) return this.lage().vantande;
-      const body = (await svar.json()) as { vantande: number };
-      this.lage.update((l) => ({ ...l, vantande: body.vantande }));
+      const body = (await svar.json()) as { vantande: number; reserverade?: number; enheter?: string[] };
+      this.lage.update((l) => ({
+        ...l,
+        vantande: body.vantande,
+        reserverade: body.reserverade ?? 0,
+        enheter: body.enheter ?? [],
+      }));
       return body.vantande;
     } catch {
       return this.lage().vantande;
@@ -298,6 +329,22 @@ export class TolkningService {
       const varfor = fel instanceof Error ? fel.message : String(fel);
       this.lage.update((l) => ({ ...l, fel: `Ett kvitto kunde inte tolkas: ${varfor}` }));
     }
+  }
+}
+
+/**
+ * Vem som arbetar, sett från den här skärmen. Slaget kommer ur arbetarnamnet, som
+ * telefonen och datorn sätter själva — servern håller inget register över apparater.
+ */
+function enhetsord(enheter: string[]): string {
+  if (enheter.length > 1) return 'Flera enheter';
+  switch (enheter[0]) {
+    case 'telefon':
+      return 'Telefonen';
+    case 'dator':
+      return 'En dator';
+    default:
+      return 'En annan enhet';
   }
 }
 

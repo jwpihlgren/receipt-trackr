@@ -71,6 +71,24 @@ export class Reservationer {
     this.aktiva.delete(id);
   }
 
+  /**
+   * Vem håller jobbet just nu? Klientens arbetarnamn, eller `null` om det är ledigt.
+   *
+   * Namnet bär enhetens **slag** i sin första del — `telefon-ab12`, `dator-cd34` — och
+   * det är hela poängen med att svara med det: aktiviteten kunde säga "Väntar på
+   * tolkning" med en knapp bredvid, medan telefonen stod och läste samma kvitto. Den
+   * som läser skärmen trodde att hon behövde göra något.
+   */
+  hallare(id: string, nu = Date.now()): string | null {
+    return this.reserverad(id, nu) ? (this.aktiva.get(id)?.arbetare ?? null) : null;
+  }
+
+  /** De slag av enheter som håller något just nu: `telefon`, `dator`, `okand`. */
+  slag(nu = Date.now()): string[] {
+    this.sopa(nu);
+    return [...new Set([...this.aktiva.values()].map((r) => r.arbetare.split('-')[0]!))].sort();
+  }
+
   reserverad(id: string, nu = Date.now()): boolean {
     const res = this.aktiva.get(id);
     if (!res) return false;

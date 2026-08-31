@@ -7,6 +7,7 @@ import { createReadStream } from "node:fs";
 import { join } from "node:path";
 import { stat } from "node:fs/promises";
 import { Archive, ConflictError, ImageError } from "../store/archive.js";
+import type { Reservationer } from "../jobb.js";
 import { InvalidIdError, isSafeFileName } from "../store/paths.js";
 import { giltigt } from "../falt/datum.js";
 import {
@@ -43,7 +44,7 @@ function parseCapture(field: unknown): Record<string, unknown> | undefined {
   }
 }
 
-export function registerReceipts(app: FastifyInstance, archive: Archive): void {
+export function registerReceipts(app: FastifyInstance, archive: Archive, reservationer: Reservationer): void {
   // Fel översätts på ett ställe i stället för i varje rutt.
   app.setErrorHandler((error: FastifyError, _request, reply) => {
     if (error instanceof InvalidIdError) return reply.code(400).send({ error: "invalid_id", message: error.message });
@@ -486,7 +487,17 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
    * inte här, och ingenting står här bara för att konfidensen är låg.
    */
   app.get("/api/aktivitet", async () => {
-    const rader = ofardiga(archive.db);
+    /**
+     * Raden säger om någon **redan läser** kvittot, och vilket slag av enhet det är.
+     *
+     * Utan det stod "Väntar på tolkning" med en knapp bredvid medan telefonen läste
+     * samma kvitto — skärmen bad om ett handgrepp för ett arbete som pågick. Slaget,
+     * inte enheten: servern håller inget register över apparater.
+     */
+    const rader = ofardiga(archive.db).map((rad) => {
+      const hallare = reservationer.hallare(rad.id);
+      return { ...rad, laserNu: hallare ? (hallare.split("-")[0] ?? null) : null };
+    });
     return { total: count(archive.db), vantar: pendingOcrCount(archive.db), receipts: rader };
   });
 

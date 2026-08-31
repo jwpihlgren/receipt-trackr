@@ -80,6 +80,50 @@ describe("aktiviteten", () => {
     expect(svar.receipts[0]).toMatchObject({ id, lage: "vantar" });
   });
 
+  /**
+   * Raden sa "Väntar på tolkning" med en knapp bredvid medan telefonen redan läste
+   * kvittot — en uppmaning att göra ett arbete som pågick. Slaget kommer ur klientens
+   * eget arbetarnamn; servern håller inget register över apparater.
+   */
+  it("säger vilket slag av enhet som läser kvittot just nu", async () => {
+    const id = ulid();
+    await fanga(id);
+
+    expect((await rader()).receipts[0]).toMatchObject({ id, lage: "vantar", laserNu: null });
+
+    await app.inject({
+      method: "POST",
+      url: "/api/jobb/hamta",
+      payload: { arbetare: "telefon-ab12", antal: 1 },
+    });
+
+    expect((await rader()).receipts[0]).toMatchObject({ id, lage: "vantar", laserNu: "telefon" });
+  });
+
+  it("räknar det utdelade som utdelat, så att knappen vet vad som är ledigt", async () => {
+    await fanga(ulid());
+    await fanga(ulid());
+
+    await app.inject({ method: "POST", url: "/api/jobb/hamta", payload: { arbetare: "telefon-ab12", antal: 1 } });
+
+    const jobb = (await (await app.inject({ method: "GET", url: "/api/jobb" })).json()) as {
+      vantande: number;
+      reserverade: number;
+      enheter: string[];
+    };
+    expect(jobb).toEqual({ vantande: 2, reserverade: 1, enheter: ["telefon"] });
+  });
+
+  it("släpper märkningen när kvittot lämnas tillbaka", async () => {
+    const id = ulid();
+    await fanga(id);
+    await app.inject({ method: "POST", url: "/api/jobb/hamta", payload: { arbetare: "dator-cd34", antal: 1 } });
+    expect((await rader()).receipts[0]).toMatchObject({ laserNu: "dator" });
+
+    await app.inject({ method: "DELETE", url: `/api/jobb/${id}?arbetare=dator-cd34` });
+    expect((await rader()).receipts[0]).toMatchObject({ laserNu: null });
+  });
+
   it("tar upp en fångst som aldrig avslutades", async () => {
     const id = ulid();
     await app.inject({ method: "POST", url: "/api/receipts", payload: { id } });

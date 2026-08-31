@@ -88,6 +88,7 @@ Två listor som frågar om samma sak måste fråga likadant.
 | Läge | Vägen ut |
 | --- | --- |
 | Ligger kvar i telefonen | ingen — skickas av sig själv (bara telefonytan) |
+| *Enheten* läser den | ingen — arbetet pågår, på den enhet som står i texten |
 | Kom inte fram | *Försök igen nu*, eller *Kasta bilderna* när svaret aldrig blir ett annat |
 | Väntar på tolkning | *Tolka nu* — läser bilden i den här webbläsaren, direkt |
 | Ingen text lästes | skriv in de tre fälten |
@@ -195,6 +196,28 @@ långa period — med tre skillnader som är avsiktliga:
 `[selected]` hör på optionen, inte bara `[value]` på selecten: optionerna kommer med
 svaret, så ett värde satt före dem faller tillbaka på den första. Arkivet var filtrerat
 på Bauhaus medan kontrollen sa "Alla butiker".
+
+### Den som redan läser ska synas (2026-08-31)
+
+Aktiviteten sa **"Väntar på tolkning"** med knappen *Läs det* bredvid — medan telefonen
+stod och läste precis det kvittot. Skärmen bad om ett handgrepp för ett arbete som
+redan pågick, vilket är motsatsen till regeln att systemet gör jobbet och listan visar
+undantagen. Och *Läs det* sa inte var läsningen skulle ske, fast det är det enda knappen
+bestämmer.
+
+Servern visste redan: `Reservationer` håller vem som fått vilket jobb. Den instansen
+delas nu av jobbrutten och aktiviteten — den var två förut, så aktiviteten kunde inte
+se vad jobbrutten delat ut.
+
+- `/api/aktivitet` märker raden med `laserNu`, och `/api/jobb` svarar med `reserverade`
+  och `enheter`. **Slaget, aldrig enheten:** `telefon`, `dator`, `okand`, hämtat ur
+  klientens eget arbetarnamn. Servern håller inget register över apparater.
+- Raden säger *"Telefonen läser den"* i stället för "Väntar på tolkning".
+- Banderollen säger *"Telefonen läser 1 kvitto"*. Finns lediga kvitton därtill står de
+  som ett tillägg efter beskedet, med knappen i dämpad form — beskedet är svaret på
+  frågan man kom med.
+- Knappen heter **"Läs dem på den här datorn"**, eller *telefonen* på telefonytan, och
+  räknar bara det **lediga**: kön minus det som redan är utdelat.
 
 ## Gränssnittet
 

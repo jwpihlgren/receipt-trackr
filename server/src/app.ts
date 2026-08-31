@@ -53,11 +53,17 @@ export async function buildApp(config: Config, options: FastifyServerOptions = {
     registerOpenSession(app);
   }
 
-  registerReceipts(app, archive);
+  /**
+   * En enda uppsättning reservationer, delad av båda rutterna. Aktiviteten behöver
+   * veta vad jobbrutten delat ut: annars står ett kvitto som "Väntar på tolkning" med
+   * en knapp bredvid medan telefonen redan läser det.
+   */
+  const reservationer = new Reservationer();
+  registerReceipts(app, archive, reservationer);
   // Strömmen ligger bakom samma grind som allt annat under /api: grinden är en
   // preHandler registrerad ovanför, och gäller därför även den här rutten.
   registerHandelser(app, archive.handelser);
-  registerJobb(app, archive, new Reservationer());
+  registerJobb(app, archive, reservationer);
   // Utan monterad katalog finns ingen säkerhetskopiering — rutterna svarar då 503
   // med ett begripligt skäl i stället för att saknas.
   registerBackup(app, config.backupDir ? new BackupJob(config.dataDir, config.backupDir) : null, config.dataDir);

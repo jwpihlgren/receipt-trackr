@@ -18,6 +18,8 @@ type Rad = {
   total: number | null;
   currency: string | null;
   lage: Lage;
+  /** Slaget av enhet som läser kvittot just nu, eller `null` när ingen gör det. */
+  laserNu: 'telefon' | 'dator' | 'okand' | null;
   saknadeBilder: number;
   saknadeFalt: string[];
   tecken: number;
@@ -221,7 +223,9 @@ export class AktivitetComponent {
       case 'ofullstandig':
         return 'Fångsten avslutades inte';
       case 'vantar':
-        return 'Väntar på tolkning';
+        // Läser någon redan kvittot är "Väntar på tolkning" fel: ingenting väntar, och
+        // ingen behöver göra något. Ordet ska säga vad som pågår, inte vad som saknas.
+        return rad.laserNu ? `${this.enhet(rad.laserNu)} läser den` : 'Väntar på tolkning';
       case 'utan_text':
         return 'Ingen text lästes';
       case 'svag_text':
@@ -230,6 +234,28 @@ export class AktivitetComponent {
         return `Saknar ${lista(rad.saknadeFalt)}`;
     }
   }
+
+  /** Slaget av enhet i klartext. Samma ord som banderollen använder. */
+  private enhet(slag: string): string {
+    if (slag === 'telefon') return 'Telefonen';
+    if (slag === 'dator') return 'En dator';
+    return 'En annan enhet';
+  }
+
+  /**
+   * Vad knappen ska heta, och om den alls ska stå där.
+   *
+   * *Läs det* sa inte var läsningen skulle ske, och det är det enda knappen egentligen
+   * bestämmer: den här webbläsaren gör arbetet. Ordet säger nu ytan rakt ut. Knappen
+   * står bara framme när det finns kvitton **ingen annan** redan läser — annars ber
+   * skärmen om ett handgrepp för något som pågår.
+   */
+  readonly lediga = this.tolkning.lediga;
+  readonly harKnapp = computed(() => this.lediga() > 0 && !this.tolkning.snapshot().kor);
+  readonly knapptext = computed(() => {
+    const har = this.yta() === 'mobil' ? 'den här telefonen' : 'den här datorn';
+    return this.lediga() === 1 ? `Läs det på ${har}` : `Läs dem på ${har}`;
+  });
 
   /**
    * Färgen på statusmärket. Alltid tillsammans med ordet, aldrig i stället för det:

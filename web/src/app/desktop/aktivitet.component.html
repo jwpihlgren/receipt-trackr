@@ -26,14 +26,31 @@
       <span>{{ tolkning.laser() }}</span>
       <button type="button" class="btn btn-sm ml-auto" (click)="tolkning.stanna()">Sluta</button>
     </div>
-  } @else if (vantar() > 0) {
-    <div class="flex items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
+  } @else if (tolkning.nagonLaser()) {
+    <!--
+      Någon annan enhet läser redan. Då står det vad som pågår och ingen knapp bredvid:
+      raden sa "N kvitton är inte lästa · Läs dem" medan telefonen läste dem, alltså en
+      uppmaning att göra ett arbete som redan var i gång.
+
+      Är något ledigt ändå står det som ett tillägg, med knappen — men först efter
+      beskedet, för det är beskedet som svarar på frågan man kom hit med.
+    -->
+    <div class="flex flex-wrap items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
+      <span class="loading loading-spinner loading-sm text-primary"></span>
+      <span>{{ tolkning.nagonLaser() }}</span>
+      @if (harKnapp()) {
+        <span class="text-neutral">
+          · {{ lediga() }} {{ lediga() === 1 ? 'till är inte läst' : 'till är inte lästa' }}
+        </span>
+        <button type="button" class="btn btn-sm ml-auto" (click)="tolka()">{{ knapptext() }}</button>
+      }
+    </div>
+  } @else if (harKnapp()) {
+    <div class="flex flex-wrap items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
       <span>
-        {{ vantar() }} {{ vantar() === 1 ? 'kvitto är inte läst' : 'kvitton är inte lästa' }}
+        {{ lediga() }} {{ lediga() === 1 ? 'kvitto är inte läst' : 'kvitton är inte lästa' }}
       </span>
-      <button type="button" class="btn btn-sm btn-primary ml-auto" (click)="tolka()">
-        {{ vantar() === 1 ? 'Läs det' : 'Läs dem' }}
-      </button>
+      <button type="button" class="btn btn-sm btn-primary ml-auto" (click)="tolka()">{{ knapptext() }}</button>
     </div>
   }
 

@@ -39,6 +39,9 @@ export function registerJobb(app: FastifyInstance, archive: Archive, reservation
   app.get("/api/jobb", async () => ({
     vantande: pendingOcrCount(archive.db),
     reserverade: reservationer.antal(),
+    // Vilka **slag** av enheter som arbetar, aldrig vilka enheter. Klienten ska kunna
+    // säga "telefonen läser dem" utan att servern håller ett register över apparater.
+    enheter: reservationer.slag(),
   }));
 
   app.post<{ Body: { antal?: number; arbetare?: string; id?: string } }>("/api/jobb/hamta", async (request, reply) => {
