@@ -1,4 +1,25 @@
 <div class="skarm">
+  <!--
+    **Ett filinput, utanför varje gren.**
+
+    Det låg tidigare tre stycken, ett inuti varje `<label class="knapp">`, och en av
+    knapparna bytte gren i sin egen klickhanterare. Angular rev då bort just den
+    `<label>` och dess `<input>` innan webbläsaren hann utföra etikettens
+    standardåtgärd — att öppna kameran. Följden var att första bilden på varje kvitto
+    aldrig togs: överlägget "Kameran är öppen" kom upp, för signalen hanns med, men
+    ingen kamera. Nu ligger inputen still och knapparna öppnar den själva.
+  -->
+  <input
+    #kamera
+    type="file"
+    accept="image/*"
+    capture="environment"
+    class="dold"
+    tabindex="-1"
+    aria-hidden="true"
+    (change)="onFile($event)"
+  />
+
 
   @if (steg() === 'sparat') {
 
@@ -28,14 +49,13 @@
     </div>
 
     <div class="handzon">
-      <label class="knapp primar" (click)="nastaKvitto()">
+      <button type="button" class="knapp primar" (click)="nastaKvitto()">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z" />
           <circle cx="12" cy="13" r="3.5" />
         </svg>
         Fotografera nästa kvitto
-        <input type="file" accept="image/*" capture="environment" (change)="onFile($event)" />
-      </label>
+      </button>
       <button type="button" class="knapp kontur" (click)="fardig()">Jag är färdig</button>
     </div>
 
@@ -70,14 +90,13 @@
     </div>
 
     <div class="handzon">
-      <label class="knapp primar" (click)="openCamera()">
+      <button type="button" class="knapp primar" (click)="oppna()">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3Z" />
           <circle cx="12" cy="13" r="3.5" />
         </svg>
         Öppna kameran för del {{ antal() + 1 }}
-        <input type="file" accept="image/*" capture="environment" (change)="onFile($event)" />
-      </label>
+      </button>
       <button type="button" class="knapp kontur" (click)="spara()">
         Ändå klart · spara {{ antal() }} {{ antal() === 1 ? 'bild' : 'bilder' }}
       </button>
@@ -131,10 +150,7 @@
           Kvittot fortsätter
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></svg>
         </button>
-        <label class="knapp kontur" (click)="openCamera()">
-          Ta om bilden
-          <input type="file" accept="image/*" capture="environment" (change)="onFile($event, true)" />
-        </label>
+        <button type="button" class="knapp kontur" (click)="oppna(true)">Ta om bilden</button>
       </div>
     </div>
 

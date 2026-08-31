@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { Component, viewChild, ElementRef, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { QueueService } from './queue.service';
 import { CaptureFlowService } from './capture-flow.service';
@@ -162,7 +162,17 @@ export class ListaComponent {
   }
 
   /** Trycket på knappen. Skärmen byter till väntläget medan kameraappen ligger över. */
+  private readonly kamera = viewChild.required<ElementRef<HTMLInputElement>>('kamera');
+  private readonly galleri = viewChild.required<ElementRef<HTMLInputElement>>('galleri');
+
+  /** Bilder ur telefonens galleri. Ingen väntan att visa: ingen kamera öppnas. */
+  oppnaGalleri(): void {
+    this.galleri().nativeElement.click();
+  }
+
+  /** Klicket först, signalen sedan — se kommentaren i mallen. */
   openCamera(): void {
+    this.kamera().nativeElement.click();
     this.flow.markAwaiting();
   }
 

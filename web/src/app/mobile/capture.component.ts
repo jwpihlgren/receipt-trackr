@@ -59,6 +59,10 @@ export class CaptureComponent {
   });
 
   private readonly fragan = viewChild<ElementRef<HTMLDialogElement>>('fraga');
+  private readonly kamera = viewChild.required<ElementRef<HTMLInputElement>>('kamera');
+
+  /** Gäller nästa fil som kommer tillbaka: är den en omtagning av den förra bilden? */
+  private omtagning = false;
 
   constructor() {
     this.queue.start();
@@ -85,21 +89,39 @@ export class CaptureComponent {
     this.steg.set('borjahar');
   }
 
-  openCamera(): void {
+  /**
+   * Öppnar telefonens kamera.
+   *
+   * **Klicket först, signalen sedan.** Det är hela rättelsen: `click()` ska hinna
+   * begäras medan användarens tryck fortfarande gäller, innan någon signal skrivs och
+   * en omritning hinner emellan. Knappen är dessutom en riktig `<button>` mot ett
+   * input som ligger utanför alla grenar, i stället för en `<label>` som revs bort av
+   * sin egen klickhanterare.
+   */
+  oppna(omtagning = false): void {
+    this.omtagning = omtagning;
+    this.kamera().nativeElement.click();
     this.flow.markAwaiting();
   }
 
   /** Samma input används för att ta om en bild och för att lägga till nästa del. */
-  async onFile(event: Event, omtagning = false): Promise<void> {
+  async onFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
+    // Nollställs direkt: annars ger samma fil vald två gånger i rad ingen händelse.
     input.value = '';
     if (!file) {
       this.flow.cancelAwaiting();
       return;
     }
+    const omtagning = this.omtagning;
+    this.omtagning = false;
     if (await this.flow.accept(file)) {
       if (omtagning) this.flow.markLastReplaced();
+      // Kortet från förra kvittot släpps först nu, när en bild faktiskt kommit. Backar
+      // man ur kameran ska "Kvittot är sparat" stå kvar — inte en tom granskningsvy
+      // utan bild, som var vad man landade i förut.
+      this.slappKort();
       this.steg.set('granska');
     }
   }
@@ -113,10 +135,15 @@ export class CaptureComponent {
     this.steg.set('sparat');
   }
 
-  /** "Fotografera nästa kvitto" — kortet släpps och kameran öppnas för ett nytt id. */
+  /**
+   * "Fotografera nästa kvitto" — kameran öppnas för ett nytt id.
+   *
+   * Kortet med det sparade kvittot står kvar tills en bild kommit tillbaka. Att släppa
+   * det här bytte gren mitt i klicket och rev bort etiketten som skulle öppna kameran;
+   * det var därför första bilden på varje kvitto aldrig togs.
+   */
   nastaKvitto(): void {
-    this.slappKort();
-    this.flow.markAwaiting();
+    this.oppna();
   }
 
   async fardig(): Promise<void> {
