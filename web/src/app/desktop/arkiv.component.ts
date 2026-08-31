@@ -6,6 +6,7 @@ import { MenyComponent } from '../shared/meny.component';
 import { RaderaRutaComponent } from '../shared/radera-ruta.component';
 import { datum } from '../shared/datum';
 import { belopp } from '../shared/belopp';
+import { kategorifarg } from '../shared/kategorifarg';
 
 type Rad = {
   id: string;
@@ -272,10 +273,9 @@ export class ArkivComponent {
   }
 
   /** Färgen följer kategorins plats i arkivets ordning, aldrig dess storlek. */
+  /** Regeln bor i `shared/kategorifarg.ts` — samma färg på varje skärm. */
   farg(kategori: string | null): string {
-    if (!kategori) return 'var(--kategori-ovrig)';
-    const plats = this.kategorier().indexOf(kategori);
-    return plats < 0 || kategori === 'Övrigt' ? 'var(--kategori-ovrig)' : `var(--kategori-${(plats % 6) + 1})`;
+    return kategorifarg(kategori, this.kategorier());
   }
 
   readonly summaText = computed(() =>

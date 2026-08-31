@@ -65,23 +65,31 @@
           <ul class="lista">
             @for (rad of grupp.rader; track rad.id) {
               <li>
+                <!--
+                  Raden är hela ytan man trycker på — ingen *Öppna*-knapp, som på
+                  skrivbordet: en knapp bredvid en tryckbar rad ger två träffytor för en
+                  handling, och den mindre av dem vinner aldrig med tummen.
+
+                  Understycket säger vad raden faktiskt handlar om: kvittots eget datum
+                  och dess kategori, i stället för "1 bild", som är sant om nästan varje
+                  kvitto. Antalet bilder står kvar bara när det är fler än en.
+                -->
                 <a class="rad" [routerLink]="['/telefon/kvitto', rad.id]">
                   <img class="tumnagel" [src]="'/api/receipts/' + rad.id + '/thumbs/1'" alt="" loading="lazy" />
                   <span class="text">
                     <span class="huvud">{{ rad.store ?? klocka(rad.capturedAt) }}</span>
                     <span class="under">
-                      {{ rad.segments }} {{ rad.segments === 1 ? 'bild' : 'bilder' }}@if (rad.tecken === 0) { · inte tolkat än }
+                      @if (rad.kategori) {
+                        <span class="prick kategori" [style.background]="farg(rad.kategori)" aria-hidden="true"></span>
+                        {{ rad.kategori }}
+                      }
+                      @if (rad.date) { · {{ datum(rad.date) }} }
+                      @if (rad.segments > 1) { · {{ rad.segments }} bilder }
+                      @if (rad.tecken === 0) { · inte tolkat än }
                     </span>
                   </span>
                   @if (rad.total !== null) { <span class="belopp num">{{ belopp(rad.total) }} kr</span> }
-                  @if (status(rad) === 'arkiv') {
-                    <span class="lage klar">
-                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5 5L20 7" /></svg>
-                      i arkivet
-                    </span>
-                  } @else {
-                    <span class="lage">skickas</span>
-                  }
+                  @if (skickas(rad)) { <span class="lage">skickas</span> }
                 </a>
               </li>
             }

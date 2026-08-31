@@ -1,5 +1,6 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { belopp, heltBelopp } from '../shared/belopp';
+import { kategorifarg } from '../shared/kategorifarg';
 import { Router, RouterLink } from '@angular/router';
 import { MenyComponent } from '../shared/meny.component';
 
@@ -24,9 +25,6 @@ type Svar = {
 
 /** Plotens höjd i pixlar. Staplarna räknas mot den, inte mot en procentsats. */
 const PLOT = 264;
-
-/** Kategorin som är frånvaron av en kategori. Den får grått, aldrig ett av slagen. */
-const OVRIGT = 'Övrigt';
 
 /**
  * Analysen: vart pengarna gick.
@@ -184,9 +182,7 @@ export class AnalysComponent {
    * En kategori som växer byter inte färg, och ett filter målar inte om de andra.
    */
   farg(kategori: string | null): string {
-    if (!kategori || kategori === OVRIGT) return 'var(--kategori-ovrig)';
-    const plats = (this.data()?.kategorier_ordning ?? []).indexOf(kategori);
-    return plats < 0 ? 'var(--kategori-ovrig)' : `var(--kategori-${(plats % 6) + 1})`;
+    return kategorifarg(kategori, this.data()?.kategorier_ordning ?? []);
   }
 
   /** "2026-04" → "april". Månadens namn räcker; året står i perioden. */

@@ -82,7 +82,27 @@
    och `Systembolaget` med två decimaler bredvid sig gjorde raden två rader hög så fort
    beloppen började skrivas ut som i arkivet. Namnet är det som får ge vika. */
 .huvud { font-size: var(--typ-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.under { color: var(--ink-faint); font-size: var(--typ-sm); }
+/* En rad, aldrig två: understycket kapas i stället för att vika sig. Ett datum som
+   bryts mitt itu — "2026-08-" på en rad och "24" på nästa — läses inte som ett datum,
+   och raden växer så att listan blir hälften så lång att överblicka. */
+.under {
+  color: var(--ink-faint);
+  font-size: var(--typ-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Kategoriprick, samma mått som arkivets. Färgen bär betydelse men står aldrig
+   ensam: kategorinamnet står bredvid, så raden går att läsa utan att se färgen. */
+.prick.kategori {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-inline-end: 2px;
+  border-radius: var(--horn-full);
+  vertical-align: baseline;
+}
 .belopp { font-size: var(--typ-base); white-space: nowrap; flex: 0 0 auto; }
 
 .lage { display: flex; align-items: center; gap: var(--space-1); color: var(--ink-faint); font-size: var(--typ-sm); flex: 0 0 auto; }

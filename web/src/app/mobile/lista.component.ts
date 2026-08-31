@@ -5,8 +5,9 @@ import { CaptureFlowService } from './capture-flow.service';
 import { MenyComponent } from '../shared/meny.component';
 import { TolkningService } from '../ocr/tolkning.service';
 import { HandelserService } from '../shared/handelser.service';
-import { dagrubrik, tid } from '../shared/datum';
+import { dagrubrik, kortDatum, tid } from '../shared/datum';
 import { belopp } from '../shared/belopp';
+import { kategorifarg } from '../shared/kategorifarg';
 
 export type ReceiptRow = {
   id: string;
@@ -18,6 +19,7 @@ export type ReceiptRow = {
   currency: string | null;
   /** Noll = tolkningen har inte gett något. Servern räknar tecknen i den utlästa texten. */
   tecken: number;
+  kategori: string | null;
 };
 
 type Grupp = { rubrik: string; rader: ReceiptRow[] };
@@ -147,18 +149,40 @@ export class ListaComponent {
         return;
       }
       if (!response.ok) throw new Error(String(response.status));
-      const body = (await response.json()) as { total: number; receipts: ReceiptRow[] };
+      const body = (await response.json()) as {
+        total: number;
+        receipts: ReceiptRow[];
+        kategorier: string[];
+      };
       this.receipts.set(body.receipts);
       this.total.set(body.total);
+      // Ordningen avgör färgen, och den kommer med svaret — samma lista som arkivet får.
+      this.kategorier.set(body.kategorier ?? []);
     } catch {
       this.error.set('Kvittona gick inte att hämta. Kontrollera att du har nätverk.');
     }
   }
 
   readonly klocka = tid;
+  /** Kvittots eget datum, kort och på svenska — inte ISO, som är skrivbordets tabellspråk. */
+  readonly datum = kortDatum;
+  readonly kategorier = signal<string[]>([]);
 
-  status(rad: ReceiptRow): 'skickas' | 'arkiv' {
-    return this.local().has(rad.id) ? 'skickas' : 'arkiv';
+  /** Samma färg som arkivet och analysen ger kategorin. */
+  farg(kategori: string | null): string {
+    return kategorifarg(kategori, this.kategorier());
+  }
+
+  /**
+   * Bara undantaget står i raden.
+   *
+   * Varje rad sa "✓ i arkivet", vilket i normalfallet är varenda rad — en kolumn som
+   * säger samma sak överallt bär ingen upplysning, och den tog platsen från det som
+   * gör raderna olika. Kvar är beskedet när bilderna **inte** kommit fram, och det är
+   * det enda man behöver veta.
+   */
+  skickas(rad: ReceiptRow): boolean {
+    return this.local().has(rad.id);
   }
 
   /** Trycket på knappen. Skärmen byter till väntläget medan kameraappen ligger över. */

@@ -197,6 +197,24 @@ långa period — med tre skillnader som är avsiktliga:
 svaret, så ett värde satt före dem faller tillbaka på den första. Arkivet var filtrerat
 på Bauhaus medan kontrollen sa "Alla butiker".
 
+### Telefonradens innehåll (2026-08-31)
+
+Varje rad i telefonlistan sa **"✓ i arkivet"**, vilket i normalfallet är varenda rad —
+en kolumn som säger samma sak överallt bär ingen upplysning, och den tog platsen från
+det som skiljer raderna åt. Understycket sa "1 bild", som är sant om nästan varje kvitto.
+
+Kvar står bara undantaget: **"skickas"**, när bilderna ännu inte kommit fram. I stället
+bär raden kategorins färgprick, kategorins namn, kvittots eget datum och beloppet.
+Antalet bilder står när det är fler än en.
+
+Ingen *Öppna*-knapp, som skrivbordets tabell har: **hela raden är träffytan** på
+telefonen, och en knapp bredvid en tryckbar rad ger två ytor för en handling där den
+mindre aldrig vinner med tummen.
+
+Understycket kapas i stället för att vika sig, och datumet är `kortDatum()` — "24 aug."
+i år, "31 maj 2025" annars. Med år kapades det till "24 au…", vilket varken är ett datum
+eller en upplysning.
+
 ### Den som redan läser ska synas (2026-08-31)
 
 Aktiviteten sa **"Väntar på tolkning"** med knappen *Läs det* bredvid — medan telefonen
@@ -253,6 +271,11 @@ topprad ritades förut i varje komponentfil för sig, och gled isär. Fyra regle
 förut att den var 1,125 medan talen var 12/13/16/18/22/28. `--typ-xl` är ytans egen
 rubrik och ingenting är större; en rubrik **inuti** en yta är `--typ-lg`. Det var
 tvärtom förut: h2 var 22 px och h1 18.
+
+*En färgregel per kategori.* `shared/kategorifarg.ts`, som `belopp.ts` och `datum.ts`.
+Färgen följer kategorins plats i arkivets ordning, aldrig dess storlek: en kategori som
+växer byter inte färg, och ett filter målar inte om de andra. Regeln fanns i två kopior
+som inte var lika, och telefonlistan blev den tredje användaren.
 
 *Ett miniatyrformat.* Kvittots eget, 3:4, i tre storlekar (`--tumnagel-sm/md/lg`).
 Höjden räknas ur bredden med `aspect-ratio` i `.tumnagel`, så en ny plats kan välja

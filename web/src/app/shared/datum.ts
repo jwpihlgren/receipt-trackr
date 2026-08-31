@@ -6,8 +6,9 @@
  * i kön. Samma kvitto kunde stå som "30 aug. 2026" i arkivet och "30 aug. 21:40" i
  * aktiviteten utan att någon valt det.
  *
- * Fyra former, en per fråga:
+ * Fem former, en per fråga:
  *   datum()      — vilken dag var det? Kolumn i en tabell, där året spelar roll.
+ *   kortDatum()  — samma fråga på en telefonrad, där bredden är knapp.
  *   tidpunkt()   — när exakt? Rad i en kö eller i aktiviteten, där dagen är nära.
  *   tid()        — klockslag ensamt, för en lista som redan har dagen som rubrik.
  *   dagrubrik()  — rubriken över en sådan grupp.
@@ -20,6 +21,19 @@ const SPRAK = 'sv-SE';
 /** "30 aug. 2026" — dagen, med året, som ett datum i en kolumn. */
 export function datum(iso: string): string {
   return new Date(iso).toLocaleDateString(SPRAK, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/**
+ * "24 aug." i år, "31 maj 2025" annars — dagen på en rad som inte har plats för mer.
+ *
+ * Året står bara när det bär något. Telefonraden har butiken, kategorin, datumet och
+ * beloppet på samma rad, och "2026" i varje rad kapade slutet av datumet i stället —
+ * "24 au…", vilket varken är ett datum eller en upplysning.
+ */
+export function kortDatum(iso: string, nu = new Date()): string {
+  const d = new Date(iso);
+  const iAr = d.getFullYear() === nu.getFullYear();
+  return d.toLocaleDateString(SPRAK, { day: 'numeric', month: 'short', ...(iAr ? {} : { year: 'numeric' }) });
 }
 
 /**
