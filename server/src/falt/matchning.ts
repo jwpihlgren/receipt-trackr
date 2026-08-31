@@ -112,8 +112,18 @@ function avstand(a: string, b: string, tak: number): number {
   return forra[b.length]!;
 }
 
-/** Grupperna, som transitivt hölje över det som får slås ihop. `svag` binder inte. */
-export function gruppera(nycklar: Nyckel[], minst: Niva = "stark"): string[][] {
+/**
+ * Grupperna, som transitivt hölje över det som får slås ihop. `svag` binder inte.
+ *
+ * `spard` är en människas nej: har någon sagt att två kvitton inte är samma köp får
+ * ingen kedja gå genom det paret. Det väger tyngre än varje ankare — hon har sett
+ * papperen, matchningen har sett siffror.
+ */
+export function gruppera(
+  nycklar: Nyckel[],
+  minst: Niva = "stark",
+  spard: (a: string, b: string) => boolean = () => false,
+): string[][] {
   const ordning: Niva[] = ["svag", "stark", "saker"];
   const kravet = ordning.indexOf(minst);
 
@@ -126,6 +136,7 @@ export function gruppera(nycklar: Nyckel[], minst: Niva = "stark"): string[][] {
 
   for (let i = 0; i < nycklar.length; i++) {
     for (let j = i + 1; j < nycklar.length; j++) {
+      if (spard(nycklar[i]!.id, nycklar[j]!.id)) continue;
       const niva = matchar(nycklar[i]!, nycklar[j]!);
       if (niva === null || ordning.indexOf(niva) < kravet) continue;
       const a = finn(nycklar[i]!.id);

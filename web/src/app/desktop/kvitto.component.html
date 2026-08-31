@@ -253,6 +253,66 @@
           }
         </div>
 
+        <!--
+          Samma köp. Panelen finns bara när kvittot står i en grupp, och den bär
+          vägen ut: en felaktig sammanslagning döljer ett köp och syns aldrig av sig
+          själv, så nejet måste gå att säga där sammanslagningen visas.
+        -->
+        @if (r.grupp; as grupp) {
+          <div>
+            <p class="label">SAMMA KÖP</p>
+            <p class="text-sm text-neutral">
+              Butik, datum och belopp är lästa ur alla {{ grupp.medlemmar.length }} bilderna.
+            </p>
+            <ul class="mt-2">
+              @for (medlem of grupp.medlemmar; track medlem.id) {
+                <li class="flex items-center gap-3 border-t border-base-300 py-2 first:border-t-0">
+                  <img class="tumnagel liten" [src]="'/api/receipts/' + medlem.id + '/thumbs/1'" alt="" loading="lazy" />
+                  <span class="num flex-1">
+                    {{ klocka(medlem.capturedAt) }} ·
+                    {{ medlem.segments }} {{ medlem.segments === 1 ? 'bild' : 'bilder' }}
+                    @if (medlem.id === r.id) { <span class="text-neutral">· den här</span> }
+                  </span>
+                  @if (medlem.id !== r.id) {
+                    <a class="link text-sm" [routerLink]="['/dator/kvitto', medlem.id]">Öppna</a>
+                  }
+                </li>
+              }
+            </ul>
+
+            @if (fragarSkilja()) {
+              <div role="alert" class="alert alert-soft alert-error alert-vertical mt-2">
+                <span>
+                  Den här bilden blir ett eget kvitto och behåller bara sin egen läsning —
+                  butiken blir tom om namnet inte står i den. De andra hör ihop som förut,
+                  om beviset inte gick genom den här bilden.
+                </span>
+                <div>
+                  <button type="button" class="btn btn-sm btn-error" [disabled]="sparar()" (click)="skiljAt()">
+                    Skilj åt
+                  </button>
+                  <button type="button" class="btn btn-sm" (click)="fragarSkilja.set(false)">Avbryt</button>
+                </div>
+              </div>
+            } @else {
+              <button type="button" class="link mt-1 text-sm text-neutral" (click)="fragarSkilja.set(true)">
+                Inte samma köp
+              </button>
+            }
+          </div>
+        } @else if (r.inteSamma?.length) {
+          <div>
+            <p class="label">SAMMA KÖP</p>
+            <p class="text-sm text-neutral">
+              Du har skilt det här kvittot från
+              {{ r.inteSamma!.length }} {{ r.inteSamma!.length === 1 ? 'annat' : 'andra' }}.
+            </p>
+            <button type="button" class="link mt-1 text-sm" [disabled]="sparar()" (click)="aterforena()">
+              Låt matchningen pröva igen
+            </button>
+          </div>
+        }
+
         <div class="flex items-center gap-3">
           <button type="button" class="btn btn-primary" [disabled]="!harAndringar() || sparar()" (click)="spara()">
             Spara

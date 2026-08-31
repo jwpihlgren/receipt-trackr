@@ -162,6 +162,28 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
     };
   });
 
+  /**
+   * "Inte samma köp": vägen ut ur en felaktig sammanslagning.
+   *
+   * Utan `ids` gäller nejet hela gruppen kvittot står i — det är vad någon menar som
+   * tittar på ett kvitto och säger att det inte hör hit.
+   */
+  app.post<{ Params: { id: string }; Body: { ids?: string[] } }>(
+    "/api/receipts/:id/inte-samma",
+    async (request, reply) => {
+      const ids = request.body?.ids;
+      if (ids !== undefined && (!Array.isArray(ids) || ids.some((v) => typeof v !== "string"))) {
+        return reply.code(400).send({ error: "invalid_ids", message: "Skicka en lista med kvitto-id, eller inget." });
+      }
+      return reply.send(await archive.skiljAt(request.params.id, ids));
+    },
+  );
+
+  /** Tar tillbaka nejet, så att matchningen får pröva paret igen. */
+  app.delete<{ Params: { id: string } }>("/api/receipts/:id/inte-samma", async (request, reply) =>
+    reply.send(await archive.aterforena(request.params.id)),
+  );
+
   /** Kategorierna och butiksreglerna. Filen i arkivet är sanningen; det här är den. */
   app.get("/api/kategorier", async () => archive.kategorier);
 
@@ -217,6 +239,7 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
       kategori: kategoriForKvitto(archive.db, request.params.id),
       kategorier: archive.kategorier.kategorier,
       ...(receipt.kategori ? { kategori_egen: receipt.kategori } : {}),
+      ...(receipt.inteSamma?.length ? { inteSamma: receipt.inteSamma } : {}),
       lage: ofardigt?.lage ?? null,
       saknadeFalt: ofardigt?.saknadeFalt ?? [],
     };

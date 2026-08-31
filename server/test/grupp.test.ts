@@ -204,6 +204,78 @@ describe("kvitton som visar samma köp", () => {
   });
 
   /**
+   * Vägen ut ur en felaktig sammanslagning.
+   *
+   * Det är grupperingens enda fel som inte kostar en rad utan **tar bort en**: ett köp
+   * som göms bakom ett annat syns aldrig av sig självt. Nejet måste därför både verka
+   * direkt och överleva att indexet byggs om — ett beslut som bara låg i indexet hade
+   * upphävts av nästa schemaändring, och kvittona hade krupit ihop igen.
+   */
+  it("skiljer ett kvitto ur gruppen, och håller det skilt genom en ombyggnad", async () => {
+    const forsta = await lagg("colorama-90-a");
+    const kapat = await lagg("colorama-90-b");
+    const tredje = await lagg("colorama-90-c");
+    expect(gruppFor(archive.db, forsta)!.medlemmar).toHaveLength(3);
+
+    await archive.skiljAt(forsta);
+
+    // Det skilda står ensamt, med bara sin egen läsning kvar.
+    expect(gruppFor(archive.db, forsta)!.grupp).toBeNull();
+    // De andra två delar kortreferens och hör ihop som förut.
+    expect(gruppFor(archive.db, kapat)!.medlemmar.map((m) => m.id).sort()).toEqual([kapat, tredje].sort());
+
+    // Beslutet ligger i sidecaren, inte i indexet.
+    expect((await archive.get(forsta))!.inteSamma).toEqual(expect.arrayContaining([kapat, tredje]));
+
+    archive.close();
+    await rm(join(dir, "index.sqlite"), { force: true });
+    archive = Archive.open(dir);
+    await archive.reindex();
+
+    expect(gruppFor(archive.db, forsta)!.grupp).toBeNull();
+    expect(gruppFor(archive.db, kapat)!.medlemmar).toHaveLength(2);
+  });
+
+  /**
+   * Kedjan. Gruppen är ett transitivt hölje, och beställarens tre Colorama-foton
+   * hänger ihop genom mittenbilden: den delar kortreferens med det tredje och
+   * klockslag med det första, medan första och tredje bara delar dag, belopp och
+   * bolag — vilket är "svagt" och aldrig binder.
+   *
+   * Skiljer man därför ut just mittenbilden faller de andra två också isär. Det är
+   * rätt svar och inte en lucka: beviset gick genom det foto en människa nyss sagt
+   * inte hör hit. Priset är en extra rad i arkivet, aldrig ett dolt köp.
+   */
+  it("låter de andra falla isär när beviset gick genom det man skilde ut", async () => {
+    const forsta = await lagg("colorama-90-a");
+    const kapat = await lagg("colorama-90-b");
+    const tredje = await lagg("colorama-90-c");
+
+    await archive.skiljAt(kapat);
+
+    expect(gruppFor(archive.db, forsta)!.grupp).toBeNull();
+    expect(gruppFor(archive.db, tredje)!.grupp).toBeNull();
+    // Två rader i arkivet, och det kapade fotot tillbaka i aktiviteten: utan gruppen
+    // har det ingen butik igen, och det är sant — den står inte i den bilden.
+    expect(arkiv(archive.db, {}).total).toBe(2);
+    expect(ofardiga(archive.db).map((r) => r.id)).toEqual([kapat]);
+  });
+
+  /** Ett nej går att ta tillbaka: paret prövas då på nytt som vilket annat som helst. */
+  it("slår ihop igen när nejet tas tillbaka", async () => {
+    await lagg("colorama-90-a");
+    const kapat = await lagg("colorama-90-b");
+    await lagg("colorama-90-c");
+
+    await archive.skiljAt(kapat);
+    expect(gruppFor(archive.db, kapat)!.grupp).toBeNull();
+
+    await archive.aterforena(kapat);
+    expect(gruppFor(archive.db, kapat)!.medlemmar).toHaveLength(3);
+    expect((gruppFor(archive.db, kapat)!.falt.store as { value: string }).value).toBe('Colorama');
+  });
+
+  /**
    * Grupperna är härledda som allt annat i indexet: kastas filen ska en ombyggnad ur
    * `receipts/` ge exakt samma grupper. Namnet på gruppen räknas därför ur medlemmarna
    * — minsta id:t — i stället för att myntas när gruppen uppstår.

@@ -95,6 +95,20 @@ export type Receipt = {
    */
   kasserade?: { at: string; index: number; sha256: string; orsak: "ersatt" | "borttagen" }[];
   /**
+   * Kvitton som en människa sagt att det här **inte** är samma köp som.
+   *
+   * Matchningen slår ihop köp åt en, och en felaktig sammanslagning döljer ett köp
+   * utan att någonsin synas. Vägen ut måste därför finnas — och den måste ligga i
+   * sidecaren, som är sanning: ett beslut som bara fanns i indexet hade upphävts av
+   * nästa ombyggnad, och kvittona hade krupit ihop igen bakom ryggen på den som
+   * skilt dem åt.
+   *
+   * Listan står bara på det kvitto någon agerade på. Indexet läser den åt båda håll:
+   * ett nej är ett nej oavsett vem som sa det.
+   */
+  inteSamma?: string[];
+
+  /**
    * Kategorin för just det här kvittot, satt av en människa.
    *
    * Normalfallet är att kategorin följer av butiken — ändrar man den ändrar man vad

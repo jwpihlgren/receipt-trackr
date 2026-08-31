@@ -18,6 +18,7 @@ import {
 import { saveSegment, skrivTumnagel, ImageError } from "./images.js";
 import {
   dragbara,
+  gruppFor,
   openIndex,
   raknaOmKategorier,
   remove,
@@ -67,6 +68,40 @@ export class Archive {
 
   get kategorier(): Kategorier {
     return this.kategorierna;
+  }
+
+  /**
+   * En människa säger att det här kvittot inte är samma köp som de andra i gruppen.
+   *
+   * Matchningen slår ihop köp åt en, och en **felaktig sammanslagning döljer ett köp
+   * utan att någonsin synas** — den är det enda fel i grupperingen som inte kostar en
+   * rad utan tar bort en. Därför finns vägen ut, och därför ligger beslutet i
+   * sidecaren: ett nej som bara fanns i indexet hade upphävts av nästa ombyggnad.
+   *
+   * Utan `ids` gäller nejet hela gruppen kvittot står i just nu, vilket är vad någon
+   * menar som tittar på ett kvitto och säger att det inte hör hit.
+   */
+  async skiljAt(id: string, ids?: string[]): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+
+    const gruppen = gruppFor(this.db, id);
+    const andra = (ids ?? gruppen?.medlemmar.map((m) => m.id) ?? []).filter((annan) => annan !== id);
+    if (andra.length === 0) throw new ConflictError(`Kvittot ${id} står inte i någon grupp.`);
+
+    receipt.inteSamma = [...new Set([...(receipt.inteSamma ?? []), ...andra])];
+    await this.persist(receipt);
+    return receipt;
+  }
+
+  /** Tar tillbaka nejet. Paret prövas då på nytt av matchningen, som vilket annat. */
+  async aterforena(id: string): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    if (!receipt.inteSamma?.length) return receipt;
+    delete receipt.inteSamma;
+    await this.persist(receipt);
+    return receipt;
   }
 
   /**

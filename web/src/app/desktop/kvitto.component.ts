@@ -56,6 +56,8 @@ type Receipt = {
   kategorier: string[];
   /** Satt bara när en människa gett *det här* kvittot en egen kategori. */
   kategori_egen?: { value: string; at: string };
+  /** Kvitton en människa sagt att det här inte är samma köp som. */
+  inteSamma?: string[];
   /** Varför kvittot står i aktiviteten. `null` betyder klart. Härlett av servern. */
   lage: Lage | null;
   saknadeFalt: string[];
@@ -223,6 +225,25 @@ export class KvittoComponent {
       return;
     }
     await this.sattEgenKategori(kategori);
+  }
+
+  /** Frågan står tills den besvaras: separationen är inte oåterkallelig, men den syns. */
+  readonly fragarSkilja = signal(false);
+
+  /**
+   * "Inte samma köp".
+   *
+   * Matchningen slår ihop köp åt en, och en felaktig sammanslagning döljer ett köp
+   * utan att synas. Det här är vägen ut — och den går att ta tillbaka, för ett nej
+   * som inte går att ångra vore ett nytt sätt att förlora ett köp.
+   */
+  async skiljAt(): Promise<void> {
+    this.fragarSkilja.set(false);
+    await this.skriv(`/api/receipts/${this.id()}/inte-samma`, { method: 'POST' });
+  }
+
+  async aterforena(): Promise<void> {
+    await this.skriv(`/api/receipts/${this.id()}/inte-samma`, { method: 'DELETE' });
   }
 
   /** Undantaget: butiken säljer allt, och det här kvittot är något annat. */

@@ -25,7 +25,7 @@ export type ReceiptIndex = Database.Database;
  * Det är hela poängen med ett härlett index — höj siffran när kolumnerna ändras
  * och skriv aldrig ett `ALTER TABLE`.
  */
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 
 export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } {
   const db = new Database(path);
@@ -37,7 +37,10 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
   const version = db.pragma("user_version", { simple: true }) as number;
   const rebuilt = version !== SCHEMA_VERSION;
   if (rebuilt) {
-    db.exec(`DROP TABLE IF EXISTS receipts; DROP TABLE IF EXISTS receipts_fts; DROP TABLE IF EXISTS kortref;`);
+    db.exec(
+      `DROP TABLE IF EXISTS receipts; DROP TABLE IF EXISTS receipts_fts;
+       DROP TABLE IF EXISTS kortref; DROP TABLE IF EXISTS inte_samma;`,
+    );
   }
 
   db.exec(`
@@ -81,6 +84,13 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
       PRIMARY KEY (id, ref)
     );
     CREATE INDEX IF NOT EXISTS kortref_ref ON kortref (ref);
+    -- En människas nej. Härlett ur sidecarernas inteSamma, och läst åt båda håll.
+    CREATE TABLE IF NOT EXISTS inte_samma (
+      id    TEXT NOT NULL,
+      annan TEXT NOT NULL,
+      PRIMARY KEY (id, annan)
+    );
+    CREATE INDEX IF NOT EXISTS inte_samma_annan ON inte_samma (annan);
     CREATE VIRTUAL TABLE IF NOT EXISTS receipts_fts USING fts5(
       text,
       id UNINDEXED,
@@ -205,6 +215,10 @@ export function upsert(db: ReceiptIndex, receipt: Receipt, kategorier: Kategorie
     const skrivRef = db.prepare("INSERT OR IGNORE INTO kortref (id, ref) VALUES (?, ?)");
     for (const ref of identitet.kortref ?? []) skrivRef.run(r.id, ref);
 
+    db.prepare("DELETE FROM inte_samma WHERE id = ?").run(r.id);
+    const skrivNej = db.prepare("INSERT OR IGNORE INTO inte_samma (id, annan) VALUES (?, ?)");
+    for (const annan of r.inteSamma ?? []) skrivNej.run(r.id, annan);
+
     // FTS5 saknar upsert: raden ersätts i stället, vilket är samma sak här.
     db.prepare("DELETE FROM receipts_fts WHERE id = ?").run(r.id);
     db.prepare("INSERT INTO receipts_fts (id, text) VALUES (?, ?)").run(r.id, r.text ?? "");
@@ -219,6 +233,7 @@ export function remove(db: ReceiptIndex, id: string, kategorier: Kategorier): vo
   db.prepare("DELETE FROM receipts WHERE id = ?").run(id);
   db.prepare("DELETE FROM receipts_fts WHERE id = ?").run(id);
   db.prepare("DELETE FROM kortref WHERE id = ?").run(id);
+  db.prepare("DELETE FROM inte_samma WHERE id = ? OR annan = ?").run(id, id);
   // Gruppen kvittot stod i måste räknas om: blir en enda medlem kvar är det ingen
   // grupp längre, och den som blir ensam ska få tillbaka sin egen läsning.
   if (rad?.grupp) {
@@ -287,6 +302,12 @@ function grannskap(db: ReceiptIndex, id: string): string[] {
     .all(id) as { id: string }[];
   for (const r of delade) ids.add(r.id);
 
+  // Även de man skilts från: tar någon tillbaka sitt nej ska paret prövas igen.
+  const nej = db
+    .prepare("SELECT annan AS id FROM inte_samma WHERE id = ? UNION SELECT id FROM inte_samma WHERE annan = ?")
+    .all(id, id) as { id: string }[];
+  for (const r of nej) ids.add(r.id);
+
   const kanda = [...ids];
   const grupper = db
     .prepare(`SELECT DISTINCT grupp FROM receipts WHERE grupp IS NOT NULL AND id IN (${platshallare(kanda.length)})`)
@@ -333,8 +354,24 @@ function omgruppera(db: ReceiptIndex, id: string, kategorier: Kategorier): void 
     ),
   );
 
+  /**
+   * Nejen inom grannskapet, som ett par åt gången och åt båda håll. De läses en gång
+   * här i stället för en fråga per par: grupperingen jämför varje par med varje.
+   */
+  const nejen = new Set<string>();
+  for (const rad of db
+    .prepare(
+      `SELECT id, annan FROM inte_samma WHERE id IN (${platshallare(ids.length)}) OR annan IN (${platshallare(ids.length)})`,
+    )
+    .all(...ids, ...ids) as { id: string; annan: string }[]) {
+    nejen.add(`${rad.id}|${rad.annan}`);
+    nejen.add(`${rad.annan}|${rad.id}`);
+  }
+
   const tillhor = new Map<string, string>();
-  for (const grupp of gruppera(nycklar)) for (const medlem of grupp) tillhor.set(medlem, grupp[0]!);
+  for (const grupp of gruppera(nycklar, "stark", (a, b) => nejen.has(`${a}|${b}`))) {
+    for (const medlem of grupp) tillhor.set(medlem, grupp[0]!);
+  }
 
   const sattGrupp = db.prepare("UPDATE receipts SET grupp = ? WHERE id = ?");
   for (const rad of rader) {
