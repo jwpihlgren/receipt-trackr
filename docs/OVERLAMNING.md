@@ -352,6 +352,56 @@ satt.
 - **Designduken säger 44 px rader och 13 px text.** Koden säger 35 och 12 — DaisyUIs
   egen skala. Duken ska rättas efter koden, inte tvärtom.
 
+## Vad som byggts sedan granskningen (2026-08-31)
+
+**Grupperna är inkopplade.** Identiteten — orgnr med Luhn, kvittonummer, klockslag,
+kortterminalens referens — skrivs i sidecaren av `saveOcr`. Grupperna själva är
+**härledda i indexet**: en grupp är ett påstående om två kvitton, och två sidecarer
+kan inte skrivas atomiskt tillsammans. Gruppens namn är dess minsta medlems-id, så en
+ombyggnad ur `receipts/` ger exakt samma grupper. Röstningen når listorna: det kapade
+Colorama-fotot får butiken av sina syskon och lämnar aktiviteten av sig självt.
+Arkivet räknar **köp**; telefonens hemskärm räknar **fångster**, och den skillnaden är
+avsiktlig. En delad kortreferens måste vara minst åtta tecken för att ensam bevisa
+identitet — en sexsiffrig auktoriseringskod krockar ett femtiotal gånger på tiotusen
+kvitton.
+
+**Bilden går att granska.** Klick öppnar den över hela ytan: zoom, bläddring mellan
+kvittots bilder, och originalfilen i en egen flik. **Vridningen är en människas ord**
+och sparas på segmentet: skärmen, tumnageln (som byggs om ur originalet) och
+tolkningsjobbet följer den — en omläsning läser papperet åt rätt håll i stället för
+att gissa. Originalets bytes rörs aldrig. Tumnaglar cachas inte längre som
+oföränderliga; de bär en etag.
+
+**Dåliga bilder får kasseras.** *Ersätt*, *Kassera*, *Lägg till*. Regeln om
+oåterkalleliga bilder skyddar mot tyst förlust, inte mot den som tittat på ett suddigt
+foto. Förlusten skrivs i `kasserade` med bildens sha256, läsningen kastas, och
+kvittots enda bild går inte att ta bort.
+
+**Analysen och kategorierna.** `kategorier.json` i arkivet är sanning: butik → kategori,
+med de kedjor utvinningen redan känner igen som utgångsläge. Regeln **gäller bakåt** —
+rättar man en butik byter varje kvitto därifrån kategori — och `kategori` i sidecaren
+är undantaget för butiken som säljer allt. `/dator/analys` visar summan, månad för
+månad med kategorierna staplade, fördelningen och de största köpen. **Ett köp räknas en
+gång:** dubbletterna räknas bort före summan. Kategorifärgerna står i `tokens.css`,
+validerade mot panelen, och följer kategorin — aldrig storleken.
+
+**Ytan i övrigt:** headern skriver inte ut siffror (antalet ofärdiga är en badge på
+Aktivitet i menyn), arkivtabellen sorterar i servern på fem kolumner med satta
+kolumnbredder, aktivitetens rader har en väg vidare (*Öppna*) med kryssrutor för att
+läsa om flera, och den som öppnat ett kvitto från aktiviteten kommer tillbaka dit.
+
+### Kvar, i den ordning beställaren nämnt dem
+
+1. **Att titta och att rätta är samma vy, och ska inte vara det.** Hans ord: aktiviteten
+   är en annan resa och ett annat behov. Ett eget designpass, inte en refaktorering.
+2. **Bildnamn som dubblettindikator.** Bättre än filnamnet: identiska bytes. Två kvitton
+   som delar en bilds sha256 *är* samma köp — ett ankare matchningen kan få gratis.
+   Kamerans filnamn sparas inte i dag; det bör det göra först.
+3. **Kalibreringsurvalet drar per fotografi**, så en dubblettgrupp kan hamna i urvalet
+   flera gånger. Hör till M9.
+4. `/debug` ska bort, gränsen 7 är oprövad mot en riktig hög, och granskningsurvalet
+   saknar skärm — se listan längre upp.
+
 ## Så arbetar beställaren
 
 Han testar på riktig hårdvara och rapporterar rakt. Han vill ha **beslut, inte
