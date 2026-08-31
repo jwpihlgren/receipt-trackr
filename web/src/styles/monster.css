@@ -241,9 +241,20 @@
 }
 
 /* Kategorins prick. Färgen bär identitet men står aldrig ensam — namnet står bredvid. */
+/**
+ * Kategorimärket. Rundad kvadrat, aldrig en cirkel: en pulserande cirkel är `.prick`,
+ * och den betyder att något pågår. Två former som ser lika ut men betyder olika saker
+ * är samma fel som ett klassnamn med två betydelser.
+ *
+ * `inline-block` så att den fungerar både i en flexrad — skrivbordets tabell — och mitt
+ * i löpande text, som telefonradens understycke.
+ */
 .kategoriprick {
+  display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  margin-inline-end: 2px;
+  border-radius: 3px;
+  vertical-align: middle;
   flex: 0 0 auto;
 }

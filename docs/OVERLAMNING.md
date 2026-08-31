@@ -204,7 +204,8 @@ en kolumn som säger samma sak överallt bär ingen upplysning, och den tog plat
 det som skiljer raderna åt. Understycket sa "1 bild", som är sant om nästan varje kvitto.
 
 Kvar står bara undantaget: **"skickas"**, när bilderna ännu inte kommit fram. I stället
-bär raden kategorins färgprick, kategorins namn, kvittots eget datum och beloppet.
+bär raden kategorins märke (`.kategoriprick`, rundad kvadrat — samma som skrivbordet),
+kategorins namn, kvittots eget datum och beloppet.
 Antalet bilder står när det är fler än en.
 
 Ingen *Öppna*-knapp, som skrivbordets tabell har: **hela raden är träffytan** på
@@ -344,7 +345,11 @@ medel.
 när den är stängd. Layouten hör på `[open]`, resten på elementet.
 
 **Ett klassnamn med två betydelser i samma fil.** `.farlig` var både en textfärg på
-lägesraden och en knappfyllnad; statusraden blev ett rött block utan läsbar text.
+lägesraden och en knappfyllnad; statusraden blev ett rött block utan läsbar text. Felet
+gjordes om 2026-08-31: kategorimärket på telefonraden fick klassen `.prick`, som redan
+var den pulserande punkten för "arbete pågår" — kategorierna började blinka som om de
+visade en status. **Kategorimärket är `.kategoriprick` i `monster.css`, en rundad
+kvadrat, på båda ytorna.** En cirkel som pulsar betyder något annat.
 
 Ett åttonde, samma dag: **en kontroll som river sig själv mitt i sitt eget klick.**
 Kameraknappen var en `<label>` runt ett filinput, och *Fotografera nästa kvitto* bytte

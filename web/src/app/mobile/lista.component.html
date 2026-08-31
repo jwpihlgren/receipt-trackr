@@ -80,7 +80,7 @@
                     <span class="huvud">{{ rad.store ?? klocka(rad.capturedAt) }}</span>
                     <span class="under">
                       @if (rad.kategori) {
-                        <span class="prick kategori" [style.background]="farg(rad.kategori)" aria-hidden="true"></span>
+                        <span class="kategoriprick" [style.background]="farg(rad.kategori)" aria-hidden="true"></span>
                         {{ rad.kategori }}
                       }
                       @if (rad.date) { · {{ datum(rad.date) }} }

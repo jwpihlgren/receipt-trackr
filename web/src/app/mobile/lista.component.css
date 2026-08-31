@@ -93,16 +93,6 @@
   text-overflow: ellipsis;
 }
 
-/* Kategoriprick, samma mått som arkivets. Färgen bär betydelse men står aldrig
-   ensam: kategorinamnet står bredvid, så raden går att läsa utan att se färgen. */
-.prick.kategori {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-inline-end: 2px;
-  border-radius: var(--horn-full);
-  vertical-align: baseline;
-}
 .belopp { font-size: var(--typ-base); white-space: nowrap; flex: 0 0 auto; }
 
 .lage { display: flex; align-items: center; gap: var(--space-1); color: var(--ink-faint); font-size: var(--typ-sm); flex: 0 0 auto; }
