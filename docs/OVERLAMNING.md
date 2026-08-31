@@ -73,7 +73,7 @@ i webbläsarfliken. Ett ställe, ett namn.
 | `/dator/aktivitet` | allt som inte är klart, oavsett läge, med läget som kolumn |
 | `/dator/kvitto/:id` | bild, fält som formulär, radering |
 | `/dator/import` | en hög bilder ur en mapp in i arkivet — och lästa direkt efteråt |
-| `/dator/analys` | summan per månad och per kategori |
+| `/dator/analys` | summan per månad, per kategori och per butik |
 | `/dator/drift` | utrymme, monteringspunkt, säkerhetskopior, omräkning av fälten |
 
 **Klart** betyder: fångsten avslutad, alla utlovade bilder framme, butik + datum +
@@ -174,6 +174,27 @@ strömmen planen ritade in: `GET /api/handelser`, som `text/event-stream`.
 tidpunkter. Telefonlistan skrev `1092.25 kr` medan arkivet skrev `1 092,25 kr` för samma
 kvitto. I telefonens rad kapas butiksnamnet och beloppet bryts aldrig: ett tal som bryts
 mitt itu läses fel.
+
+### Per butik (2026-08-31)
+
+Analysen svarade på *vad* pengarna gick till men inte *vem* de gick till. Listan har
+samma form som kategorilistan — summa, antal köp, andel, jämförelse med föregående lika
+långa period — med tre skillnader som är avsiktliga:
+
+- **Butikslistan följer kategorifiltret.** Kategorilistan står kvar hel därför att den
+  är filtrets egna alternativ; man ska kunna byta utan att först ta bort. Butikslistan
+  är inget filter utan ett svar, och "vilka butiker gick maten till" har bara ett vettigt
+  svar när filtret gäller. Andelen räknas därför mot butikernas egen summa.
+- **Raden är en länk, inte ett filter.** Den leder till arkivet med butiken vald.
+  `Utan butik` leder ingenstans: det är inget butiksnamn och finns inte i arkivets filter.
+- **Stapeln är neutralt bläck.** Kategorierna har var sin färg för att de är en fast
+  uppsättning man känner igen mellan skärmar. Butiker kommer och går, och en färgskala
+  som byter innebörd varje månad lär man sig inte. Listan visar tio och säger hur många
+  som är dolda.
+
+`[selected]` hör på optionen, inte bara `[value]` på selecten: optionerna kommer med
+svaret, så ett värde satt före dem faller tillbaka på den första. Arkivet var filtrerat
+på Bauhaus medan kontrollen sa "Alla butiker".
 
 ## Gränssnittet
 
@@ -278,6 +299,13 @@ när den är stängd. Layouten hör på `[open]`, resten på elementet.
 
 **Ett klassnamn med två betydelser i samma fil.** `.farlig` var både en textfärg på
 lägesraden och en knappfyllnad; statusraden blev ett rött block utan läsbar text.
+
+Ett åttonde, samma dag: **en kontroll som river sig själv mitt i sitt eget klick.**
+Kameraknappen var en `<label>` runt ett filinput, och *Fotografera nästa kvitto* bytte
+gren i sin klickhanterare — Angular rev bort etiketten och dess input innan webbläsaren
+hann utföra etikettens standardåtgärd, så första bilden på varje kvitto togs aldrig.
+Formen som håller: **ett filinput utanför varje gren, en riktig `<button>` som klickar
+på det, och klicket före varje signalskrivning.**
 
 Ett sjunde tillkom 2026-08-31: **en effekt som väcker sig själv.** `effect()` i
 importen läste `rader()` i spårat läge och skrev till samma signal — varje skrivning

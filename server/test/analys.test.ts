@@ -98,6 +98,54 @@ describe("analysen", () => {
     ]);
   });
 
+  it("summerar per butik, störst först", async () => {
+    await kop("Byggmax", "2026-04-20", 2000);
+    await kop("Colorama", "2026-04-17", 500);
+    await kop("Byggmax", "2026-05-02", 300);
+    await kop("Systembolaget", "2026-05-05", 300);
+
+    const svar = analys(archive.db, "2026-01-01", "2026-12-31");
+    expect(svar.butiker).toEqual([
+      { butik: "Byggmax", summa: 2300, antal: 2, forra: null },
+      { butik: "Colorama", summa: 500, antal: 1, forra: null },
+      { butik: "Systembolaget", summa: 300, antal: 1, forra: null },
+    ]);
+    // Butikerna och kategorierna delar upp samma pengar när inget filter är satt.
+    expect(svar.butiker.reduce((a, b) => a + b.summa, 0)).toBe(svar.summa);
+  });
+
+  /**
+   * Kategorilistan står kvar hel när ett filter är satt — den är filtrets egna
+   * alternativ. Butikslistan är inget filter utan ett svar, och ska därför följa med.
+   */
+  it("låter butikslistan följa kategorifiltret, till skillnad från kategorilistan", async () => {
+    await kop("Byggmax", "2026-04-20", 2000);
+    await kop("Systembolaget", "2026-05-05", 300);
+
+    const svar = analys(archive.db, "2026-01-01", "2026-12-31", "Mat och dryck");
+    expect(svar.butiker).toEqual([{ butik: "Systembolaget", summa: 300, antal: 1, forra: null }]);
+    expect(svar.kategorier.map((k) => k.kategori)).toEqual(["Bygg och färg", "Mat och dryck"]);
+  });
+
+  it("jämför butiken med föregående lika långa period", async () => {
+    await kop("Byggmax", "2026-03-10", 1000);
+    await kop("Byggmax", "2026-04-10", 1500);
+    await kop("Colorama", "2026-04-12", 200);
+
+    // April jämförs med mars: Byggmax växte, Colorama fanns inte där.
+    const svar = analys(archive.db, "2026-04-01", "2026-04-30");
+    expect(svar.butiker).toEqual([
+      { butik: "Byggmax", summa: 1500, antal: 1, forra: 1000 },
+      { butik: "Colorama", summa: 200, antal: 1, forra: 0 },
+    ]);
+  });
+
+  it("räknar ett köp en gång också per butik", async () => {
+    await kop("Byggmax", "2026-04-20", 2000);
+    const svar = analys(archive.db, "2026-01-01", "2026-12-31");
+    expect(svar.butiker.reduce((a, b) => a + b.antal, 0)).toBe(svar.antal);
+  });
+
   /**
    * Dubbletterna. Två foton av samma köp är ett köp — annars vore varje omtagning en
    * utgift till, och just den sortens fel syns aldrig i en summa.

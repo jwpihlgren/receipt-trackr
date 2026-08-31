@@ -35,7 +35,13 @@
       <span>Butik</span>
       <select class="select select-sm w-48" [value]="butik()" (change)="valjButik($event)">
         <option value="">Alla butiker</option>
-        @for (b of butiker(); track b) { <option [value]="b">{{ b }}</option> }
+        <!--
+          `[selected]` på optionen, inte bara `[value]` på selecten: värdet sätts innan
+          optionerna finns — de kommer med svaret — och en select utan matchande option
+          faller tillbaka på den första. Kom man hit från analysens "Per butik" var
+          listan filtrerad medan kontrollen sa "Alla butiker". Kategorin gjorde redan så.
+        -->
+        @for (b of butiker(); track b) { <option [value]="b" [selected]="b === butik()">{{ b }}</option> }
       </select>
     </label>
 

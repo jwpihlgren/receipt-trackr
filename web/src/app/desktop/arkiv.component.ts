@@ -116,9 +116,13 @@ export class ArkivComponent {
   );
 
   constructor() {
-    // Kategorin kan komma i adressen: analysen länkar hit med den man klickat på.
+    // Kategorin och butiken kan komma i adressen: analysen länkar hit med den man
+    // klickat på. Utan butiksraden ledde "Per butik" till ett ofiltrerat arkiv, alltså
+    // till svaret på en annan fråga än den man ställde.
     const franAnalysen = this.route.snapshot.queryParamMap.get('kategori');
     if (franAnalysen) this.kategori.set(franAnalysen);
+    const butikFranAnalysen = this.route.snapshot.queryParamMap.get('butik');
+    if (butikFranAnalysen) this.butik.set(butikFranAnalysen);
 
     if (this.route.snapshot.queryParamMap.has('raderat')) {
       this.raderat.set(1);

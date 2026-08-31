@@ -148,7 +148,69 @@
             </ul>
           </section>
 
-          <section class="w-full max-w-md rounded-box border border-base-300 bg-base-100 px-5 py-4">
+          <!--
+            Per butik. Raden är inte klickbar som kategoriraden: butiken är inget filter
+            här, den är ett svar. Vägen vidare är länken till arkivet, som har ett
+            butiksfilter av egen kraft.
+
+            Stapeln har en färg för alla butiker. Kategorierna har var sin därför att de
+            är en fast uppsättning man känner igen mellan skärmar; butiker kommer och
+            går, och en färgskala som byter innebörd varje månad lär man sig inte.
+          -->
+          <section class="min-w-96 flex-1 rounded-box border border-base-300 bg-base-100 px-5 py-4">
+            <h2 class="label mb-2">Per butik</h2>
+            @if (butiker().length === 0) {
+              <p class="py-2 text-neutral">Ingen butik lästes i perioden.</p>
+            }
+            <ul>
+              @for (b of butiker(); track b.butik) {
+                <li class="border-t border-base-300 first:border-t-0">
+                  <!--
+                    "Utan butik" är inget butiksnamn och finns inte i arkivets filter —
+                    en länk dit hade lett till "Inget kvitto matchar filtret", vilket är
+                    fel svar på ett klick. Raden räknas, men leder ingenstans.
+                  -->
+                  <a
+                    class="flex w-full items-center gap-3 py-2 text-left"
+                    [class.hover:text-primary]="b.butik !== 'Utan butik'"
+                    [class.pointer-events-none]="b.butik === 'Utan butik'"
+                    [routerLink]="b.butik === 'Utan butik' ? null : ['/dator/kvitton']"
+                    [queryParams]="{ butik: b.butik }"
+                  >
+                    <span class="flex-1">
+                      {{ b.butik }}
+                      @if (forandring(b); as text) {
+                        <span class="block text-sm text-neutral">{{ text }}</span>
+                      }
+                    </span>
+                    <span class="num w-20 text-right text-sm text-neutral">{{ b.antal }} köp</span>
+                    <span class="num w-32 text-right font-semibold">{{ belopp(b.summa) }}</span>
+                    <span class="num w-12 text-right text-sm text-neutral">{{ andelButik(b.summa) }} %</span>
+                  </a>
+                  <!-- Neutralt bläck, inte accenten: bredvid kategorilistan hade en bärnstensfärgad
+                       stapel läst som "Mat och dryck". Här betyder färgen ingenting, bara längden. -->
+                  <div class="mb-2 h-1 rounded-full bg-base-content/30" [style.width.%]="andelButik(b.summa)"></div>
+                </li>
+              }
+            </ul>
+            @if (doldaButiker() > 0) {
+              <button type="button" class="btn btn-sm btn-ghost mt-2" (click)="allaButiker.set(true)">
+                Visa {{ doldaButiker() }} {{ doldaButiker() === 1 ? 'butik till' : 'butiker till' }}
+              </button>
+            } @else if (allaButiker()) {
+              <button type="button" class="btn btn-sm btn-ghost mt-2" (click)="allaButiker.set(false)">Visa färre</button>
+            }
+          </section>
+
+        </div>
+
+        <!--
+          Största köpen står för sig under de två fördelningarna. Som tredje kolumn
+          klämde den ihop dem så att "Bygg och färg" bröts på mitten: raderna har tre
+          talkolumner med fast bredd, och det som ger vika är namnet.
+        -->
+        <div class="flex flex-wrap items-start gap-4">
+          <section class="w-full max-w-2xl rounded-box border border-base-300 bg-base-100 px-5 py-4">
             <h2 class="label mb-2">Största köpen</h2>
             <ul>
               @for (kop of d.storsta; track kop.id) {

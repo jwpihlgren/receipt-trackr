@@ -683,6 +683,9 @@ function kollapsa(rader: ArkivRad[]): ArkivRad[] {
 
 export type AnalysRad = { kategori: string; summa: number; antal: number };
 
+/** Samma form som kategoriraden, men om butiken. Butiker är ingen fast taxonomi. */
+export type ButiksRad = { butik: string; summa: number; antal: number };
+
 export type Analys = {
   fran: string;
   till: string;
@@ -690,6 +693,7 @@ export type Analys = {
   antal: number;
   manader: { manad: string; summa: number; antal: number; delar: AnalysRad[] }[];
   kategorier: (AnalysRad & { forra: number | null })[];
+  butiker: (ButiksRad & { forra: number | null })[];
   storsta: { id: string; store: string | null; date: string | null; total: number | null; kategori: string | null }[];
 };
 
@@ -700,6 +704,9 @@ export type Analys = {
  * medlemmarna delar ändå fält, så vilken som väljs spelar ingen roll för summan.
  */
 const ETT_PER_KOP = `(r.grupp IS NULL OR r.id = (SELECT MIN(m.id) FROM receipts m WHERE m.grupp = r.grupp))`;
+
+/** Butiken som är frånvaron av en butik. Samma ord som arkivet och största-listan. */
+const UTAN_BUTIK = "Utan butik";
 
 /** Dagen före ett datum, och ett datum n dagar tidigare. Rena strängar in och ut. */
 const dagar = (datum: string, steg: number): string =>
@@ -769,6 +776,35 @@ export function analys(db: ReceiptIndex, fran: string, till: string, kategori?: 
     forra: fannsForra ? (forra.get(rad.kategori) ?? 0) : null,
   }));
 
+  /**
+   * Per butik, till skillnad från per kategori, **följer kategorifiltret**.
+   *
+   * Kategorilistan står kvar hel därför att den är filtrets egna alternativ — man ska
+   * kunna byta utan att först ta bort. Butikslistan är inget filter, den är ett svar,
+   * och frågan "vilka butiker gick maten till" har bara ett vettigt svar när filtret
+   * gäller.
+   *
+   * Butiken kan saknas: ett kvitto blir klart på tre lästa fält, och ett av dem är
+   * butiken — men en människa kan ha tömt fältet. `Utan butik` är samma ord som
+   * största-listan och arkivet använder.
+   */
+  const perButik = (a: string, b: string): ButiksRad[] =>
+    db
+      .prepare(
+        `SELECT COALESCE(NULLIF(TRIM(r.store), ''), ?) AS butik,
+                COALESCE(SUM(r.total), 0) AS summa, COUNT(*) AS antal
+           ${from} WHERE ${where}${filter}
+          GROUP BY butik ORDER BY summa DESC`,
+      )
+      .all(UTAN_BUTIK, a, b, ...arg) as ButiksRad[];
+
+  const forraButiker = new Map(perButik(forraFran, forraTill).map((r) => [r.butik, r.summa]));
+  const fannsForraButiker = forraButiker.size > 0;
+  const butiker = perButik(fran, till).map((rad) => ({
+    ...rad,
+    forra: fannsForraButiker ? (forraButiker.get(rad.butik) ?? 0) : null,
+  }));
+
   const storsta = db
     .prepare(
       `SELECT r.id AS id, r.store AS store, r.date AS date, r.total AS total, r.kategori AS kategori
@@ -777,7 +813,7 @@ export function analys(db: ReceiptIndex, fran: string, till: string, kategori?: 
     )
     .all(fran, till, ...arg) as Analys["storsta"];
 
-  return { fran, till, summa: summa.summa, antal: summa.antal, manader, kategorier, storsta };
+  return { fran, till, summa: summa.summa, antal: summa.antal, manader, kategorier, butiker, storsta };
 }
 
 /** Butikerna som faktiskt finns i arkivet — filtrets alternativ, inte en påhittad lista. */

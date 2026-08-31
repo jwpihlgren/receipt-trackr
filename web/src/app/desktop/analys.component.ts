@@ -6,6 +6,7 @@ import { MenyComponent } from '../shared/meny.component';
 type Del = { kategori: string; summa: number; antal: number };
 type Manad = { manad: string; summa: number; antal: number; delar: Del[] };
 type Kategori = Del & { forra: number | null };
+type Butik = { butik: string; summa: number; antal: number; forra: number | null };
 
 type Svar = {
   fran: string;
@@ -14,6 +15,7 @@ type Svar = {
   antal: number;
   manader: Manad[];
   kategorier: Kategori[];
+  butiker: Butik[];
   storsta: { id: string; store: string | null; date: string | null; total: number | null; kategori: string | null }[];
   kategorier_ordning: string[];
   /** Kategorin som är vald, eller `null` när allt visas. */
@@ -144,6 +146,40 @@ export class AnalysComponent {
   }
 
   /**
+   * Butikslistan, kapad till tio med en väg till resten.
+   *
+   * Kategorierna är sex och kan alltid stå framme. Butikerna är så många som man
+   * handlat hos, och en lista på hundra rader är inte ett svar på "vart gick pengarna"
+   * — men den får inte tystna heller, så antalet står på knappen.
+   */
+  private readonly TOPP_BUTIKER = 10;
+  readonly allaButiker = signal(false);
+
+  readonly butiker = computed(() => {
+    const alla = this.data()?.butiker ?? [];
+    return this.allaButiker() ? alla : alla.slice(0, this.TOPP_BUTIKER);
+  });
+
+  readonly doldaButiker = computed(() => Math.max(0, (this.data()?.butiker ?? []).length - this.butiker().length));
+
+  /**
+   * Andelen räknas mot butikernas egen summa, inte mot kategoriernas.
+   *
+   * De två listorna summerar till samma tal när ingen kategori är vald, men inte när
+   * en är det: butikslistan följer filtret och kategorilistan står kvar hel. Att dela
+   * med fel nämnare hade gett andelar som inte går ihop på just den skärm man valt ett
+   * filter för att titta närmare på.
+   */
+  private readonly butikshelheten = computed(() =>
+    (this.data()?.butiker ?? []).reduce((summa, b) => summa + b.summa, 0),
+  );
+
+  andelButik(summa: number): number {
+    const total = this.butikshelheten();
+    return total > 0 ? Math.round((summa / total) * 100) : 0;
+  }
+
+  /**
    * Färgen följer kategorins plats i den ordning arkivet håller — aldrig dess storlek.
    * En kategori som växer byter inte färg, och ett filter målar inte om de andra.
    */
@@ -168,7 +204,7 @@ export class AnalysComponent {
    * Skillnaden mot föregående period, i ord och tal. `null` betyder att perioden före
    * är tom — arkivet når inte så långt bak — och det är något annat än noll.
    */
-  forandring(rad: Kategori): string | null {
+  forandring(rad: { summa: number; forra: number | null }): string | null {
     if (rad.forra === null) return null;
     if (rad.forra === 0) return 'ny sedan förra perioden';
     const andel = Math.round(((rad.summa - rad.forra) / rad.forra) * 100);
