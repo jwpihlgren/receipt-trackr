@@ -21,16 +21,29 @@ export type Handelse = { typ: 'kvitto' | 'borttaget'; id: string };
 @Injectable({ providedIn: 'root' })
 export class HandelserService {
   private kalla: EventSource | null = null;
-  private readonly foljare = new Set<(h: Handelse) => void>();
+  private readonly foljare = new Set<(h: Handelse | null) => void>();
+  /** Sant sedan strömmen tappat, tills följarna väckts igen. */
+  private harVaritNere = false;
 
-  /** Sant när strömmen är öppen. Ingen vy visar det än; det är för felsökning. */
+  /**
+   * Sant när strömmen är öppen.
+   *
+   * Ingen vy visar den, och den är inte till för att visas: den avgör om en
+   * uppkoppling är en **återanslutning**, och det är skillnaden mellan att veta att man
+   * är aktuell och att bara tro det.
+   */
   readonly ansluten = signal(false);
 
   /**
    * Börjar följa strömmen. Returnerar avlyssningen, som **måste** anropas — knyt den
    * till komponentens `DestroyRef`.
+   *
+   * Återanropet får `null` när strömmen återanslutit efter ett avbrott: då vet ingen
+   * vad som hänt under tiden, och det enda rätta svaret är att hämta om allt. Vyerna
+   * gör redan det oavsett argument, och det är därför argumentet inte används någonstans
+   * — det står där för den som en dag vill titta på `id`.
    */
-  folj(fn: (h: Handelse) => void): () => void {
+  folj(fn: (h: Handelse | null) => void): () => void {
     this.foljare.add(fn);
     this.oppna();
     return () => {
@@ -43,7 +56,22 @@ export class HandelserService {
     if (this.kalla) return;
     const kalla = new EventSource('/api/handelser');
     this.kalla = kalla;
-    kalla.onopen = () => this.ansluten.set(true);
+    /**
+     * Vid en **återanslutning** väcks alla följare, utan att någon händelse kommit.
+     *
+     * Allt som hände medan strömmen låg nere gick förlorat — bussen lever i minnet och
+     * spelar inte upp något i efterhand. Utan det här stod listorna kvar som de såg ut
+     * när nätet försvann och påstod att de var aktuella, vilket är värre än att inte ha
+     * någon ström alls: fokuslyssnaren är en reserv man måste råka utlösa.
+     */
+    kalla.onopen = () => {
+      const aterkom = !this.ansluten();
+      this.ansluten.set(true);
+      if (aterkom && this.harVaritNere) {
+        this.harVaritNere = false;
+        for (const fn of [...this.foljare]) fn(null);
+      }
+    };
     kalla.onmessage = (e) => {
       let handelse: Handelse;
       try {
@@ -59,7 +87,10 @@ export class HandelserService {
      * att sluta påstå att strömmen är öppen — en vy som tror att den får veta när något
      * ändras slutar hämta om, och det är värre än att inte ha någon ström.
      */
-    kalla.onerror = () => this.ansluten.set(false);
+    kalla.onerror = () => {
+      this.ansluten.set(false);
+      this.harVaritNere = true;
+    };
   }
 
   private stang(): void {

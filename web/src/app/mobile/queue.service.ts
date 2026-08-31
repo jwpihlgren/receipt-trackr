@@ -33,9 +33,6 @@ export type QueueState = {
   utloggad: boolean;
   /** Kvitton som ännu inte är helt kvitterade av servern. Det är siffran krav 3 vill ha. */
   waiting: number;
-  /** Segment kvar att skicka, för den som vill veta varför det tar tid. */
-  pendingSegments: number;
-  uploading: boolean;
   offline: boolean;
   /** Kvitton där ett segment vägrats av servern och som behöver hanteras av en människa. */
   stuck: Fastnat[];
@@ -47,28 +44,7 @@ export type QueueState = {
   pending: string[];
   /** Kvitton som ännu ligger kvar lokalt. Tomt = allt är i arkivet. */
   receipts: string[];
-  /** Antal kvitton som nått arkivet i dag. Överlever omladdning, nollas vid midnatt. */
-  archivedToday: number;
 };
-
-const TODAY_KEY = 'receipt-trackr:arkiverade';
-
-function readToday(): number {
-  try {
-    const raw = JSON.parse(localStorage.getItem(TODAY_KEY) ?? '{}') as { date?: string; n?: number };
-    return raw.date === new Date().toDateString() ? (raw.n ?? 0) : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function writeToday(n: number): void {
-  try {
-    localStorage.setItem(TODAY_KEY, JSON.stringify({ date: new Date().toDateString(), n }));
-  } catch {
-    // Räknaren är en trevlighet. Går den inte att spara är det ingenting att larma om.
-  }
-}
 
 /**
  * Vad avvisningen betyder, och om ett nytt försök kan sluta annorlunda.
@@ -103,13 +79,10 @@ export class QueueService {
   private readonly state = signal<QueueState>({
     utloggad: false,
     waiting: 0,
-    pendingSegments: 0,
-    uploading: false,
     offline: !navigator.onLine,
     stuck: [],
     pending: [],
     receipts: [],
-    archivedToday: readToday(),
   });
 
   readonly snapshot = this.state.asReadonly();
@@ -250,7 +223,6 @@ export class QueueService {
     this.state.update((s) => ({
       ...s,
       waiting: receipts.length,
-      pendingSegments: segments.length,
       pending: segments.map((seg) => seg.key),
       receipts: receipts.map((r) => r.id),
       offline: !navigator.onLine,
@@ -273,7 +245,6 @@ export class QueueService {
 
   private async pass(): Promise<void> {
     if (!navigator.onLine) return;
-    this.state.update((s) => ({ ...s, uploading: true }));
     try {
       const receipts = (await allReceipts()).sort((a, b) => a.createdAt - b.createdAt);
       const segments = await allSegments();
@@ -288,7 +259,6 @@ export class QueueService {
     } catch {
       // Ett avbrott är ett normaltillstånd i den här kön, inte ett fel att visa.
     } finally {
-      this.state.update((s) => ({ ...s, uploading: false }));
       await this.refresh();
     }
   }
@@ -313,7 +283,7 @@ export class QueueService {
    * fortsatte visa "Skickar" med snurra i evighet.
    */
   private utloggad(): false {
-    this.state.update((s) => ({ ...s, utloggad: true, uploading: false }));
+    this.state.update((s) => ({ ...s, utloggad: true }));
     return false;
   }
 
@@ -380,9 +350,7 @@ export class QueueService {
         if (verdict === 'stuck') this.markStuck(receipt.id, done.status);
         if (verdict === 'ok') {
           await deleteReceipt(receipt.id);
-          const n = readToday() + 1;
-          writeToday(n);
-          this.state.update((s) => ({ ...s, archivedToday: n, stuck: s.stuck.filter((f) => f.id !== receipt.id) }));
+          this.state.update((s) => ({ ...s, stuck: s.stuck.filter((f) => f.id !== receipt.id) }));
         }
       }
       return true;

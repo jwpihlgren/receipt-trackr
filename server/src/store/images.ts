@@ -74,17 +74,6 @@ export async function saveSegment(
   };
 }
 
-/** Tumnageln är härledd: saknas den byggs den om utan att någon behöver veta om det. */
-export async function ensureThumb(dataDir: string, id: string, index: number, source: Buffer): Promise<void> {
-  const target = join(derivedDir(dataDir, id), thumbName(index));
-  await mkdir(derivedDir(dataDir, id), { recursive: true });
-  const thumb = await sharp(source, { autoOrient: true })
-    .resize({ width: THUMB_WIDTH, fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 80 })
-    .toBuffer();
-  await writeFile(target, thumb);
-}
-
 /**
  * Tumnageln, byggd ur originalets bytes.
  *

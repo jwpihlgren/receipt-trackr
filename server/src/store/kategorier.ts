@@ -150,6 +150,3 @@ export function kategoriFor(kategorier: Kategorier, butik: string | null | undef
   }
   return OVRIGT;
 }
-
-/** Kedjelistan finns bara här för att utgångsreglerna ska gå att stämma av mot den. */
-export const KANDA_KEDJOR = KEDJOR;
