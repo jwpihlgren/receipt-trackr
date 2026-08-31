@@ -15,6 +15,8 @@ type Svar = {
   kategorier: Kategori[];
   storsta: { id: string; store: string | null; date: string | null; total: number | null; kategori: string | null }[];
   kategorier_ordning: string[];
+  /** Kategorin som är vald, eller `null` när allt visas. */
+  kategori: string | null;
 };
 
 /** Plotens höjd i pixlar. Staplarna räknas mot den, inte mot en procentsats. */
@@ -48,6 +50,8 @@ export class AnalysComponent {
 
   readonly fran = signal(standardFran());
   readonly till = signal(idag());
+  /** Vald kategori. Tom sträng är "alla" — filtret är ett val, inte ett läge. */
+  readonly kategori = signal('');
 
   constructor() {
     void this.load();
@@ -57,7 +61,9 @@ export class AnalysComponent {
     this.laddar.set(true);
     this.error.set(null);
     try {
-      const svar = await fetch(`/api/analys?fran=${this.fran()}&till=${this.till()}`);
+      const fraga = new URLSearchParams({ fran: this.fran(), till: this.till() });
+      if (this.kategori()) fraga.set('kategori', this.kategori());
+      const svar = await fetch(`/api/analys?${fraga.toString()}`);
       if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
       if (!svar.ok) throw new Error(String(svar.status));
       this.data.set((await svar.json()) as Svar);
@@ -81,6 +87,18 @@ export class AnalysComponent {
   readonly tomt = computed(() => (this.data()?.antal ?? 0) === 0);
 
   /**
+   * Ett klick på en kategori filtrerar; ett klick till tar bort filtret. Listan över
+   * kategorier står kvar hel även när en är vald, så att man kan byta utan att först
+   * ta bort — och den valda raden är markerad, inte bortsorterad.
+   */
+  valj(kategori: string): void {
+    this.kategori.update((nu) => (nu === kategori ? '' : kategori));
+    void this.load();
+  }
+
+  readonly vald = computed(() => this.kategori());
+
+  /**
    * Skalans topp: ett jämnt tal ovanför den största månaden, så att rutnätets linjer
    * går att läsa som tusental i stället för som en tredjedel av något.
    */
@@ -88,7 +106,13 @@ export class AnalysComponent {
     const storsta = Math.max(0, ...(this.data()?.manader ?? []).map((m) => m.summa));
     if (storsta === 0) return 1000;
     const steg = Math.pow(10, Math.floor(Math.log10(storsta))) / 2;
-    return Math.ceil(storsta / steg) * steg;
+    const jamnt = Math.ceil(storsta / steg) * steg;
+    /**
+     * Ett steg till när den största månaden fyller nästan hela höjden. Summan står
+     * ovanför sin stapel, och utan takhöjd klämdes den ut ur diagrammet — just på den
+     * månad man tittade efter.
+     */
+    return storsta / jamnt > 0.9 ? jamnt + steg : jamnt;
   });
 
   /** Rutnätets fyra linjer, uppifrån och ned. */
@@ -103,8 +127,18 @@ export class AnalysComponent {
     return topp > 0 ? Math.max(2, Math.round((belopp / topp) * PLOT)) : 0;
   }
 
+  /**
+   * Andelen räknas mot alla kategorier tillsammans, inte mot periodens summa.
+   * Skillnaden märks när en kategori är vald: summan gäller då bara den, medan
+   * listan står kvar hel — och en andel av sig själv hade blivit hundra procent på
+   * en rad och över hundra på de andra.
+   */
+  private readonly helheten = computed(() =>
+    (this.data()?.kategorier ?? []).reduce((summa, k) => summa + k.summa, 0),
+  );
+
   andel(summa: number): number {
-    const total = this.data()?.summa ?? 0;
+    const total = this.helheten();
     return total > 0 ? Math.round((summa / total) * 100) : 0;
   }
 

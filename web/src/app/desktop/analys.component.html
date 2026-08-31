@@ -33,8 +33,14 @@
             <p class="label">Summa i perioden</p>
             <p class="num text-4xl font-semibold">{{ belopp(d.summa) }} kr</p>
             <p class="num text-sm text-neutral">
-              {{ d.antal }} {{ d.antal === 1 ? 'köp' : 'köp' }} · {{ d.fran }} – {{ d.till }}
+              {{ d.antal }} köp · {{ d.fran }} – {{ d.till }}
             </p>
+            @if (d.kategori) {
+              <p class="mt-1 flex items-center gap-2 text-sm">
+                <span class="kategoriprick" [style.background]="farg(d.kategori)"></span>{{ d.kategori }}
+                <button type="button" class="link text-neutral" (click)="valj(d.kategori!)">Visa alla</button>
+              </p>
+            }
           </div>
         </div>
 
@@ -110,10 +116,16 @@
             <ul>
               @for (k of d.kategorier; track k.kategori) {
                 <li class="border-t border-base-300 first:border-t-0">
-                  <div class="flex items-center gap-3 py-2">
+                  <button
+                    type="button"
+                    class="flex w-full items-center gap-3 py-2 text-left hover:text-primary"
+                    [attr.aria-pressed]="vald() === k.kategori"
+                    (click)="valj(k.kategori)"
+                  >
                     <span class="kategoriprick" [style.background]="farg(k.kategori)"></span>
                     <span class="flex-1">
                       {{ k.kategori }}
+                      @if (vald() === k.kategori) { <span class="text-neutral">· vald</span> }
                       @if (forandring(k); as text) {
                         <span class="block text-sm text-neutral">{{ text }}</span>
                       }
@@ -121,8 +133,13 @@
                     <span class="num w-20 text-right text-sm text-neutral">{{ k.antal }} köp</span>
                     <span class="num w-32 text-right font-semibold">{{ belopp(k.summa) }}</span>
                     <span class="num w-12 text-right text-sm text-neutral">{{ andel(k.summa) }} %</span>
-                  </div>
+                  </button>
                   <div class="mb-2 h-1 rounded-full" [style.background]="farg(k.kategori)" [style.width.%]="andel(k.summa)"></div>
+                  @if (vald() === k.kategori) {
+                    <a class="link mb-2 block text-sm" [routerLink]="['/dator/kvitton']" [queryParams]="{ kategori: k.kategori }">
+                      Visa kvittona
+                    </a>
+                  }
                 </li>
               }
             </ul>

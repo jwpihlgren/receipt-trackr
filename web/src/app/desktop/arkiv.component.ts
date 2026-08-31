@@ -13,12 +13,13 @@ type Rad = {
   capturedAt: string;
   segments: number;
   snippet: string | null;
+  kategori: string | null;
   /** Gruppen kvittot står i, eller `null`. Flera bilder på en rad är ett köp, inte flera. */
   grupp: string | null;
   medlemmar: number;
 };
 
-type Svar = { total: number; receipts: Rad[]; butiker: string[] };
+type Svar = { total: number; summa: number; receipts: Rad[]; butiker: string[]; kategorier: string[] };
 
 /** Kolumnerna som går att sortera på. Samma fem namn som servern känner igen. */
 export type Kolumn = 'date' | 'store' | 'total' | 'segments' | 'capturedAt';
@@ -54,7 +55,11 @@ export class ArkivComponent {
 
   readonly rader = signal<Rad[] | null>(null);
   readonly total = signal(0);
+  /** Summan för hela träffmängden, räknad i servern — inte för de rader som syns. */
+  readonly summa = signal(0);
   readonly butiker = signal<string[]>([]);
+  readonly kategorier = signal<string[]>([]);
+  readonly kategori = signal('');
   readonly error = signal<string | null>(null);
   /** Sant medan en hämtning pågår. Skilt från `rader() === null`, som betyder "vet inte". */
   readonly laddar = signal(false);
@@ -84,9 +89,15 @@ export class ArkivComponent {
   readonly till = signal('');
 
   /** Hur många kvitton som inte är klara. Siffran leder vidare, tabellen bor där. */
-  readonly filtrerat = computed(() => !!(this.fraga() || this.butik() || this.fran() || this.till()));
+  readonly filtrerat = computed(
+    () => !!(this.fraga() || this.butik() || this.kategori() || this.fran() || this.till()),
+  );
 
   constructor() {
+    // Kategorin kan komma i adressen: analysen länkar hit med den man klickat på.
+    const franAnalysen = this.route.snapshot.queryParamMap.get('kategori');
+    if (franAnalysen) this.kategori.set(franAnalysen);
+
     if (this.route.snapshot.queryParamMap.has('raderat')) {
       this.raderat.set(true);
       void this.router.navigate([], { queryParams: {}, replaceUrl: true });
@@ -117,6 +128,7 @@ export class ArkivComponent {
     const p = new URLSearchParams();
     if (this.fraga().trim()) p.set('q', this.fraga().trim());
     if (this.butik()) p.set('butik', this.butik());
+    if (this.kategori()) p.set('kategori', this.kategori());
     if (this.fran()) p.set('fran', this.fran());
     if (this.till()) p.set('till', this.till());
     p.set('sortera', this.sortera());
@@ -130,7 +142,9 @@ export class ArkivComponent {
       if (min !== this.lasning) return;
       this.rader.set(body.receipts);
       this.total.set(body.total);
+      this.summa.set(body.summa);
       this.butiker.set(body.butiker);
+      this.kategorier.set(body.kategorier);
     } catch {
       if (min !== this.lasning) return;
       this.error.set('Kvittona gick inte att hämta. Försök igen.');
@@ -156,6 +170,22 @@ export class ArkivComponent {
     this.fraga.set((event.target as HTMLInputElement).value);
   }
 
+  valjKategori(event: Event): void {
+    this.kategori.set((event.target as HTMLSelectElement).value);
+    void this.load();
+  }
+
+  /** Färgen följer kategorins plats i arkivets ordning, aldrig dess storlek. */
+  farg(kategori: string | null): string {
+    if (!kategori) return 'var(--kategori-ovrig)';
+    const plats = this.kategorier().indexOf(kategori);
+    return plats < 0 || kategori === 'Övrigt' ? 'var(--kategori-ovrig)' : `var(--kategori-${(plats % 6) + 1})`;
+  }
+
+  readonly summaText = computed(() =>
+    this.summa().toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+  );
+
   valjButik(event: Event): void {
     this.butik.set((event.target as HTMLSelectElement).value);
     void this.load();
@@ -179,6 +209,7 @@ export class ArkivComponent {
   rensa(): void {
     this.fraga.set('');
     this.butik.set('');
+    this.kategori.set('');
     this.fran.set('');
     this.till.set('');
     void this.load();
@@ -188,8 +219,15 @@ export class ArkivComponent {
     return this.tolkning.kor();
   }
 
+  /**
+   * Belopp skrivs som svenska tal, med mellanrum mellan tusentalen. Raderna skrev
+   * `9425,00` medan summaraden skrev `9 973,30` — samma kolumn, två sätt att läsa
+   * en siffra, och det är sådant som gör att man kontrollräknar i onödan.
+   */
   belopp(rad: Rad): string {
-    return rad.total === null ? '—' : rad.total.toFixed(2).replace('.', ',');
+    return rad.total === null
+      ? '—'
+      : rad.total.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   readonly fangat = datum;

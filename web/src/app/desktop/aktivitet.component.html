@@ -40,21 +40,13 @@
     } @else if (rader().length === 0) {
       <p class="text-neutral">Inget kvitto väntar på något.</p>
     } @else {
-      @if (valda().size > 0) {
-        <div class="mb-2 flex items-center gap-3 rounded-box border border-base-300 bg-base-100 px-4 py-2">
-          <span class="num">{{ valda().size }} {{ valda().size === 1 ? 'kvitto valt' : 'kvitton valda' }}</span>
-          <button type="button" class="btn btn-sm btn-primary ml-auto" [disabled]="arbetar()" (click)="lasOmValda()">
-            Tolka om
-          </button>
-          <button type="button" class="btn btn-sm btn-ghost" (click)="avmarkera()">Avmarkera</button>
-        </div>
-      }
-
       <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
         <table class="table table-sm">
           <thead>
-            <tr>
-              <th class="w-10">
+            <!-- Höjden sitter på raden, inte på cellerna: markeringens knappar är en
+                 pixel högre än rubriktexten, och den pixeln flyttade hela listan. -->
+            <tr class="h-12">
+              <th class="h-12 w-10">
                 <input
                   type="checkbox"
                   class="checkbox checkbox-sm"
@@ -64,13 +56,35 @@
                   (change)="valjAlla($event)"
                 />
               </th>
-              <th class="w-14"><span class="sr-only">Bild</span></th>
-              <th>Butik</th>
-              <th class="w-32 text-right">Belopp</th>
-              <th class="w-28">Datum</th>
-              <th class="w-56">Status</th>
-              <th class="w-28">Fångat</th>
-              <th class="w-20 text-right"><span class="sr-only">Öppna</span></th>
+              <!--
+                Markeringen bor i tabellhuvudet, inte i en rad ovanför tabellen.
+                En rad som dyker upp vid första krysset knuffar ned hela listan, och
+                då hoppar den rad man just siktade på undan pekaren. Huvudet finns
+                ändå, och håller sin höjd oavsett vad som står i det.
+              -->
+              @if (valda().size > 0) {
+                <!-- `py-0`: cellens höjd är satt, och knappen — som är en pixel högre
+                     än rubriktexten — får inte lägga till sin egen padding ovanpå. -->
+                <th class="h-12 py-0" colspan="7">
+                  <div class="flex items-center gap-3">
+                    <span class="num text-base-content">
+                      {{ valda().size }} {{ valda().size === 1 ? 'kvitto valt' : 'kvitton valda' }}
+                    </span>
+                    <button type="button" class="btn btn-sm btn-primary ml-auto" [disabled]="arbetar()" (click)="lasOmValda()">
+                      Tolka om
+                    </button>
+                    <button type="button" class="btn btn-sm btn-ghost" (click)="avmarkera()">Avmarkera</button>
+                  </div>
+                </th>
+              } @else {
+                <th class="h-12 w-14"><span class="sr-only">Bild</span></th>
+                <th class="h-12">Butik</th>
+                <th class="h-12 w-32 text-right">Belopp</th>
+                <th class="h-12 w-28">Datum</th>
+                <th class="h-12 w-56">Status</th>
+                <th class="h-12 w-28">Fångat</th>
+                <th class="h-12 w-20 text-right"><span class="sr-only">Öppna</span></th>
+              }
             </tr>
           </thead>
           <tbody>

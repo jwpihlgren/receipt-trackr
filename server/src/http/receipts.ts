@@ -115,6 +115,7 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
       ofardiga?: string;
       sortera?: string;
       ordning?: string;
+      kategori?: string;
     };
   }>(
     "/api/receipts",
@@ -129,11 +130,13 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
         ...(request.query.ordning === "asc" ? { stigande: true } : {}),
         ...(fritext ? { q: fritext } : {}),
         ...(butik?.trim() ? { butik: butik.trim() } : {}),
+        ...(request.query.kategori?.trim() ? { kategori: request.query.kategori.trim() } : {}),
         ...(fran?.trim() ? { fran: fran.trim() } : {}),
         ...(till?.trim() ? { till: till.trim() } : {}),
         limit: Math.min(Math.max(Number(request.query.limit ?? 200) || 200, 1), 1000),
       });
-      return { ...svar, butiker: butiker(archive.db) };
+      // Kategorierna följer med som filtrets alternativ, i den ordning som ger dem färg.
+      return { ...svar, butiker: butiker(archive.db), kategorier: archive.kategorier.kategorier };
     },
   );
 
@@ -144,14 +147,19 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
    * beställaren sa att han tänker i, och den som gör "sticker den här månaden ut"
    * till en fråga med ett svar.
    */
-  app.get<{ Querystring: { fran?: string; till?: string } }>("/api/analys", async (request) => {
+  app.get<{ Querystring: { fran?: string; till?: string; kategori?: string } }>("/api/analys", async (request) => {
     const idag = new Date();
     const till = request.query.till?.trim() || idag.toISOString().slice(0, 10);
     const standardFran = new Date(Date.UTC(idag.getUTCFullYear() - 1, idag.getUTCMonth(), 1))
       .toISOString()
       .slice(0, 10);
     const fran = request.query.fran?.trim() || standardFran;
-    return { ...analys(archive.db, fran, till), kategorier_ordning: archive.kategorier.kategorier };
+    const kategori = request.query.kategori?.trim();
+    return {
+      ...analys(archive.db, fran, till, kategori || undefined),
+      kategori: kategori || null,
+      kategorier_ordning: archive.kategorier.kategorier,
+    };
   });
 
   /** Kategorierna och butiksreglerna. Filen i arkivet är sanningen; det här är den. */

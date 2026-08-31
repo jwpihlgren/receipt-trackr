@@ -31,6 +31,14 @@
     </label>
 
     <label class="floating-label">
+      <span>Kategori</span>
+      <select class="select select-sm w-48" [value]="kategori()" (change)="valjKategori($event)">
+        <option value="">Alla kategorier</option>
+        @for (k of kategorier(); track k) { <option [value]="k" [selected]="k === kategori()">{{ k }}</option> }
+      </select>
+    </label>
+
+    <label class="floating-label">
       <span>Från</span>
       <input type="date" class="input input-sm" [value]="fran()" (change)="onFran($event)" />
     </label>
@@ -96,6 +104,7 @@
                   @if (sortera() === 'store') { <span aria-hidden="true">{{ stigande() ? '↑' : '↓' }}</span> }
                 </button>
               </th>
+              <th class="w-44">Kategori</th>
               <th class="w-32 text-right">
                 <button type="button" class="sortknapp justify-end" (click)="sorteraPa('total')">
                   Belopp
@@ -138,6 +147,13 @@
                     <span class="ocr-text mt-0.5 block text-neutral">{{ rad.snippet }}</span>
                   }
                 </td>
+                <td class="whitespace-nowrap">
+                  @if (rad.kategori) {
+                    <span class="flex items-center gap-2">
+                      <span class="kategoriprick" [style.background]="farg(rad.kategori)"></span>{{ rad.kategori }}
+                    </span>
+                  }
+                </td>
                 <td class="num whitespace-nowrap text-right">{{ belopp(rad) }} kr</td>
                 <td class="num text-right">{{ rad.segments }}</td>
                 <td class="num whitespace-nowrap text-neutral">{{ fangat(rad.capturedAt) }}</td>
@@ -147,6 +163,18 @@
               </tr>
             }
           </tbody>
+          <!--
+            Summan gäller hela träffmängden, inte de rader som syns: servern räknar
+            den på samma filter och räknar köp, så att tre foton av samma kvitto inte
+            adderas tre gånger.
+          -->
+          <tfoot>
+            <tr>
+              <td colspan="4" class="text-right">Summa</td>
+              <td class="num text-right text-base font-semibold text-base-content">{{ summaText() }} kr</td>
+              <td colspan="3"></td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     }

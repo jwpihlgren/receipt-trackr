@@ -170,6 +170,24 @@ describe("analysen", () => {
     expect(analys(archive.db, "2026-01-01", "2026-12-31").kategorier[0]!.kategori).toBe("Mat och dryck");
   });
 
+  /**
+   * Filtret. Listan över kategorier står kvar hel även när en är vald — man ska kunna
+   * byta filter utan att först ta bort det man har.
+   */
+  it("filtrerar på en kategori utan att tappa listan över de andra", async () => {
+    await kop("Byggmax", "2026-04-20", 1000);
+    await kop("Däckskiftarna", "2026-05-11", 9425);
+    await kop("Systembolaget", "2026-06-05", 300);
+
+    const bara = analys(archive.db, "2026-01-01", "2026-12-31", "Bil");
+    expect(bara.summa).toBe(9425);
+    expect(bara.antal).toBe(1);
+    expect(bara.manader.map((m) => m.manad)).toEqual(["2026-05"]);
+    expect(bara.storsta.map((k) => k.store)).toEqual(["Däckskiftarna"]);
+    // Listan är oförändrad, så att nästa klick kan gå någon annanstans.
+    expect(bara.kategorier.map((k) => k.kategori).sort()).toEqual(["Bil", "Bygg och färg", "Mat och dryck"]);
+  });
+
   /** Indexet är härlett: kategorierna ska överleva att filen kastas och byggs om. */
   it("bygger tillbaka kategorierna ur disken", async () => {
     await kop("Byggmax", "2026-04-20", 1000);

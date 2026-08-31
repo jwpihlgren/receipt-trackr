@@ -471,6 +471,8 @@ export type ArkivRad = {
   snippet: string | null;
   /** Antal tecken i den utlästa texten. Noll betyder att tolkningen inte gett något. */
   tecken: number;
+  /** Kategorin, härledd ur butiken. `null` bara på kvitton indexet inte hunnit räkna. */
+  kategori: string | null;
   /** Gruppen kvittot står i, eller `null` när det är ensamt om sitt köp. */
   grupp: string | null;
   /** Hur många kvitton som visar det här köpet. Ett, om inget annat sagts. */
@@ -482,6 +484,7 @@ export type Sortering = "date" | "store" | "total" | "capturedAt" | "segments";
 export type ArkivFraga = {
   q?: string;
   butik?: string;
+  kategori?: string;
   fran?: string;
   till?: string;
   limit?: number;
@@ -506,7 +509,10 @@ export type ArkivFraga = {
  * Ofärdiga kvitton står inte här. De hör till aktiviteten; blandas de in blir arkivet
  * en lista där en del av raderna saknar just det man letar efter.
  */
-export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; receipts: ArkivRad[] } {
+export function arkiv(
+  db: ReceiptIndex,
+  fraga: ArkivFraga,
+): { total: number; summa: number; receipts: ArkivRad[] } {
   const villkor: string[] = fraga.ofardiga ? [] : [KLAR];
   const params: unknown[] = [];
   if (fraga.q) {
@@ -516,6 +522,10 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
   if (fraga.butik) {
     villkor.push("r.store = ?");
     params.push(fraga.butik);
+  }
+  if (fraga.kategori) {
+    villkor.push("COALESCE(r.kategori, ?) = ?");
+    params.push(OVRIGT, fraga.kategori);
   }
   if (fraga.fran) {
     villkor.push("r.date >= ?");
@@ -542,6 +552,19 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
       .prepare(`SELECT COUNT(${perKop ? "DISTINCT COALESCE(r.grupp, r.id)" : "*"}) AS n ${from} WHERE ${where}`)
       .get(...params) as { n: number }
   ).n;
+
+  /**
+   * Summan gäller **hela** träffmängden, inte de rader som råkade hämtas — en
+   * summarad som bara summerar det man ser är en siffra att räkna fel med. Och den
+   * räknar köp: dubbletterna får inte adderas två gånger.
+   */
+  const summa = (
+    db
+      .prepare(
+        `SELECT COALESCE(SUM(r.total), 0) AS summa ${from} WHERE ${where}${perKop ? ` AND ${ETT_PER_KOP}` : ""}`,
+      )
+      .get(...params) as { summa: number }
+  ).summa;
   /**
    * Sorteringen är en vitlista, inte en sträng som går vidare till SQL. Kolumnnamnet
    * kommer från en klick i en tabellrubrik, och en tabellrubrik ska inte kunna
@@ -570,7 +593,7 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
               -- Bilder är köpets bilder när raden är ett köp. Annars hade en rad som
               -- företräder tre fotografier sagt "1 bild" och sett ut att ha tappat två.
               ${perKop ? "CASE WHEN r.grupp IS NULL THEN r.segments ELSE (SELECT SUM(m.segments) FROM receipts m WHERE m.grupp = r.grupp) END" : "r.segments"} AS segments,
-              r.grupp AS grupp,
+              r.kategori AS kategori, r.grupp AS grupp,
               CASE WHEN r.grupp IS NULL THEN 1
                    ELSE (SELECT COUNT(*) FROM receipts m WHERE m.grupp = r.grupp) END AS medlemmar,
               length(f.text) AS tecken,
@@ -580,7 +603,7 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
         LIMIT ?`,
     )
     .all(...params, Math.min(Math.max(fraga.limit ?? 200, 1), 1000)) as ArkivRad[];
-  return { total, receipts: perKop ? kollapsa(rader) : rader };
+  return { total, summa, receipts: perKop ? kollapsa(rader) : rader };
 }
 
 /**
@@ -637,23 +660,29 @@ const dagar = (datum: string, steg: number): string =>
     .toISOString()
     .slice(0, 10);
 
-export function analys(db: ReceiptIndex, fran: string, till: string): Analys {
+export function analys(db: ReceiptIndex, fran: string, till: string, kategori?: string): Analys {
   const from = "FROM receipts r JOIN receipts_fts f ON f.id = r.id";
+  /**
+   * Kategorifiltret gäller allt utom listan över kategorier: den ska stå kvar hel, så
+   * att man kan byta filter utan att först ta bort det man har.
+   */
+  const filter = kategori ? ` AND COALESCE(r.kategori, '${OVRIGT}') = ?` : "";
+  const arg = kategori ? [kategori] : [];
   const where = `${KLAR} AND ${ETT_PER_KOP} AND r.date IS NOT NULL AND r.date BETWEEN ? AND ?`;
 
   const summa = db
-    .prepare(`SELECT COALESCE(SUM(r.total), 0) AS summa, COUNT(*) AS antal ${from} WHERE ${where}`)
-    .get(fran, till) as { summa: number; antal: number };
+    .prepare(`SELECT COALESCE(SUM(r.total), 0) AS summa, COUNT(*) AS antal ${from} WHERE ${where}${filter}`)
+    .get(fran, till, ...arg) as { summa: number; antal: number };
 
   const perManad = db
     .prepare(
       `SELECT substr(r.date, 1, 7) AS manad, COALESCE(r.kategori, ?) AS kategori,
               COALESCE(SUM(r.total), 0) AS summa, COUNT(*) AS antal
-         ${from} WHERE ${where}
+         ${from} WHERE ${where}${filter}
         GROUP BY manad, kategori
         ORDER BY manad ASC, summa DESC`,
     )
-    .all(OVRIGT, fran, till) as { manad: string; kategori: string; summa: number; antal: number }[];
+    .all(OVRIGT, fran, till, ...arg) as { manad: string; kategori: string; summa: number; antal: number }[];
 
   const manader: Analys["manader"] = [];
   for (const rad of perManad) {
@@ -696,10 +725,10 @@ export function analys(db: ReceiptIndex, fran: string, till: string): Analys {
   const storsta = db
     .prepare(
       `SELECT r.id AS id, r.store AS store, r.date AS date, r.total AS total, r.kategori AS kategori
-         ${from} WHERE ${where}
+         ${from} WHERE ${where}${filter}
         ORDER BY r.total DESC LIMIT 5`,
     )
-    .all(fran, till) as Analys["storsta"];
+    .all(fran, till, ...arg) as Analys["storsta"];
 
   return { fran, till, summa: summa.summa, antal: summa.antal, manader, kategorier, storsta };
 }
