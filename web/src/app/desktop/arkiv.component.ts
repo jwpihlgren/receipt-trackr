@@ -1,9 +1,11 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
+import { HandelserService } from '../shared/handelser.service';
 import { MenyComponent } from '../shared/meny.component';
 import { RaderaRutaComponent } from '../shared/radera-ruta.component';
 import { datum } from '../shared/datum';
+import { belopp } from '../shared/belopp';
 
 type Rad = {
   id: string;
@@ -59,6 +61,8 @@ export class ArkivComponent {
    */
   readonly raderat = signal(0);
   readonly tolkning = inject(TolkningService);
+  private readonly handelser = inject(HandelserService);
+  private readonly avslut = inject(DestroyRef);
 
   readonly rader = signal<Rad[] | null>(null);
   readonly total = signal(0);
@@ -124,6 +128,10 @@ export class ArkivComponent {
 
     void this.load();
     void this.tolkning.rakna();
+
+    // Arkivet följer arkivet: ett kvitto som blir klart någon annanstans — på
+    // telefonen, i en annan flik — dyker upp här utan att sidan laddas om.
+    this.avslut.onDestroy(this.handelser.folj(() => void this.load()));
 
     // Ett tolkat kvitto kan bli klart och ska då dyka upp här. Första körningen
     // hoppas över: en effect kör en gång när den skapas, och utan det hämtade varje
@@ -267,7 +275,7 @@ export class ArkivComponent {
   }
 
   readonly summaText = computed(() =>
-    this.summa().toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    belopp(this.summa()),
   );
 
   valjButik(event: Event): void {
@@ -303,15 +311,9 @@ export class ArkivComponent {
     return this.tolkning.kor();
   }
 
-  /**
-   * Belopp skrivs som svenska tal, med mellanrum mellan tusentalen. Raderna skrev
-   * `9425,00` medan summaraden skrev `9 973,30` — samma kolumn, två sätt att läsa
-   * en siffra, och det är sådant som gör att man kontrollräknar i onödan.
-   */
+  /** Regeln bor i `shared/belopp.ts` — samma tal skrivs likadant på varje skärm. */
   belopp(rad: Rad): string {
-    return rad.total === null
-      ? '—'
-      : rad.total.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return belopp(rad.total);
   }
 
   readonly fangat = datum;

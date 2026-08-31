@@ -1,7 +1,7 @@
 # Överlämning
 
 Skriven 2026-08-30, omskriven samma kväll efter en dags omfattande ändringar, och
-utökad 2026-08-31 med *Ett arbete, en knapp*. Läs den här filen först, sedan planen i
+utökad 2026-08-31 med *Ett arbete, en knapp* och *En lista, en ström*. Läs den här filen först, sedan planen i
 `~/.claude/plans/atomic-waddling-nautilus.md`.
 
 ## Vad det här är
@@ -67,8 +67,8 @@ i webbläsarfliken. Ett ställe, ett namn.
 | --- | --- |
 | `/telefon/kvitton` | hemskärmen: **alla** kvitton, även ofärdiga (`?ofardiga=true`) |
 | `/telefon/fanga` | öppnar telefonens egen kameraapp; appen har ingen sökare |
-| `/telefon/uppladdning` | kön av bilder på väg in |
 | `/telefon/kvitto/:id`, `/telefon/aktivitet` | samma komponenter som datorns, men vet vilken yta de står på |
+| `/telefon/uppladdning` | **borttagen** — leder till `/telefon/aktivitet`, där utkorgen numera står överst |
 | `/dator/kvitton` | arkivet: **bara klara** kvitton, tabell med filter, sorterad på kvittots eget datum |
 | `/dator/aktivitet` | allt som inte är klart, oavsett läge, med läget som kolumn |
 | `/dator/kvitto/:id` | bild, fält som formulär, radering |
@@ -87,6 +87,8 @@ Två listor som frågar om samma sak måste fråga likadant.
 
 | Läge | Vägen ut |
 | --- | --- |
+| Ligger kvar i telefonen | ingen — skickas av sig själv (bara telefonytan) |
+| Kom inte fram | *Försök igen nu*, eller *Kasta bilderna* när svaret aldrig blir ett annat |
 | Väntar på tolkning | *Tolka nu* — läser bilden i den här webbläsaren, direkt |
 | Ingen text lästes | skriv in de tre fälten |
 | Bilden gick knappt att läsa | *Fälten stämmer*, eller rätta dem |
@@ -131,6 +133,47 @@ kvitto och såg därför ut som att bara ett kvitto skulle läsas. Nu: *Läser k
 när passet startar (`iPasset`) — en räknare mot en kö som krymper medan man tittar på
 den räknar ingenting. Meningen bor på ett ställe, `laser` i `tolkning.service.ts`, och
 telefonen, aktiviteten och importen säger därför samma sak.
+
+### En lista, en ström (2026-08-31)
+
+**Telefonen hade två listor som båda betydde "inte klart än".** `/telefon/uppladdning`
+läste telefonens egen utkorg i IndexedDB — bilder vars bytes ännu inte kommit fram —
+och `/telefon/aktivitet` läste serverns lista över kvitton som inte är klara. Olika
+data, olika ägare, men man fick titta på båda för att veta att allt gått i mål, och
+namnet *På väg till arkivet* beskrev ett tillstånd i stället för vad skärmen ägde.
+
+Utkorgen är nu `UtkorgComponent`, renderad överst i aktiviteten och **bara i
+telefonläget**: datorn har ingen utkorg, och raden var alltid tom där. Skärmen är borta
+och adressen leder vidare. Menyns siffra räknar båda mängderna, för de leder till samma
+lista; *Kom inte fram* har kvar sin egen rad, eftersom den kräver en människa.
+
+Att listorna hämtar från olika håll ändras inte av flytten. **Utkorgen är telefonens
+egen disk, aktiviteten är serverns lista.**
+
+**Appen var inte reaktiv.** Aktiviteten hämtade om vid fönsterfokus, menyns siffra när
+lådan öppnades, telefonen frågade efter jobb var trettionde sekund — så en uppladdning
+från telefonen syntes på datorn först när någon klickade i datorns fönster. Nu finns
+strömmen planen ritade in: `GET /api/handelser`, som `text/event-stream`.
+
+- **Servern räknar fortfarande inte.** Händelsen är `{typ, id}` och inget mer. Vad den
+  betyder för en lista avgör klienten, genom att fråga om sin lista. En klient som fick
+  kvittot i strömmen skulle ha sanningen på två ställen.
+- **`persist` är enda sändningspunkten**, plus `taBort` som går åt andra hållet. En rutt
+  som kom ihåg att sända vore förr eller senare en rutt som glömde det — samma skäl som
+  gör att skrivordningen bara finns i `archive.ts`.
+- **Uppkopplingen är räknad.** `HandelserService.folj()` öppnar strömmen vid första
+  följaren och stänger vid sista. Menyn står på varje skärm och är därför den som håller
+  den öppen. En ström som öppnas i en konstruktor och aldrig stängs är samma fel som
+  pulslyssnaren en gång var.
+- **Fokuslyssnaren står kvar som reserv.** Tappar strömmen och webbläsaren inte hunnit
+  återansluta är fönsterfokus den andra chansen.
+- SSE och inte websocket: trafiken går åt ett håll, webbläsaren återansluter själv när
+  nätet tappar, och det kräver inget bibliotek på någondera sidan.
+
+**Belopp skrivs på ett sätt.** `shared/belopp.ts`, som `shared/datum.ts` är för
+tidpunkter. Telefonlistan skrev `1092.25 kr` medan arkivet skrev `1 092,25 kr` för samma
+kvitto. I telefonens rad kapas butiksnamnet och beloppet bryts aldrig: ett tal som bryts
+mitt itu läses fel.
 
 ## Gränssnittet
 

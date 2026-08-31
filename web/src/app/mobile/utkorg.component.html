@@ -1,30 +1,18 @@
-<div class="skarm">
-  <!--
-    En ledande kontroll, inte två. Sidan nås från listan, och bakåtpilen är rätt
-    kontroll där — menyn stod bredvid den och ledde till samma ställe, vilket gav den
-    här skärmen en tredje vänsterkant på rubriken.
-  -->
-  <header class="topp">
-    <a class="ledande" routerLink="/telefon/kvitton" aria-label="Tillbaka till kvitton">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
-    </a>
-    <h1>På väg till arkivet</h1>
-  </header>
-
-  <div class="innehall">
-    @if (sammanfattning(); as text) {
-      <p class="ingress">{{ text }}</p>
-    }
-
-    @if (rader().length === 0) {
-      <div class="tomt">
-        <div class="tomt-ikon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="m4 13 5 5L20 7" /></svg>
-        </div>
-        <h2>Allt är i arkivet</h2>
-        <p>Allt är framme.</p>
-      </div>
-    }
+<!--
+  Ingen tom-vy här. Är utkorgen tom ritar komponenten ingenting alls, och aktiviteten
+  säger själv att det inte finns något att göra — två skärmar som båda påstår "allt är
+  framme" var en av anledningarna till att den här listan flyttade hit.
+-->
+@if (rader().length > 0) {
+  <section class="utkorg" aria-labelledby="utkorg-rubrik">
+    <h2 id="utkorg-rubrik" class="utkorg-rubrik">
+      Ligger kvar i telefonen
+      <span class="antal">{{ rader().length }}</span>
+    </h2>
+    <p class="ingress">
+      Bilderna skickas av sig själva. Den lokala kopian raderas först när servern
+      svarat med samma bild — därför står de kvar tills dess.
+    </p>
 
     @for (rad of rader(); track rad.id) {
       <div class="kort" [class.illa]="rad.fast">
@@ -66,19 +54,19 @@
         }
       </div>
     }
-  </div>
 
-  @if (state().utloggad) {
-    <div class="handzon">
+    <!--
+      Knappen som gäller hela kön står sist i sektionen, inte i en fast handzon längst
+      ned på skärmen: utkorgen äger inte längre skärmen, den är en sektion i den.
+    -->
+    @if (state().utloggad) {
       <a class="knapp primar" routerLink="/logga-in">Logga in igen</a>
-    </div>
-  } @else if (harOmforsok()) {
-    <div class="handzon">
+    } @else if (harOmforsok()) {
       <button type="button" class="knapp primar" [disabled]="offline() || forsoker()" (click)="retry()">
         @if (offline()) { Väntar på nät } @else if (forsoker()) { Försöker … } @else { Försök igen nu }
       </button>
-    </div>
-  }
+    }
+  </section>
 
   <dialog #kastfraga class="fragan" aria-labelledby="kasta-rubrik" (cancel)="angra()" (close)="angra()">
     <h2 id="kasta-rubrik">Kasta bilderna?</h2>
@@ -89,4 +77,4 @@
     <button type="button" class="knapp kastaknapp" (click)="kasta()">Kasta bilderna</button>
     <button type="button" class="knapp kontur" (click)="angra()">Behåll dem</button>
   </dialog>
-</div>
+}

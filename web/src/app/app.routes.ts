@@ -39,11 +39,10 @@ export const routes: Routes = [
     title: 'Aktivitet',
     loadComponent: () => import('./desktop/aktivitet.component').then((m) => m.AktivitetComponent),
   },
-  {
-    path: 'telefon/uppladdning',
-    title: 'På väg till arkivet',
-    loadComponent: () => import('./mobile/upload.component').then((m) => m.UploadComponent),
-  },
+  // Utkorgen hade en egen skärm här, "På väg till arkivet". Den gav telefonen två
+  // listor som båda betydde "inte klart än"; nu står utkorgen överst i aktiviteten.
+  // Adressen leder vidare i stället för att dö — någon kan ha den sparad.
+  { path: 'telefon/uppladdning', redirectTo: 'telefon/aktivitet' },
 
   {
     path: 'dator/kvitton',
@@ -90,7 +89,7 @@ export const routes: Routes = [
   // Gamla adresser. Någon kan ha dem sparade.
   { path: 'kvitton', redirectTo: 'telefon/kvitton' },
   { path: 'fanga', redirectTo: 'telefon/fanga' },
-  { path: 'uppladdning', redirectTo: 'telefon/uppladdning' },
+  { path: 'uppladdning', redirectTo: 'telefon/aktivitet' },
   { path: 'arkiv', redirectTo: 'dator/kvitton' },
   { path: 'kvitto/:id', redirectTo: 'dator/kvitto/:id' },
   { path: 'aktivitet', redirectTo: 'dator/aktivitet' },

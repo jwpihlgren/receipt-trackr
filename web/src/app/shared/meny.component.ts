@@ -1,8 +1,9 @@
-import { Component, ElementRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { QueueService } from '../mobile/queue.service';
 import { AktivitetService } from './aktivitet.service';
 import { AuthService } from './auth.service';
+import { HandelserService } from './handelser.service';
 
 /**
  * Hamburgaren och lådan bakom den. Allt som inte är fångstflödet bor här, så att
@@ -26,6 +27,7 @@ export class MenyComponent {
   private readonly queue = inject(QueueService);
   private readonly aktivitet = inject(AktivitetService);
   private readonly auth = inject(AuthService);
+  private readonly handelser = inject(HandelserService);
   private readonly router = inject(Router);
 
   /** Vilken yta menyn sitter på. Styr bara vilken av lägeslänkarna som visas. */
@@ -35,7 +37,6 @@ export class MenyComponent {
   private readonly state = this.queue.snapshot;
   private readonly lada = viewChild<ElementRef<HTMLDialogElement>>('lada');
 
-  readonly pavag = computed(() => this.state().waiting - this.state().stuck.length);
   readonly fast = computed(() => this.state().stuck.length);
 
   /**
@@ -45,7 +46,22 @@ export class MenyComponent {
    */
   readonly ofardiga = this.aktivitet.antal;
 
+  /**
+   * Vad som återstår sett från telefonen: serverns ofärdiga **plus** det som ligger
+   * kvar i telefonens egen utkorg. Två siffror var rimligt när utkorgen hade en egen
+   * skärm. Nu leder båda till samma lista, och då ska det stå en siffra — annars
+   * påstår menyn att det finns två högar att beta av.
+   */
+  readonly attGora = computed(() => this.ofardiga() + this.state().receipts.length);
+
   constructor() {
+    /**
+     * Menyn står på varje skärm, så det är den som håller strömmen öppen — och
+     * siffran är därför sann även när den ändras av någon annan enhet medan lådan
+     * står öppen. Siffran hämtas bara när något faktiskt hänt, inte på en klocka.
+     */
+    inject(DestroyRef).onDestroy(this.handelser.folj(() => void this.aktivitet.hamta()));
+
     // Signalen styr, <dialog> visar. `showModal()` är det som ger Esc, fokusfälla
     // och inert bakgrund; attributet `open` ger utseendet men inget av det.
     effect(() => {

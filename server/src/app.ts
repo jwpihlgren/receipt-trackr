@@ -14,6 +14,7 @@ import { openAuth } from "./auth.js";
 import { registerReceipts } from "./http/receipts.js";
 import { registerBackup } from "./http/backup.js";
 import { registerJobb } from "./http/jobb.js";
+import { registerHandelser } from "./http/handelser.js";
 import { Reservationer } from "./jobb.js";
 import { BackupJob } from "./backup/job.js";
 import { Archive } from "./store/archive.js";
@@ -53,6 +54,9 @@ export async function buildApp(config: Config, options: FastifyServerOptions = {
   }
 
   registerReceipts(app, archive);
+  // Strömmen ligger bakom samma grind som allt annat under /api: grinden är en
+  // preHandler registrerad ovanför, och gäller därför även den här rutten.
+  registerHandelser(app, archive.handelser);
   registerJobb(app, archive, new Reservationer());
   // Utan monterad katalog finns ingen säkerhetskopiering — rutterna svarar då 503
   // med ett begripligt skäl i stället för att saknas.

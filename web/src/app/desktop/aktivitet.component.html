@@ -42,12 +42,23 @@
   }
 
   <main class="p-4">
+    <!--
+      Utkorgen står överst, före serverns lista. Ordningen är inte godtycklig: en bild
+      som ligger kvar i telefonen har inte ens nått fram, och det är ett tidigare läge
+      än allt annat i tabellen.
+    -->
+    @if (yta() === 'mobil') {
+      <app-utkorg />
+    }
+
     @if (data() === null) {
       <div class="flex items-center gap-3 p-4 text-neutral">
         <span class="loading loading-spinner loading-sm"></span> Hämtar …
       </div>
     } @else if (rader().length === 0) {
-      <p class="text-neutral">Inget kvitto väntar på något.</p>
+      @if (iUtkorgen() === 0) {
+        <p class="text-neutral">Inget kvitto väntar på något.</p>
+      }
     } @else {
       <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
         <table class="table table-sm">

@@ -43,23 +43,21 @@
             Kvitton
           </a>
         </li>
-        <li>
-          <a routerLink="/telefon/uppladdning" (click)="close()">
-            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5" /><path d="m5 12 7-7 7 7" /></svg>
-            På väg till arkivet
-            @if (pavag() > 0) { <span class="badge badge-sm">{{ pavag() }}</span> }
-          </a>
-        </li>
+        <!--
+          "På väg till arkivet" var en egen rad hit ut. Den listan bor nu överst i
+          aktiviteten, och siffran här räknar därför både det som ligger kvar i
+          telefonen och det servern inte fått klart — samma mängd som skärmen visar.
+        -->
         <li>
           <a routerLink="/telefon/aktivitet" (click)="close()">
             <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4" /></svg>
             Aktivitet
-            @if (ofardiga() > 0) { <span class="badge badge-sm">{{ ofardiga() }}</span> }
+            @if (attGora() > 0) { <span class="badge badge-sm">{{ attGora() }}</span> }
           </a>
         </li>
         @if (fast() > 0) {
           <li>
-            <a class="text-error" routerLink="/telefon/uppladdning" (click)="close()">
+            <a class="text-error" routerLink="/telefon/aktivitet" (click)="close()">
               <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
               Kom inte fram
               <span class="badge badge-sm badge-error">{{ fast() }}</span>

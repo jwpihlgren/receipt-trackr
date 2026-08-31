@@ -4,7 +4,9 @@ import { QueueService } from './queue.service';
 import { CaptureFlowService } from './capture-flow.service';
 import { MenyComponent } from '../shared/meny.component';
 import { TolkningService } from '../ocr/tolkning.service';
+import { HandelserService } from '../shared/handelser.service';
 import { dagrubrik, tid } from '../shared/datum';
+import { belopp } from '../shared/belopp';
 
 export type ReceiptRow = {
   id: string;
@@ -39,6 +41,9 @@ type Grupp = { rubrik: string; rader: ReceiptRow[] };
   styleUrl: './lista.component.css',
 })
 export class ListaComponent {
+  /** Samma tal, samma skrivsätt som i arkivet — regeln bor i shared/belopp.ts. */
+  readonly belopp = belopp;
+
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
@@ -53,6 +58,7 @@ export class ListaComponent {
    * flertrådad WASM.
    */
   readonly tolkning = inject(TolkningService);
+  private readonly handelser = inject(HandelserService);
 
   readonly receipts = signal<ReceiptRow[] | null>(null);
   readonly total = signal(0);
@@ -103,9 +109,14 @@ export class ListaComponent {
     // det här fortsatte datorn tolka av sig själv efter ett byte till datorläget i
     // samma flik, vilket är en regel som inte får brytas: den datorn arbetar när
     // dess ägare säger till, aldrig annars.
+    // Samma ström som datorn lyssnar på: rättar man ett kvitto vid datorn syns det
+    // i handen utan att listan dras ned.
+    const slutaFolja = this.handelser.folj(() => void this.load());
+
     inject(DestroyRef).onDestroy(() => {
       this.tolkning.stoppaLopande();
       this.queue.stop();
+      slutaFolja();
     });
 
     // Hämtar om listan varje gång ett kvitto blivit tolkat. Utan det arbetar

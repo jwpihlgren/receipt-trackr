@@ -3,6 +3,9 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
 import { RaderaRutaComponent } from '../shared/radera-ruta.component';
+import { UtkorgComponent } from '../mobile/utkorg.component';
+import { QueueService } from '../mobile/queue.service';
+import { HandelserService } from '../shared/handelser.service';
 import { tidpunkt } from '../shared/datum';
 
 type Lage = 'bilder' | 'ofullstandig' | 'vantar' | 'utan_text' | 'svag_text' | 'saknar_falt';
@@ -32,7 +35,7 @@ type Aktivitet = { total: number; vantar: number; receipts: Rad[] };
  */
 @Component({
   selector: 'app-aktivitet',
-  imports: [RouterLink, MenyComponent, RaderaRutaComponent],
+  imports: [RouterLink, MenyComponent, RaderaRutaComponent, UtkorgComponent],
   templateUrl: './aktivitet.component.html',
 })
 export class AktivitetComponent {
@@ -40,6 +43,8 @@ export class AktivitetComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly avslut = inject(DestroyRef);
   readonly tolkning = inject(TolkningService);
+  private readonly queue = inject(QueueService);
+  private readonly handelser = inject(HandelserService);
 
   /** Samma skärm på båda ytorna; menyn och länkarna följer den man kom ifrån. */
   readonly yta = computed<'mobil' | 'dator'>(() =>
@@ -48,6 +53,15 @@ export class AktivitetComponent {
 
   readonly data = signal<Aktivitet | null>(null);
   readonly error = signal<string | null>(null);
+
+  /**
+   * Bilder som ligger kvar i telefonens egen utkorg.
+   *
+   * De hör hemma i den här listan — de är också "inte klart än" — men de kommer inte
+   * från servern och finns bara på den telefon som tog dem. Därför bara i telefonläget:
+   * datorn har ingen utkorg, och raden var alltid tom där.
+   */
+  readonly iUtkorgen = computed(() => (this.yta() === 'mobil' ? this.queue.snapshot().receipts.length : 0));
 
   readonly rader = computed(() => this.data()?.receipts ?? []);
   readonly vantar = computed(() => this.data()?.vantar ?? 0);
@@ -58,6 +72,9 @@ export class AktivitetComponent {
     void this.load();
     void this.tolkning.rakna();
     this.lyssnaPaFokus();
+    // Listan följer arkivet medan man tittar på den: laddar telefonen upp ett kvitto
+    // syns det här utan att någon rör datorn.
+    this.avslut.onDestroy(this.handelser.folj(() => void this.load()));
   }
 
   async load(): Promise<void> {
@@ -88,6 +105,9 @@ export class AktivitetComponent {
    * Lyssnaren tas bort med komponenten. Ett `addEventListener` utan sitt
    * `removeEventListener` är samma fel som pulslyssnaren i tolkningstjänsten var:
    * skärmen är borta, men något den startade lever kvar och hämtar.
+   *
+   * Den står kvar även sedan händelseströmmen finns, som reserv: tappar strömmen och
+   * webbläsaren inte hunnit återansluta är fönsterfokus den andra chansen.
    */
   private lyssnaPaFokus(): void {
     const pa = (): void => void this.load();

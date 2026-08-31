@@ -6,7 +6,7 @@
   </header>
 
   @if (kvarText(); as text) {
-    <a class="remsa" [class.illa]="kvarIlla()" routerLink="/telefon/uppladdning">
+    <a class="remsa" [class.illa]="kvarIlla()" routerLink="/telefon/aktivitet">
       @if (kvarIlla()) {
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
       } @else {
@@ -73,7 +73,7 @@
                       {{ rad.segments }} {{ rad.segments === 1 ? 'bild' : 'bilder' }}@if (rad.tecken === 0) { · inte tolkat än }
                     </span>
                   </span>
-                  @if (rad.total !== null) { <span class="belopp num">{{ rad.total }} kr</span> }
+                  @if (rad.total !== null) { <span class="belopp num">{{ belopp(rad.total) }} kr</span> }
                   @if (status(rad) === 'arkiv') {
                     <span class="lage klar">
                       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 13 5 5L20 7" /></svg>

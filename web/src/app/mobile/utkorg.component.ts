@@ -1,4 +1,4 @@
-import { Component, DestroyRef, computed, inject, effect, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ElementRef, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { QueueService, type Fastnat } from './queue.service';
@@ -14,27 +14,29 @@ type Rad = {
 };
 
 /**
- * Sidan visar bara det som **inte** är i arkivet. Är allt framme står här ingenting
- * att göra, och det är rätt: en lista över det som redan är klart är en lista ingen
- * behöver läsa.
+ * Telefonens utkorg: bilder som ligger kvar på den här telefonen och ännu inte kommit
+ * fram till servern.
  *
- * Uppladdningen startar av sig själv så fort en bild lagts i kön. Sidan är alltså
- * fönstret in i något som redan pågår, inte startknappen — och det står utskrivet,
- * så att ingen står och väntar på att trycka.
+ * Den hade en egen skärm, `/telefon/uppladdning`, kallad "På väg till arkivet". Det gav
+ * telefonen **två** listor som båda betydde "inte klart än" — utkorgen och aktiviteten
+ * — och man fick titta på båda för att veta att allt gått i mål. Nu står utkorgen
+ * överst i aktiviteten, som ett läge bland de andra, och skärmen är borttagen.
  *
- * Bilderna hämtas ur telefonens egen kö, aldrig ur arkivet. Tumnaglarna pekade förut
- * på `/api/receipts/:id/thumbs/1`, vilket är garanterat 404 här: raderna finns
- * definitionsmässigt kvar just därför att de ännu inte nått arkivet. Bytesen ligger i
- * IndexedDB, och det är den enda bild som finns att visa.
+ * Att listorna hämtar från olika håll ändras inte av det: **utkorgen är telefonens egen
+ * disk, aktiviteten är serverns lista.** Därför visas den här bara i telefonläget —
+ * datorn har ingen utkorg, och raden var alltid tom där.
+ *
+ * Bilderna hämtas ur köns egna bytes i IndexedDB, aldrig ur arkivet. Tumnaglarna pekade
+ * en gång på `/api/receipts/:id/thumbs/1`, vilket är garanterat 404 här: raderna finns
+ * definitionsmässigt kvar just därför att de ännu inte nått arkivet.
  */
 @Component({
-  selector: 'app-upload',
-  host: { 'data-density': 'comfortable' },
+  selector: 'app-utkorg',
   imports: [RouterLink],
-  templateUrl: './upload.component.html',
-  styleUrl: './upload.component.css',
+  templateUrl: './utkorg.component.html',
+  styleUrl: './utkorg.component.css',
 })
-export class UploadComponent {
+export class UtkorgComponent {
   private readonly queue = inject(QueueService);
   readonly state = this.queue.snapshot;
 
@@ -52,12 +54,6 @@ export class UploadComponent {
       tumnagel: (this.trasiga().has(id) ? null : this.tumnaglar()[id]) ?? null,
     })),
   );
-
-  readonly sammanfattning = computed(() => {
-    const n = this.state().receipts.length;
-    if (n === 0) return null;
-    return `${n} ${n === 1 ? 'kvitto är' : 'kvitton är'} på väg till arkivet.`;
-  });
 
   /** Finns det något ett nytt försök kan lösa? Annars ska knappen inte stå där alls. */
   readonly harOmforsok = this.queue.harOmforsok;

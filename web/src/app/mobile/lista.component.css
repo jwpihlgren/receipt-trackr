@@ -78,9 +78,12 @@
 }
 
 .text { display: grid; gap: var(--space-1); min-width: 0; flex: 1 1 auto; }
-.huvud { font-size: var(--typ-base); }
+/* Butiksnamnet kapas, beloppet gör det aldrig: ett tal som bryts mitt itu läses fel,
+   och `Systembolaget` med två decimaler bredvid sig gjorde raden två rader hög så fort
+   beloppen började skrivas ut som i arkivet. Namnet är det som får ge vika. */
+.huvud { font-size: var(--typ-base); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .under { color: var(--ink-faint); font-size: var(--typ-sm); }
-.belopp { font-size: var(--typ-base); }
+.belopp { font-size: var(--typ-base); white-space: nowrap; flex: 0 0 auto; }
 
 .lage { display: flex; align-items: center; gap: var(--space-1); color: var(--ink-faint); font-size: var(--typ-sm); flex: 0 0 auto; }
 .lage.klar { color: var(--ok); }

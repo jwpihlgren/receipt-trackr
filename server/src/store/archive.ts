@@ -31,6 +31,7 @@ import { kategoriFor, lasKategorier, skrivKategorier, type Kategorier } from "./
 import { utvinnUtanAttSkrivaOver, type Falten } from "../falt/index.js";
 import { utvinnIdentitet } from "../falt/identitet.js";
 import { standard as standardlage } from "./kategorier.js";
+import { Handelser } from "../handelser.js";
 
 export class ConflictError extends Error {}
 export { ImageError };
@@ -59,6 +60,15 @@ export class Archive {
    * filen är sanningen: ändras den skrivs den om härifrån, aldrig tvärtom.
    */
   private kategorierna: Kategorier = standardlage();
+
+  /**
+   * Vad som ändrats, för dem som tittar på arkivet just nu.
+   *
+   * Den sitter här och inte i HTTP-lagret därför att `persist` är den enda punkt all
+   * skrivning går genom. En rutt som kom ihåg att sända skulle förr eller senare vara
+   * en rutt som glömde det — samma skäl som gör att skrivordningen bara finns här.
+   */
+  readonly handelser = new Handelser();
 
   static open(dataDir: string): Archive {
     const { db, rebuilt } = openIndex(indexPath(dataDir));
@@ -396,6 +406,9 @@ export class Archive {
   private async persist(receipt: Receipt): Promise<void> {
     await writeSidecar(this.dataDir, receipt);
     upsert(this.db, receipt, this.kategorierna);
+    // Sist av allt, och bara när båda gick igenom: en händelse om en skrivning som
+    // inte blev av skulle skicka klienterna efter något som inte finns.
+    this.handelser.sand({ typ: "kvitto", id: receipt.id });
   }
 
   /**
@@ -431,6 +444,7 @@ export class Archive {
       if (!receipt) continue;
       remove(this.db, medlem, this.kategorierna);
       await rm(receiptDir(this.dataDir, medlem), { recursive: true, force: true });
+      this.handelser.sand({ typ: "borttaget", id: medlem });
       antal++;
     }
     return { borttaget: antal > 0, antal };

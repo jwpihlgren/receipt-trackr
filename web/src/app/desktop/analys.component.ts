@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { belopp, heltBelopp } from '../shared/belopp';
 import { Router, RouterLink } from '@angular/router';
 import { MenyComponent } from '../shared/meny.component';
 
@@ -158,14 +159,10 @@ export class AnalysComponent {
     return new Date(Date.UTC(Number(ar), Number(nr) - 1, 1)).toLocaleDateString('sv-SE', { month: 'long' });
   }
 
-  belopp(varde: number | null): string {
-    return varde === null ? '—' : varde.toLocaleString('sv-SE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
+  readonly belopp = belopp;
 
   /** Heltal utan ören: staplarnas etiketter ska läsas i ögonvrån, inte räknas. */
-  hela(varde: number): string {
-    return Math.round(varde).toLocaleString('sv-SE');
-  }
+  readonly hela = heltBelopp;
 
   /**
    * Skillnaden mot föregående period, i ord och tal. `null` betyder att perioden före
