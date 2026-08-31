@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    a { color: #e2b04a; text-decoration: none; } a:hover { color: #f0c469; }
+    .t { width: 100%; border-collapse: collapse; }
+    .t th { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: #9d968d; text-align: left; padding: 0 20px 10px; white-space: nowrap; }
+    .t td { font-size: 13px; padding: 0 20px; height: 44px; border-top: 1px solid #2b2a31; white-space: nowrap; }
+    .n { font-variant-numeric: tabular-nums; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 500; }
+    .prick { width: 6px; height: 6px; border-radius: 50%; }
+    .lank { font-size: 12px; }
+  </style>
+</helmet>
+<div style="width: 1440px; height: 900px; background: #17161a; color: #ece9e4; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 20px; border-bottom: 1px solid #2b2a31; flex-shrink: 0;">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9d968d" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>
+    <span style="font-size: 15px; font-weight: 600;">Aktivitet</span>
+    <div style="margin-left: auto; display: flex; gap: 8px;">
+      <div style="height: 30px; border-radius: 6px; border: 1px solid #2f2e35; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #ece9e4;">Tolka om fälten</div>
+      <div style="height: 30px; border-radius: 6px; display: flex; align-items: center; padding: 0 12px; font-size: 12px; color: #9d968d;">Uppdatera</div>
+    </div>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: #211f19; border-bottom: 1px solid #2b2a31; flex-shrink: 0;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e2b04a" stroke-width="2.5" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9" opacity="0.35"/><path d="M12 3a9 9 0 0 1 9 9"/></svg>
+    <span style="font-size: 13px;">Läser bild 2 av 3 · Coop Konsum</span>
+    <div style="margin-left: auto; height: 28px; border-radius: 6px; border: 1px solid #2f2e35; display: flex; align-items: center; padding: 0 12px; font-size: 12px;">Sluta efter det här</div>
+  </div>
+
+  <div style="flex-grow: 1; padding: 20px 0 0; overflow: hidden;">
+    <table class="t">
+      <thead><tr>
+        <th style="width: 92px;"></th><th>Butik</th><th style="width: 130px; text-align: right;">Belopp</th>
+        <th style="width: 120px;">Datum</th><th style="width: 260px;">Status</th><th style="width: 150px;">Fångat</th><th style="width: 210px;"></th>
+      </tr></thead>
+      <tbody>
+        <tr><td><div style="width: 36px; height: 30px; border-radius: 3px; background: #2b2a31;"></div></td>
+          <td>Ica Maxi</td><td class="n" style="text-align: right;">1 204,00</td><td class="n">2026-08-30</td>
+          <td><span class="chip" style="background: #3b1f1c; color: #f0938a;"><span class="prick" style="background: #f0938a;"></span>2 bilder saknas</span></td>
+          <td class="n" style="color: #9d968d;">30 aug 14:12</td>
+          <td style="text-align: right;"><a href="#" class="lank" style="margin-right: 14px;">Läs om bilden</a><a href="#" class="lank">Öppna</a></td></tr>
+
+        <tr style="background: #1c1b20;"><td><div style="width: 36px; height: 30px; border-radius: 3px; background: #2b2a31;"></div></td>
+          <td>Coop Konsum</td><td class="n" style="text-align: right;">284,50</td><td class="n">2026-08-29</td>
+          <td><span class="chip" style="background: #3a3320; color: #e5b168;"><span class="prick" style="background: #e5b168;"></span>Saknar datum och belopp</span></td>
+          <td class="n" style="color: #9d968d;">29 aug 09:03</td>
+          <td style="text-align: right;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e2b04a" stroke-width="2.5" stroke-linecap="round" style="display: inline-block; margin-right: 14px; vertical-align: -2px;"><path d="M12 3a9 9 0 1 0 9 9" opacity="0.35"/><path d="M12 3a9 9 0 0 1 9 9"/></svg><a href="#" class="lank">Öppna</a></td></tr>
+
+        <tr><td><div style="width: 36px; height: 30px; border-radius: 3px; background: #2b2a31;"></div></td>
+          <td style="color: #9d968d;">—</td><td class="n" style="text-align: right; color: #9d968d;">—</td><td class="n" style="color: #9d968d;">—</td>
+          <td><span class="chip" style="background: #3b1f1c; color: #f0938a;"><span class="prick" style="background: #f0938a;"></span>Bilden gick knappt att läsa</span></td>
+          <td class="n" style="color: #9d968d;">28 aug 18:40</td>
+          <td style="text-align: right;"><a href="#" class="lank" style="margin-right: 14px;">Läs om bilden</a><a href="#" class="lank">Öppna</a></td></tr>
+
+        <tr><td><div style="width: 36px; height: 30px; border-radius: 3px; background: #2b2a31;"></div></td>
+          <td style="color: #9d968d;">—</td><td class="n" style="text-align: right; color: #9d968d;">—</td><td class="n" style="color: #9d968d;">—</td>
+          <td><span class="chip" style="background: #25242a; color: #9d968d;"><span class="prick" style="background: #6c665f;"></span>Väntar på tolkning</span></td>
+          <td class="n" style="color: #9d968d;">28 aug 18:39</td>
+          <td style="text-align: right;"><a href="#" class="lank" style="margin-right: 14px;">Tolka nu</a><a href="#" class="lank">Öppna</a></td></tr>
+
+        <tr><td><div style="width: 36px; height: 30px; border-radius: 3px; background: #2b2a31;"></div></td>
+          <td>Pressbyrån</td><td class="n" style="text-align: right;">42,00</td><td class="n" style="color: #9d968d;">—</td>
+          <td><span class="chip" style="background: #3a3320; color: #e5b168;"><span class="prick" style="background: #e5b168;"></span>Fångsten avslutades inte</span></td>
+          <td class="n" style="color: #9d968d;">27 aug 12:21</td>
+          <td style="text-align: right;"><a href="#" class="lank">Öppna</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

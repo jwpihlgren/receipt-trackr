@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    a { color: #e2b04a; text-decoration: none; } a:hover { color: #f0c469; }
+    .n { font-variant-numeric: tabular-nums; }
+    .t { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
+    .t th { font-size: 14px; font-weight: 600; color: #9d968d; white-space: nowrap; padding: 8px 12px; border-bottom: 1px solid rgb(236 233 228 / 0.05); }
+    .t td { font-size: 12px; vertical-align: middle; padding: 8px 12px; border-bottom: 1px solid rgb(236 233 228 / 0.05); }
+    .t tr:last-child td { border-bottom: 0; }
+    .tumnagel { width: 30px; aspect-ratio: 3 / 4; border: 1px solid #2b2a31; border-radius: 4px; background: #0e0d10; display: block; }
+    .falt { height: 32px; border-radius: 6px; border: 1px solid #6e6c7b; background: #1f1e23; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 14px; color: #ece9e4; }
+    .etikett { font-size: 12px; color: #9d968d; }
+    .knapp { height: 32px; border-radius: 6px; display: inline-flex; align-items: center; padding: 0 12px; font-size: 12px; font-weight: 600; }
+  </style>
+</helmet>
+<div style="width: 1440px; height: 900px; background: #17161a; color: #ece9e4; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: #1f1e23; border-bottom: 1px solid #2b2a31; flex-shrink: 0;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ece9e4" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>
+    <span style="font-size: 18px; font-weight: 600;">Kvitton</span>
+    <span class="n" style="font-size: 14px; color: #9d968d;">30 kvitton</span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: #1f1e23; border-bottom: 1px solid #2b2a31; flex-shrink: 0;">
+    <span style="font-size: 14px;">3 kvitton är inte klara</span>
+    <span class="knapp" style="margin-left: auto; background: #e2b04a; color: #17161a;">Aktivitet</span>
+  </div>
+
+  <div style="display: flex; align-items: flex-end; gap: 12px; padding: 12px 16px; background: #1f1e23; border-bottom: 1px solid #2b2a31; flex-shrink: 0;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span class="etikett">Sök i texten</span>
+      <div class="falt" style="width: 256px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9d968d" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span style="color: #9d968d;">Sök i texten</span>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span class="etikett">Butik</span>
+      <div class="falt" style="width: 192px; justify-content: space-between;"><span>Alla butiker</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9d968d" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span class="etikett">Från</span>
+      <div class="falt n" style="width: 150px; color: #9d968d;">åååå-mm-dd</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span class="etikett">Till</span>
+      <div class="falt n" style="width: 150px; color: #9d968d;">åååå-mm-dd</div>
+    </div>
+    <span class="knapp" style="background: #e2b04a; color: #17161a;">Sök</span>
+  </div>
+
+  <div style="flex-grow: 1; padding: 16px; overflow: hidden;">
+    <div style="border: 1px solid #2b2a31; border-radius: 8px; background: #1f1e23; overflow: hidden;">
+      <table class="t">
+        <thead><tr>
+          <th style="width: 56px;"></th>
+          <th style="width: 120px;">Datum</th>
+          <th>Butik</th>
+          <th style="width: 130px; text-align: right;">Belopp</th>
+          <th style="width: 90px; text-align: right;">Bilder</th>
+          <th style="width: 120px;">Fångat</th>
+          <th style="width: 96px;"></th>
+        </tr></thead>
+        <tbody>
+
+          <tr>
+            <td><span class="tumnagel"></span></td>
+            <td class="n">2026-06-03</td>
+            <td>Flügger
+              <span style="display: block; color: #9d968d; margin-top: 2px;">kvitto och kortslipp</span>
+            </td>
+            <td class="n" style="text-align: right;">722,95 kr</td>
+            <td class="n" style="text-align: right;">2</td>
+            <td class="n" style="color: #9d968d;">28 aug</td>
+            <td style="text-align: right;"><a href="#" style="font-size: 12px; font-weight: 600;">Öppna</a></td>
+          </tr>
+
+          <tr>
+            <td><span class="tumnagel"></span></td>
+            <td class="n">2026-05-25</td>
+            <td>Byggmax</td>
+            <td class="n" style="text-align: right;">438,00 kr</td>
+            <td class="n" style="text-align: right;">1</td>
+            <td class="n" style="color: #9d968d;">28 aug</td>
+            <td style="text-align: right;"><a href="#" style="font-size: 12px; font-weight: 600;">Öppna</a></td>
+          </tr>
+
+          <tr>
+            <td><span class="tumnagel"></span></td>
+            <td class="n">2026-05-25</td>
+            <td>Byggmax</td>
+            <td class="n" style="text-align: right;">219,00 kr</td>
+            <td class="n" style="text-align: right;">1</td>
+            <td class="n" style="color: #9d968d;">28 aug</td>
+            <td style="text-align: right;"><a href="#" style="font-size: 12px; font-weight: 600;">Öppna</a></td>
+          </tr>
+
+          <tr>
+            <td><span class="tumnagel"></span></td>
+            <td class="n">2026-04-20</td>
+            <td>Colorama
+              <span style="display: block; color: #9d968d; margin-top: 2px;">tre foton av samma kvitto</span>
+            </td>
+            <td class="n" style="text-align: right;">3 474,00 kr</td>
+            <td class="n" style="text-align: right;">3</td>
+            <td class="n" style="color: #9d968d;">28 aug</td>
+            <td style="text-align: right;"><a href="#" style="font-size: 12px; font-weight: 600;">Öppna</a></td>
+          </tr>
+
+          <tr>
+            <td><span class="tumnagel"></span></td>
+            <td class="n">2026-04-20</td>
+            <td>Jula</td>
+            <td class="n" style="text-align: right;">248,80 kr</td>
+            <td class="n" style="text-align: right;">1</td>
+            <td class="n" style="color: #9d968d;">28 aug</td>
+            <td style="text-align: right;"><a href="#" style="font-size: 12px; font-weight: 600;">Öppna</a></td>
+          </tr>
+
+          <tr>
+            <td><span class="tumnagel"></span></td>
+            <td class="n">2026-04-17</td>
+            <td>Colorama
+              <span style="display: block; color: #9d968d; margin-top: 2px;">tre foton av samma kvitto</span>
+            </td>
+            <td class="n" style="text-align: right;">90,00 kr</td>
+            <td class="n" style="text-align: right;">3</td>
+            <td class="n" style="color: #9d968d;">28 aug</td>
+            <td style="text-align: right;"><a href="#" style="font-size: 12px; font-weight: 600;">Öppna</a></td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

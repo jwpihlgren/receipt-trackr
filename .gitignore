@@ -22,6 +22,9 @@ data/
 # går att hämta igen hör inte hemma i historiken — arkivet ska bära kvitton.
 /web/public/modeller/
 
-# Seedad designduk — byggs om ur design/*.dc.html + canvas.json
+# Seedad designduk — byggs om ur design/*.dc.html + canvas.json. Källorna är inte
+# duken: mönstret tog med sig `.dc.html` också, och sex artboards låg utanför
+# historiken utan att någon märkte det förrän de skulle ritas om.
 design/*.html
+!design/*.dc.html
 !design/kvittoflodet-mobil.html
