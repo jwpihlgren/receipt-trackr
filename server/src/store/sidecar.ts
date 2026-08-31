@@ -7,6 +7,7 @@
 import { open, mkdir, readFile, rename, rm } from "node:fs/promises";
 import { dirname } from "node:path";
 import { sidecarPath } from "./paths.js";
+import type { Identitet } from "../falt/identitet.js";
 
 export const SCHEMA = "receipt-trackr/receipt@1";
 
@@ -74,6 +75,17 @@ export type Receipt = {
   tags: { user: string[]; auto: string[] };
   /** Hela råtexten, radbruten. Fylls av OCR-steget i M5. */
   text: string;
+  /**
+   * Kvittots egna nummer: organisationsnummer, kvittonummer, klockslag,
+   * kortterminalens referens. Härlett ur `text`, precis som `fields`, och skrivet i
+   * samma stund.
+   *
+   * Det är identiteten som avgör vilka kvitton som visar **samma köp**. Grupperna
+   * själva står däremot aldrig här: en grupp är ett påstående om två kvitton, och
+   * ändras det ena kan det andras sidecar inte skrivas om i samma andetag. Grupper
+   * härleds därför i indexet, där de får kastas och räknas om.
+   */
+  identity?: Identitet;
 };
 
 export function newReceipt(id: string, capturedAt: string, backlog: boolean): Receipt {

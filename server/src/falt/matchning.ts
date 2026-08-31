@@ -168,8 +168,28 @@ const skiljer = <T>(a: T | undefined, b: T | undefined): boolean =>
 const samma = <T>(a: T | undefined, b: T | undefined): boolean =>
   a !== undefined && b !== undefined && a === b;
 
-const delarKortref = (a: Nyckel, b: Nyckel): boolean =>
-  !!a.kortref?.length && !!b.kortref?.length && a.kortref.some((r) => b.kortref!.includes(r));
+/**
+ * Hur lång en referens måste vara för att ensam bevisa att två kvitton är samma köp.
+ *
+ * Kortterminalens referens kommer i två former, och bara den ena är en identitet.
+ * `031232001580` är dag, klockslag och löpnummer — unik i praktiken. En sexsiffrig
+ * auktoriseringskod är det inte: den är utgivarens löpnummer, och räknar man
+ * födelsedagsproblemet på tiotusen kvitton i ett rum av en miljon koder väntas ett
+ * femtiotal krockar. De flesta stoppas av att beloppen skiljer, men ett kvitto vars
+ * belopp inte gick att läsa har ingen sådan spärr — och en felaktig sammanslagning
+ * döljer ett köp utan att någonsin synas.
+ *
+ * En kort referens är alltså inget ankare. Den står kvar i identiteten som något en
+ * människa kan läsa, men den binder inte ihop två kvitton på egen hand: då krävs
+ * samma dag och samma belopp som för alla andra.
+ */
+const REF_GOLV = 8;
+
+const delarKortref = (a: Nyckel, b: Nyckel): boolean => {
+  const langa = (n: Nyckel): string[] => (n.kortref ?? []).filter((r) => r.length >= REF_GOLV);
+  const bs = new Set(langa(b));
+  return langa(a).some((r) => bs.has(r));
+};
 
 /**
  * Kvittots klocka och kortterminalens är inte samma klocka. På beställarens

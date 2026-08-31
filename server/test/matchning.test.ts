@@ -50,6 +50,22 @@ describe("matchning av kvitton", () => {
     expect(gruppen).toEqual(["colorama-90-a", "colorama-90-b", "colorama-90-c"]);
   });
 
+  /**
+   * En sexsiffrig auktoriseringskod är utgivarens löpnummer, inte en identitet: på
+   * tiotusen kvitton väntas ett femtiotal krockar. Terminalens egen referens — dag,
+   * klockslag och löpnummer — är det, och den binder även när beloppet inte gick att
+   * läsa på det ena kvittot.
+   */
+  it("låter bara en lång kortreferens ensam bevisa att två kvitton är samma köp", () => {
+    const kort = { id: "kort-a", kortref: ["333333"], belopp: 90 };
+    const kortUtanBelopp = { id: "kort-b", kortref: ["333333"] };
+    expect(matchar(kort, kortUtanBelopp)).toBeNull();
+
+    const lang = { id: "lang-a", kortref: ["171723000475"], belopp: 90 };
+    const langUtanBelopp = { id: "lang-b", kortref: ["171723000475"] };
+    expect(matchar(lang, langUtanBelopp)).toBe("saker");
+  });
+
   it("slår aldrig ihop två köp i samma butik samma dag", () => {
     expect(matchar(av("byggmax-219"), av("byggmax-438"))).toBeNull();
     expect(matchar(av("bauhaus-149"), av("bauhaus-356"))).toBeNull();

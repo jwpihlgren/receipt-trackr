@@ -57,8 +57,16 @@ efterblivet — kör om indexeringen, så är de i takt igen. Det omvända kan i
 ## Vad den här versionen skriver
 
 Version ${VERSION} lagrar kvitton: segmentbilder, sidecar, tumnaglar och sökindex.
-Fälten (\`fields\`) och råtexten (\`text\`) fylls först när textutläsningen finns på
-plats, så de står tomma tills vidare.
+Råtexten står i \`text\`, de utvunna fälten i \`fields\` med konfidens och källa per
+fält, och kvittots egna nummer i \`identity\` — organisationsnummer, kvittonummer,
+klockslag och kortterminalens referens.
+
+Att två kvitton visar **samma köp** — flera foton av samma papper, eller kvittot och
+kortslippen — står däremot ingenstans i \`receipts/\`. Det är ett påstående om två
+kvitton, och två sidecarer kan inte skrivas atomiskt tillsammans; grupperna räknas
+därför fram ur \`identity\` och fälten varje gång indexet byggs. Vill du hitta dem utan
+mjukvaran: kvitton med samma belopp, samma dag och samma organisationsnummer eller
+kortreferens är samma köp.
 `;
 }
 

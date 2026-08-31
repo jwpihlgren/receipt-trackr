@@ -14,6 +14,7 @@ import {
   butiker,
   count,
   ftsQuery,
+  gruppFor,
   lageFor,
   ofardiga,
   ogranskatUrval,
@@ -125,12 +126,25 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
    * `lage` är härlett och står aldrig i sidecaren. Utan det landade den som klickat
    * på "Bilden gick knappt att läsa" på en sida där den formuleringen inte fanns
    * någonstans, och fick gissa vad som förväntades.
+   *
+   * `fields` är kvittots **effektiva** fält: gruppens röstade värden när flera foton
+   * visar samma köp, annars kvittots egna. Sidecaren på disk bär oförändrat den här
+   * bildens egen läsning — men skärmen ska inte kunna visa ett annat butiksnamn än
+   * arkivlistan gör för samma köp. `egnaFalt` finns kvar för den som vill se vad just
+   * det här fotografiet gav.
    */
   app.get<{ Params: { id: string } }>("/api/receipts/:id", async (request, reply) => {
     const receipt = await archive.get(request.params.id);
     if (!receipt) return reply.code(404).send({ error: "not_found" });
     const ofardigt = lageFor(archive.db, request.params.id);
-    return { ...receipt, lage: ofardigt?.lage ?? null, saknadeFalt: ofardigt?.saknadeFalt ?? [] };
+    const gruppen = gruppFor(archive.db, request.params.id);
+    return {
+      ...receipt,
+      ...(gruppen ? { fields: gruppen.falt, egnaFalt: receipt.fields } : {}),
+      grupp: gruppen?.grupp ? { id: gruppen.grupp, medlemmar: gruppen.medlemmar } : null,
+      lage: ofardigt?.lage ?? null,
+      saknadeFalt: ofardigt?.saknadeFalt ?? [],
+    };
   });
 
   // Bilderna lämnas ut direkt ur arkivet — de är oföränderliga, så de får cachas hårt.

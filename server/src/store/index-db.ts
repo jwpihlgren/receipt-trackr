@@ -11,6 +11,10 @@
  */
 import Database from "better-sqlite3";
 import type { Receipt } from "./sidecar.js";
+import { utvinnIdentitet, type Identitet } from "../falt/identitet.js";
+import { gruppera, nyckel } from "../falt/matchning.js";
+import { rosta } from "../falt/rostning.js";
+import type { Falten } from "../falt/index.js";
 
 export type ReceiptIndex = Database.Database;
 
@@ -20,7 +24,7 @@ export type ReceiptIndex = Database.Database;
  * Det är hela poängen med ett härlett index — höj siffran när kolumnerna ändras
  * och skriv aldrig ett `ALTER TABLE`.
  */
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } {
   const db = new Database(path);
@@ -31,7 +35,9 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
   // tabeller som inte finns är en tystnad, och ombyggnaden av ett tomt arkiv likaså.
   const version = db.pragma("user_version", { simple: true }) as number;
   const rebuilt = version !== SCHEMA_VERSION;
-  if (rebuilt) db.exec(`DROP TABLE IF EXISTS receipts; DROP TABLE IF EXISTS receipts_fts;`);
+  if (rebuilt) {
+    db.exec(`DROP TABLE IF EXISTS receipts; DROP TABLE IF EXISTS receipts_fts; DROP TABLE IF EXISTS kortref;`);
+  }
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS receipts (
@@ -43,6 +49,13 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
       date        TEXT,
       total       REAL,
       currency    TEXT,
+      egna_falt   TEXT NOT NULL DEFAULT '{}',
+      egen_datum  TEXT,
+      egen_belopp REAL,
+      orgnr       TEXT,
+      kvittonummer TEXT,
+      tid         TEXT,
+      grupp       TEXT,
       expected    INTEGER,
       tolkad      INTEGER NOT NULL DEFAULT 0,
       tecken_per_rad REAL,
@@ -52,6 +65,17 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
       indexed_at  TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS receipts_captured_at ON receipts (captured_at DESC);
+    CREATE INDEX IF NOT EXISTS receipts_grupp ON receipts (grupp);
+    -- Blockningsnyckeln: en match kräver alltid samma dag och samma belopp, eller en
+    -- delad kortreferens. Utan det här indexet vore grupperingen en jämförelse mot
+    -- hela arkivet vid varje skrivning.
+    CREATE INDEX IF NOT EXISTS receipts_egna ON receipts (egen_datum, egen_belopp);
+    CREATE TABLE IF NOT EXISTS kortref (
+      id  TEXT NOT NULL,
+      ref TEXT NOT NULL,
+      PRIMARY KEY (id, ref)
+    );
+    CREATE INDEX IF NOT EXISTS kortref_ref ON kortref (ref);
     CREATE VIRTUAL TABLE IF NOT EXISTS receipts_fts USING fts5(
       text,
       id UNINDEXED,
@@ -80,30 +104,60 @@ function teckenPerRad(receipt: Receipt): number | null {
  * Behövs för kvalitetsflaggan: den säger "lita inte på maskinen här", och när någon
  * skrivit in alla tre värdena för hand finns ingen maskinläsning kvar att misstro.
  * Utan det här skulle ett kvitto man redan lagat stå kvar i tabellen för alltid.
+ *
+ * Räknas på de **effektiva** fälten, alltså efter röstningen. En människas ord om ett
+ * kvitto gäller köpet, inte det enskilda fotografiet av det.
  */
-function manuella(receipt: Receipt): number {
-  const fields = receipt.fields as Record<string, { source?: string } | undefined>;
+function manuella(falt: Falten): number {
+  const fields = falt as Record<string, { source?: string } | undefined>;
   return ["store", "date", "total"].filter((namn) => {
     const kalla = fields[namn]?.source;
     return kalla === "manual" || kalla === "confirmed";
   }).length;
 }
 
-const field = (receipt: Receipt, name: string): unknown =>
-  (receipt.fields as Record<string, { value?: unknown } | undefined>)[name]?.value;
+const varde = (falt: Falten, namn: string): unknown =>
+  (falt as Record<string, { value?: unknown } | undefined>)[namn]?.value;
+
+/**
+ * Kvittots egen läsning, som den står i sidecaren. Den sparas som JSON i indexet av
+ * ett enda skäl: röstningen behöver varje medlems eget värde *med konfidens och
+ * källa*, och att läsa tre sidecarer från disk vid varje skrivning vore att göra
+ * indexet beroende av filsystemet mitt i en transaktion.
+ */
+function egnaFalten(rad: { egna_falt: string }): Falten {
+  try {
+    return JSON.parse(rad.egna_falt) as Falten;
+  } catch {
+    return {};
+  }
+}
 
 /** Skrivs alltid *efter* sidecaren. Se skrivordningen i sidecar.ts. */
 export function upsert(db: ReceiptIndex, receipt: Receipt): void {
   const tx = db.transaction((r: Receipt) => {
+    const egna = (r.fields ?? {}) as Falten;
+    /**
+     * Identiteten står i sidecaren sedan den skrevs av `saveOcr`. Saknas den — en
+     * sidecar från innan fältet fanns — läses den ur texten här i stället, så att ett
+     * äldre arkiv får sina grupper av en `reindex` utan att först behöva omtolkas.
+     */
+    const identitet: Identitet = r.identity ?? (r.text ? utvinnIdentitet(r.text) : {});
+
     db.prepare(
       `INSERT INTO receipts (id, captured_at, backlog, segments, store, date, total, currency,
+                             egna_falt, egen_datum, egen_belopp, orgnr, kvittonummer, tid,
                              expected, tolkad, tecken_per_rad, manuella, sampled, reviewed, indexed_at)
        VALUES (@id, @captured_at, @backlog, @segments, @store, @date, @total, @currency,
+               @egna_falt, @egen_datum, @egen_belopp, @orgnr, @kvittonummer, @tid,
                @expected, @tolkad, @tecken_per_rad, @manuella, @sampled, @reviewed, @indexed_at)
        ON CONFLICT(id) DO UPDATE SET
          captured_at = excluded.captured_at, backlog = excluded.backlog,
          segments = excluded.segments, store = excluded.store, date = excluded.date,
          total = excluded.total, currency = excluded.currency,
+         egna_falt = excluded.egna_falt, egen_datum = excluded.egen_datum,
+         egen_belopp = excluded.egen_belopp, orgnr = excluded.orgnr,
+         kvittonummer = excluded.kvittonummer, tid = excluded.tid,
          expected = excluded.expected, tolkad = excluded.tolkad,
          tecken_per_rad = excluded.tecken_per_rad, manuella = excluded.manuella,
          sampled = excluded.sampled,
@@ -113,31 +167,232 @@ export function upsert(db: ReceiptIndex, receipt: Receipt): void {
       captured_at: r.capturedAt,
       backlog: r.backlog ? 1 : 0,
       segments: r.segments.length,
-      store: (field(r, "store") as string) ?? null,
-      date: (field(r, "date") as string) ?? null,
-      total: (field(r, "total") as number) ?? null,
-      currency: (field(r, "currency") as string) ?? null,
+      // De effektiva värdena sätts av grupperingen strax nedan. Här skrivs kvittots
+      // egen läsning, så att raden är sann även om processen dör däremellan: ett
+      // kvitto utan grupp är sin egen sanning, och det är det vanliga fallet.
+      store: (varde(egna, "store") as string) ?? null,
+      date: (varde(egna, "date") as string) ?? null,
+      total: (varde(egna, "total") as number) ?? null,
+      currency: (varde(egna, "currency") as string) ?? null,
+      egna_falt: JSON.stringify(egna),
+      // Grupperingens nyckel läses alltid ur kvittots **egen** läsning, aldrig ur det
+      // röstade resultatet. Annars skulle grupperna mata sig själva: ett värde som en
+      // grupp gett ett kvitto kunde dra in ett tredje, som i sin tur ändrade värdet.
+      egen_datum: (varde(egna, "date") as string) ?? null,
+      egen_belopp: (varde(egna, "total") as number) ?? null,
+      orgnr: identitet.orgnr ?? null,
+      kvittonummer: identitet.kvittonummer ?? null,
+      tid: identitet.tid ?? null,
       expected: r.expectedSegments,
       // Att tolkningen *körts* är något annat än att den gav text. Utan den
       // skillnaden går ett kvitto som väntar på sin tur inte att skilja från ett där
       // maskinen läste och inte fick ut ett tecken.
       tolkad: r.ocr ? 1 : 0,
       tecken_per_rad: teckenPerRad(r),
-      manuella: manuella(r),
+      manuella: manuella(egna),
       sampled: r.review?.sampled ? 1 : 0,
       reviewed: r.review?.verdict ? 1 : 0,
       indexed_at: new Date().toISOString(),
     });
+    db.prepare("DELETE FROM kortref WHERE id = ?").run(r.id);
+    const skrivRef = db.prepare("INSERT OR IGNORE INTO kortref (id, ref) VALUES (?, ?)");
+    for (const ref of identitet.kortref ?? []) skrivRef.run(r.id, ref);
+
     // FTS5 saknar upsert: raden ersätts i stället, vilket är samma sak här.
     db.prepare("DELETE FROM receipts_fts WHERE id = ?").run(r.id);
     db.prepare("INSERT INTO receipts_fts (id, text) VALUES (?, ?)").run(r.id, r.text ?? "");
+
+    omgruppera(db, r.id);
   });
   tx(receipt);
 }
 
 export function remove(db: ReceiptIndex, id: string): void {
+  const rad = db.prepare("SELECT grupp FROM receipts WHERE id = ?").get(id) as { grupp: string | null } | undefined;
   db.prepare("DELETE FROM receipts WHERE id = ?").run(id);
   db.prepare("DELETE FROM receipts_fts WHERE id = ?").run(id);
+  db.prepare("DELETE FROM kortref WHERE id = ?").run(id);
+  // Gruppen kvittot stod i måste räknas om: blir en enda medlem kvar är det ingen
+  // grupp längre, och den som blir ensam ska få tillbaka sin egen läsning.
+  if (rad?.grupp) {
+    const kvar = db.prepare("SELECT id FROM receipts WHERE grupp = ? ORDER BY id LIMIT 1").get(rad.grupp) as
+      | { id: string }
+      | undefined;
+    if (kvar) omgruppera(db, kvar.id);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Grupperna: vilka kvitton som visar samma köp
+// ---------------------------------------------------------------------------
+
+/**
+ * Grupperna är **härledda**, precis som allt annat i den här filen. De står aldrig i
+ * en sidecar, och det är inte en förenkling utan följden av skrivordningen: en grupp
+ * är ett påstående om två kvitton, och två sidecarer kan inte skrivas atomiskt
+ * tillsammans. I indexet får påståendet kastas och räknas om när som helst.
+ *
+ * Gruppens id är dess minsta medlems-id. ULID:er sorteras i tidsordning, så namnet är
+ * det först fångade kvittot i gruppen — stabilt, och räknat ur medlemmarna själva i
+ * stället för myntat, så att en ombyggnad ger exakt samma namn.
+ */
+type GruppRad = {
+  id: string;
+  egna_falt: string;
+  egen_datum: string | null;
+  egen_belopp: number | null;
+  orgnr: string | null;
+  kvittonummer: string | null;
+  tid: string | null;
+  grupp: string | null;
+};
+
+const platshallare = (n: number): string => Array.from({ length: n }, () => "?").join(", ");
+
+/**
+ * Kvitton som över huvud taget *kan* vara samma köp som `id`, plus hela de grupper de
+ * redan står i.
+ *
+ * Urvalet får vara för brett men aldrig för smalt, och `matchar()` avgör sedan. Två
+ * villkor räcker för att inte missa någon: en match kräver antingen samma dag och
+ * samma belopp — spärrarna i `matchning.ts` släpper inget annat vidare till en nivå
+ * som binder — eller en delad kortreferens, som är den enda vägen förbi dem.
+ *
+ * Grupperna kring kandidaterna tas med därför att en ändring kan **lösa upp** något:
+ * ändras ett belopp ska de som stod kvar i gruppen räknas om i samma andetag, annars
+ * blir en halv grupp kvar och pekar på ett köp som inte längre finns.
+ */
+function grannskap(db: ReceiptIndex, id: string): string[] {
+  const rad = db.prepare("SELECT egen_datum, egen_belopp, grupp FROM receipts WHERE id = ?").get(id) as
+    | { egen_datum: string | null; egen_belopp: number | null; grupp: string | null }
+    | undefined;
+  if (!rad) return [];
+
+  const ids = new Set<string>([id]);
+  if (rad.egen_datum !== null && rad.egen_belopp !== null) {
+    const lika = db
+      .prepare("SELECT id FROM receipts WHERE egen_datum = ? AND egen_belopp = ?")
+      .all(rad.egen_datum, rad.egen_belopp) as { id: string }[];
+    for (const r of lika) ids.add(r.id);
+  }
+  const delade = db
+    .prepare("SELECT b.id AS id FROM kortref a JOIN kortref b ON b.ref = a.ref WHERE a.id = ?")
+    .all(id) as { id: string }[];
+  for (const r of delade) ids.add(r.id);
+
+  const kanda = [...ids];
+  const grupper = db
+    .prepare(`SELECT DISTINCT grupp FROM receipts WHERE grupp IS NOT NULL AND id IN (${platshallare(kanda.length)})`)
+    .all(...kanda) as { grupp: string }[];
+  for (const { grupp } of [...grupper, ...(rad.grupp ? [{ grupp: rad.grupp }] : [])]) {
+    const medlemmar = db.prepare("SELECT id FROM receipts WHERE grupp = ?").all(grupp) as { id: string }[];
+    for (const m of medlemmar) ids.add(m.id);
+  }
+  return [...ids];
+}
+
+/** Räknar om grupperna kring ett kvitto, och skriver om de effektiva fälten. */
+function omgruppera(db: ReceiptIndex, id: string): void {
+  const ids = grannskap(db, id);
+  if (ids.length === 0) return;
+
+  const rader = db
+    .prepare(
+      `SELECT id, egna_falt, egen_datum, egen_belopp, orgnr, kvittonummer, tid, grupp
+         FROM receipts WHERE id IN (${platshallare(ids.length)})`,
+    )
+    .all(...ids) as GruppRad[];
+
+  const refs = new Map<string, string[]>();
+  for (const rad of db
+    .prepare(`SELECT id, ref FROM kortref WHERE id IN (${platshallare(ids.length)})`)
+    .all(...ids) as { id: string; ref: string }[]) {
+    refs.set(rad.id, [...(refs.get(rad.id) ?? []), rad.ref]);
+  }
+
+  const nycklar = rader.map((rad) =>
+    nyckel(
+      rad.id,
+      {
+        ...(rad.orgnr ? { orgnr: rad.orgnr } : {}),
+        ...(rad.kvittonummer ? { kvittonummer: rad.kvittonummer } : {}),
+        ...(rad.tid ? { tid: rad.tid } : {}),
+        ...(refs.get(rad.id)?.length ? { kortref: refs.get(rad.id)! } : {}),
+      },
+      {
+        ...(rad.egen_datum === null ? {} : { datum: rad.egen_datum }),
+        ...(rad.egen_belopp === null ? {} : { belopp: rad.egen_belopp }),
+      },
+    ),
+  );
+
+  const tillhor = new Map<string, string>();
+  for (const grupp of gruppera(nycklar)) for (const medlem of grupp) tillhor.set(medlem, grupp[0]!);
+
+  const sattGrupp = db.prepare("UPDATE receipts SET grupp = ? WHERE id = ?");
+  for (const rad of rader) {
+    const grupp = tillhor.get(rad.id) ?? null;
+    if (grupp !== rad.grupp) sattGrupp.run(grupp, rad.id);
+  }
+
+  // De effektiva fälten skrivs sist, när varje medlem vet vilken grupp den hör till.
+  for (const rad of rader) skrivEffektiva(db, rad.id, tillhor.get(rad.id) ?? null);
+}
+
+/**
+ * Skriver de fält listorna faktiskt läser: röstade när kvittot står i en grupp, och
+ * kvittots egna när det står ensamt.
+ *
+ * Ensamma kvitton röstas **inte**, och det är inte en genväg. `rosta()` väger om
+ * konfidensen och bygger om alternativlistan, vilket för en enda läsning bara vore
+ * att slänga bort det utvinningen redan sagt.
+ */
+function skrivEffektiva(db: ReceiptIndex, id: string, grupp: string | null): void {
+  const medlemmar = grupp
+    ? (db.prepare("SELECT egna_falt FROM receipts WHERE grupp = ? ORDER BY id").all(grupp) as { egna_falt: string }[])
+    : (db.prepare("SELECT egna_falt FROM receipts WHERE id = ?").all(id) as { egna_falt: string }[]);
+  if (medlemmar.length === 0) return;
+
+  const falt = medlemmar.length > 1 ? rosta(medlemmar.map(egnaFalten)) : egnaFalten(medlemmar[0]!);
+  db.prepare(
+    `UPDATE receipts SET store = ?, date = ?, total = ?, currency = ?, manuella = ? WHERE id = ?`,
+  ).run(
+    (varde(falt, "store") as string) ?? null,
+    (varde(falt, "date") as string) ?? null,
+    (varde(falt, "total") as number) ?? null,
+    (varde(falt, "currency") as string) ?? null,
+    manuella(falt),
+    id,
+  );
+}
+
+export type Gruppmedlem = { id: string; capturedAt: string; segments: number };
+
+/**
+ * Gruppen ett kvitto står i, och de fält gruppen kommit fram till.
+ *
+ * `medlemmar` är tom när kvittot står ensamt — det vanliga. `falt` är alltid det som
+ * gäller för kvittot: gruppens röstade fält, eller dess egna om det inte har någon
+ * grupp. Kvittovyn ska visa samma värden som arkivlistan, och det går bara om båda
+ * frågar samma ställe.
+ */
+export function gruppFor(db: ReceiptIndex, id: string): { grupp: string | null; medlemmar: Gruppmedlem[]; falt: Falten } | null {
+  const rad = db.prepare("SELECT id, egna_falt, grupp FROM receipts WHERE id = ?").get(id) as
+    | { id: string; egna_falt: string; grupp: string | null }
+    | undefined;
+  if (!rad) return null;
+  if (!rad.grupp) return { grupp: null, medlemmar: [], falt: egnaFalten(rad) };
+
+  const medlemmar = db
+    .prepare(
+      `SELECT id, captured_at AS capturedAt, segments, egna_falt FROM receipts WHERE grupp = ? ORDER BY id`,
+    )
+    .all(rad.grupp) as (Gruppmedlem & { egna_falt: string })[];
+  return {
+    grupp: rad.grupp,
+    medlemmar: medlemmar.map(({ id: medlemsId, capturedAt, segments }) => ({ id: medlemsId, capturedAt, segments })),
+    falt: rosta(medlemmar.map(egnaFalten)),
+  };
 }
 
 /**
@@ -198,6 +453,10 @@ export type ArkivRad = {
   snippet: string | null;
   /** Antal tecken i den utlästa texten. Noll betyder att tolkningen inte gett något. */
   tecken: number;
+  /** Gruppen kvittot står i, eller `null` när det är ensamt om sitt köp. */
+  grupp: string | null;
+  /** Hur många kvitton som visar det här köpet. Ett, om inget annat sagts. */
+  medlemmar: number;
 };
 
 export type ArkivFraga = {
@@ -246,11 +505,27 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
   const where = villkor.length ? villkor.join(" AND ") : "1 = 1";
   const from = "FROM receipts r JOIN receipts_fts f ON f.id = r.id";
 
-  const total = (db.prepare(`SELECT COUNT(*) AS n ${from} WHERE ${where}`).get(...params) as { n: number }).n;
-  const receipts = db
+  /**
+   * Skrivbordets arkiv räknar **köp**: tre bilder av samma kvitto är en rad.
+   *
+   * Telefonens hemskärm gör det inte, och den skillnaden är avsiktlig. Där är listan
+   * ett kvitto på att bilden kom fram — fotograferar man samma papper två gånger ska
+   * båda synas, annars ser den andra fångsten ut att ha misslyckats. Den ena listan
+   * handlar om vad man handlat, den andra om vad man just gjort.
+   */
+  const perKop = !fraga.ofardiga;
+  const total = (
+    db
+      .prepare(`SELECT COUNT(${perKop ? "DISTINCT COALESCE(r.grupp, r.id)" : "*"}) AS n ${from} WHERE ${where}`)
+      .get(...params) as { n: number }
+  ).n;
+  const rader = db
     .prepare(
       `SELECT r.id AS id, r.date AS date, r.store AS store, r.total AS total,
               r.currency AS currency, r.captured_at AS capturedAt, r.segments AS segments,
+              r.grupp AS grupp,
+              CASE WHEN r.grupp IS NULL THEN 1
+                   ELSE (SELECT COUNT(*) FROM receipts m WHERE m.grupp = r.grupp) END AS medlemmar,
               length(f.text) AS tecken,
               ${fraga.q ? "snippet(receipts_fts, 0, '[', ']', '…', 12)" : "NULL"} AS snippet
          ${from} WHERE ${where}
@@ -258,7 +533,31 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
         LIMIT ?`,
     )
     .all(...params, Math.min(Math.max(fraga.limit ?? 200, 1), 1000)) as ArkivRad[];
-  return { total, receipts };
+  return { total, receipts: perKop ? kollapsa(rader) : rader };
+}
+
+/**
+ * En rad per köp.
+ *
+ * Kollapsningen sker här och inte i SQL, av två skäl. Det ena är sökningen: `snippet()`
+ * kräver att raden själv matchat, så den rad som representerar gruppen måste vara en
+ * rad frågan verkligen träffade — hade gruppen alltid företrätts av samma medlem
+ * skulle en träff i ett syskonfoto tappas bort. Det andra är att villkoren redan
+ * gallrat: står bara en medlem kvar efter filtren är det den som ska synas.
+ *
+ * Av de kvarvarande vinner den som läst mest text. Det är det fylligaste fotografiet
+ * av papperet — det som oftast har både huvud och summa med.
+ */
+function kollapsa(rader: ArkivRad[]): ArkivRad[] {
+  const bast = new Map<string, ArkivRad>();
+  for (const rad of rader) {
+    const nyckeln = rad.grupp ?? rad.id;
+    const fanns = bast.get(nyckeln);
+    if (!fanns || rad.tecken > fanns.tecken || (rad.tecken === fanns.tecken && rad.id < fanns.id)) {
+      bast.set(nyckeln, rad);
+    }
+  }
+  return [...bast.values()];
 }
 
 /** Butikerna som faktiskt finns i arkivet — filtrets alternativ, inte en påhittad lista. */

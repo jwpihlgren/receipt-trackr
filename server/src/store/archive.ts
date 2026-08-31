@@ -10,6 +10,7 @@ import { newReceipt, readSidecar, writeSidecar, type Receipt, type Segment, type
 import { saveSegment, ImageError } from "./images.js";
 import { dragbara, openIndex, remove, rensaAldreAn, upsert, type ReceiptIndex } from "./index-db.js";
 import { utvinnUtanAttSkrivaOver, type Falten } from "../falt/index.js";
+import { utvinnIdentitet } from "../falt/identitet.js";
 
 export class ConflictError extends Error {}
 export { ImageError };
@@ -246,6 +247,10 @@ export class Archive {
     // lite räkning — den hör hemma här och inte i ett andra steg någon måste komma
     // ihåg att starta.
     receipt.fields = utvinnUtanAttSkrivaOver(text, receipt.capturedAt, receipt.fields as Falten);
+    // Identiteten faller ut ur samma text: kvittots egna nummer, som avgör vilka
+    // kvitton som visar samma köp. Den skrivs aldrig av en människa och skriver
+    // därför aldrig över något.
+    receipt.identity = utvinnIdentitet(text);
     await this.persist(receipt);
     return receipt;
   }
@@ -385,6 +390,9 @@ export class Archive {
     if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
     receipt.text = "";
     receipt.ocr = null;
+    // Identiteten är läst ur texten och får inte överleva den. Ett ankare utan text
+    // bakom sig hade fortsatt binda ihop kvitton på ett bevis ingen längre kan se.
+    delete receipt.identity;
     await this.persist(receipt);
     return receipt;
   }
@@ -417,6 +425,7 @@ export class Archive {
         continue;
       }
       receipt.fields = utvinnUtanAttSkrivaOver(receipt.text, receipt.capturedAt, receipt.fields as Falten);
+      receipt.identity = utvinnIdentitet(receipt.text);
       await this.persist(receipt);
       omtolkade++;
     }
