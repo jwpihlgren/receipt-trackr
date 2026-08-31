@@ -73,6 +73,9 @@ describe("kvitton som visar samma köp", () => {
     expect(receipts[0]!.medlemmar).toBe(3);
     expect(receipts[0]!.store).toBe("Colorama");
     expect(receipts[0]!.total).toBe(90);
+    // Bilderna är köpets, inte det företrädande fotografiets: en rad som sagt
+    // "1 bild" om ett köp med tre hade sett ut att ha tappat två.
+    expect(receipts[0]!.segments).toBe(3);
   });
 
   /**
@@ -179,6 +182,7 @@ describe("kvitton som visar samma köp", () => {
     const telefonen = arkiv(archive.db, { ofardiga: true });
     expect(telefonen.total).toBe(3);
     expect(telefonen.receipts).toHaveLength(3);
+    expect(telefonen.receipts.every((r) => r.segments === 1)).toBe(true);
     expect(arkiv(archive.db, {}).receipts).toHaveLength(1);
   });
 

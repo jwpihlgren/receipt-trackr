@@ -522,7 +522,10 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
   const rader = db
     .prepare(
       `SELECT r.id AS id, r.date AS date, r.store AS store, r.total AS total,
-              r.currency AS currency, r.captured_at AS capturedAt, r.segments AS segments,
+              r.currency AS currency, r.captured_at AS capturedAt,
+              -- Bilder är köpets bilder när raden är ett köp. Annars hade en rad som
+              -- företräder tre fotografier sagt "1 bild" och sett ut att ha tappat två.
+              ${perKop ? "CASE WHEN r.grupp IS NULL THEN r.segments ELSE (SELECT SUM(m.segments) FROM receipts m WHERE m.grupp = r.grupp) END" : "r.segments"} AS segments,
               r.grupp AS grupp,
               CASE WHEN r.grupp IS NULL THEN 1
                    ELSE (SELECT COUNT(*) FROM receipts m WHERE m.grupp = r.grupp) END AS medlemmar,

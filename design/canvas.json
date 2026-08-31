@@ -188,6 +188,33 @@
       "w": 720,
       "h": 480,
       "title": "C · Kassabok"
+    },
+    {
+      "file": "SkrivbordKvittonGrupp.dc.html",
+      "page": "page-3",
+      "x": 0,
+      "y": 2400,
+      "w": 1440,
+      "h": 900,
+      "title": "Kvitton · ett köp per rad"
+    },
+    {
+      "file": "SkrivbordKvittoGrupp.dc.html",
+      "page": "page-3",
+      "x": 1560,
+      "y": 2400,
+      "w": 1440,
+      "h": 900,
+      "title": "Ett köp, tre bilder"
+    },
+    {
+      "file": "SkrivbordDelaUpp.dc.html",
+      "page": "page-3",
+      "x": 3120,
+      "y": 2400,
+      "w": 384,
+      "h": 900,
+      "title": "Inte samma köp"
     }
   ],
   "annotations": [
@@ -270,10 +297,18 @@
       "y": -300,
       "w": 2360,
       "text": "Tre riktningar för skrivbordet. Inte tre färgställningar av samma sak — de skiljer sig i vad de gör till huvudsak.\n\nA · Mörk arbetsbänk — kvittot är en RAD. Tät tabell, äkta grå ytor, status som chip, allt synligt samtidigt. Bilderna lyser mot mörkret i stället för att smälta in i pappersfärgen. Bäst när man letar efter ett kvitto man kan beskriva: butik, datum, belopp. Kostnad: mörkt läge är ett val för hela appen, och telefonens fångstflöde är inte ritat för det.\n\nB · Galleri — kvittot är ett FOTOGRAFI. Ingen tabell alls: en vägg av papper grupperad på månad, med butik och belopp under varje bild. Man känner igen kvittot på hur det ser ut, vilket är hur man faktiskt minns dem. Otolkade kvitton syns som luckor med en snurra. Kostnad: sämre för att jämföra belopp, och skalar sämre när högen växer — trettio kvitton är en vägg, tusen är en tapet.\n\nC · Kassabok — kvittot är ett BELOPP. Ingen bild i listan, ingen chrome, hårfina linjer och månadssumma under strecket. Läser man arkivet för att veta vad något kostade är det här den kortaste vägen dit, och den enda riktningen som svarar på frågan \"vad handlade vi för i augusti\". Kostnad: bilden är gömd ett klick bort, och en felläst rad är svårare att upptäcka utan miniatyren bredvid."
+    },
+    {
+      "id": "grupper",
+      "page": "page-3",
+      "x": 0,
+      "y": 2180,
+      "w": 1440,
+      "text": "Grupperna. Tolv av de 35 fotona var dubbletter i fem grupper — tre bilder av samma Colorama-kvitto, och kvittot plus kortslippen från Flügger.\n\nArkivet räknar köp: en rad per köp, och raden säger varför den bär flera bilder — \"tre foton av samma kvitto\", \"kvitto och kortslipp\". Utan den raden ser en kollapsad lista ut som förlorade bilder. Telefonens hemskärm kollapsar inte: där svarar listan på \"kom bilden fram?\", och varje fångst ska synas.\n\nKvittovyn visar de fält gruppen kommit fram till, och säger var värdet lästes när det inte står i bilden man tittar på. Sidecaren på disk bär oförändrat den här bildens egen läsning.\n\nVägen ut måste finnas: en felaktig sammanslagning döljer ett köp och syns aldrig. \"Inte samma köp\" ligger inline som raderingen, med konsekvensen utskriven — inte som en ruta över skärmen. Den är ännu inte byggd: separationen måste sparas i sidecaren, annars slår nästa ombyggnad ihop dem igen.\n\nMåtten här är kodens, inte dukens: 12 px tabelltext, 56 px rader med miniatyr, paneler i #1f1e23 med 8 px hörn, fältkanter på #6e6c7b."
     }
   ],
   "launch": {
     "view": "canvas",
-    "page": "page-4"
+    "page": "page-3"
   }
 }
