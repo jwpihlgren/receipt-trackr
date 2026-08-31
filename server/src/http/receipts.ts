@@ -10,11 +10,13 @@ import { Archive, ConflictError, ImageError } from "../store/archive.js";
 import { InvalidIdError, isSafeFileName } from "../store/paths.js";
 import { giltigt } from "../falt/datum.js";
 import {
+  analys,
   arkiv,
   butiker,
   count,
   ftsQuery,
   gruppFor,
+  kategoriForKvitto,
   lageFor,
   ofardiga,
   ogranskatUrval,
@@ -22,6 +24,7 @@ import {
   urvalLage,
   type Sortering,
 } from "../store/index-db.js";
+import { OVRIGT } from "../store/kategorier.js";
 import { thumbName } from "../store/paths.js";
 
 const CONTENT_TYPES: Record<string, string> = { ".jpg": "image/jpeg", ".webp": "image/webp" };
@@ -135,6 +138,51 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
   );
 
   /**
+   * Analysen: vad pengarna gick till, per månad och per kategori.
+   *
+   * Perioden är tolv månader bakåt när ingen sagt något annat — det är den period
+   * beställaren sa att han tänker i, och den som gör "sticker den här månaden ut"
+   * till en fråga med ett svar.
+   */
+  app.get<{ Querystring: { fran?: string; till?: string } }>("/api/analys", async (request) => {
+    const idag = new Date();
+    const till = request.query.till?.trim() || idag.toISOString().slice(0, 10);
+    const standardFran = new Date(Date.UTC(idag.getUTCFullYear() - 1, idag.getUTCMonth(), 1))
+      .toISOString()
+      .slice(0, 10);
+    const fran = request.query.fran?.trim() || standardFran;
+    return { ...analys(archive.db, fran, till), kategorier_ordning: archive.kategorier.kategorier };
+  });
+
+  /** Kategorierna och butiksreglerna. Filen i arkivet är sanningen; det här är den. */
+  app.get("/api/kategorier", async () => archive.kategorier);
+
+  /**
+   * En människa säger vad en butik är. Regeln gäller bakåt — det är hela skälet att
+   * kategorin är härledd i stället för inskriven på varje kvitto.
+   */
+  app.post<{ Body: { butik?: string; kategori?: string } }>("/api/kategorier/regel", async (request, reply) => {
+    const butik = request.body?.butik?.trim();
+    const kategori = request.body?.kategori?.trim();
+    if (!butik) return reply.code(400).send({ error: "missing_butik", message: "Ange butiken regeln gäller." });
+    if (!kategori) return reply.code(400).send({ error: "missing_kategori", message: "Ange kategorin." });
+    return reply.send(await archive.sattRegel(butik, kategori));
+  });
+
+  /** Kategorin för ett enskilt kvitto. `null` lämnar tillbaka det till butikens regel. */
+  app.post<{ Params: { id: string }; Body: { kategori?: string | null } }>(
+    "/api/receipts/:id/kategori",
+    async (request, reply) => {
+      const värde = request.body?.kategori;
+      if (värde !== null && typeof värde !== "string") {
+        return reply.code(400).send({ error: "invalid_kategori", message: "Skicka en kategori eller null." });
+      }
+      const kategori = värde === null ? null : värde.trim() || OVRIGT;
+      return reply.send(await archive.sattKategori(request.params.id, kategori));
+    },
+  );
+
+  /**
    * Kvittot, plus varför det står i aktiviteten.
    *
    * `lage` är härlett och står aldrig i sidecaren. Utan det landade den som klickat
@@ -156,6 +204,11 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
       ...receipt,
       ...(gruppen ? { fields: gruppen.falt, egnaFalt: receipt.fields } : {}),
       grupp: gruppen?.grupp ? { id: gruppen.grupp, medlemmar: gruppen.medlemmar } : null,
+      // Kategorin är härledd ur butiken och står därför inte i sidecaren, utom när en
+      // människa satt den på just det här kvittot.
+      kategori: kategoriForKvitto(archive.db, request.params.id),
+      kategorier: archive.kategorier.kategorier,
+      ...(receipt.kategori ? { kategori_egen: receipt.kategori } : {}),
       lage: ofardigt?.lage ?? null,
       saknadeFalt: ofardigt?.saknadeFalt ?? [],
     };

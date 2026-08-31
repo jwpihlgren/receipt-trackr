@@ -15,6 +15,7 @@ import { utvinnIdentitet, type Identitet } from "../falt/identitet.js";
 import { gruppera, nyckel } from "../falt/matchning.js";
 import { rosta } from "../falt/rostning.js";
 import type { Falten } from "../falt/index.js";
+import { kategoriFor, OVRIGT, type Kategorier } from "./kategorier.js";
 
 export type ReceiptIndex = Database.Database;
 
@@ -24,7 +25,7 @@ export type ReceiptIndex = Database.Database;
  * Det är hela poängen med ett härlett index — höj siffran när kolumnerna ändras
  * och skriv aldrig ett `ALTER TABLE`.
  */
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } {
   const db = new Database(path);
@@ -56,6 +57,9 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
       kvittonummer TEXT,
       tid         TEXT,
       grupp       TEXT,
+      -- Härledd: kvittots egen kategori om någon satt en, annars butikens regel.
+      kategori    TEXT,
+      egen_kategori TEXT,
       expected    INTEGER,
       tolkad      INTEGER NOT NULL DEFAULT 0,
       tecken_per_rad REAL,
@@ -66,6 +70,7 @@ export function openIndex(path: string): { db: ReceiptIndex; rebuilt: boolean } 
     );
     CREATE INDEX IF NOT EXISTS receipts_captured_at ON receipts (captured_at DESC);
     CREATE INDEX IF NOT EXISTS receipts_grupp ON receipts (grupp);
+    CREATE INDEX IF NOT EXISTS receipts_kategori ON receipts (kategori);
     -- Blockningsnyckeln: en match kräver alltid samma dag och samma belopp, eller en
     -- delad kortreferens. Utan det här indexet vore grupperingen en jämförelse mot
     -- hela arkivet vid varje skrivning.
@@ -134,7 +139,7 @@ function egnaFalten(rad: { egna_falt: string }): Falten {
 }
 
 /** Skrivs alltid *efter* sidecaren. Se skrivordningen i sidecar.ts. */
-export function upsert(db: ReceiptIndex, receipt: Receipt): void {
+export function upsert(db: ReceiptIndex, receipt: Receipt, kategorier: Kategorier): void {
   const tx = db.transaction((r: Receipt) => {
     const egna = (r.fields ?? {}) as Falten;
     /**
@@ -147,10 +152,10 @@ export function upsert(db: ReceiptIndex, receipt: Receipt): void {
     db.prepare(
       `INSERT INTO receipts (id, captured_at, backlog, segments, store, date, total, currency,
                              egna_falt, egen_datum, egen_belopp, orgnr, kvittonummer, tid,
-                             expected, tolkad, tecken_per_rad, manuella, sampled, reviewed, indexed_at)
+                             egen_kategori, expected, tolkad, tecken_per_rad, manuella, sampled, reviewed, indexed_at)
        VALUES (@id, @captured_at, @backlog, @segments, @store, @date, @total, @currency,
                @egna_falt, @egen_datum, @egen_belopp, @orgnr, @kvittonummer, @tid,
-               @expected, @tolkad, @tecken_per_rad, @manuella, @sampled, @reviewed, @indexed_at)
+               @egen_kategori, @expected, @tolkad, @tecken_per_rad, @manuella, @sampled, @reviewed, @indexed_at)
        ON CONFLICT(id) DO UPDATE SET
          captured_at = excluded.captured_at, backlog = excluded.backlog,
          segments = excluded.segments, store = excluded.store, date = excluded.date,
@@ -158,6 +163,7 @@ export function upsert(db: ReceiptIndex, receipt: Receipt): void {
          egna_falt = excluded.egna_falt, egen_datum = excluded.egen_datum,
          egen_belopp = excluded.egen_belopp, orgnr = excluded.orgnr,
          kvittonummer = excluded.kvittonummer, tid = excluded.tid,
+         egen_kategori = excluded.egen_kategori,
          expected = excluded.expected, tolkad = excluded.tolkad,
          tecken_per_rad = excluded.tecken_per_rad, manuella = excluded.manuella,
          sampled = excluded.sampled,
@@ -180,6 +186,7 @@ export function upsert(db: ReceiptIndex, receipt: Receipt): void {
       // grupp gett ett kvitto kunde dra in ett tredje, som i sin tur ändrade värdet.
       egen_datum: (varde(egna, "date") as string) ?? null,
       egen_belopp: (varde(egna, "total") as number) ?? null,
+      egen_kategori: r.kategori?.value ?? null,
       orgnr: identitet.orgnr ?? null,
       kvittonummer: identitet.kvittonummer ?? null,
       tid: identitet.tid ?? null,
@@ -202,12 +209,12 @@ export function upsert(db: ReceiptIndex, receipt: Receipt): void {
     db.prepare("DELETE FROM receipts_fts WHERE id = ?").run(r.id);
     db.prepare("INSERT INTO receipts_fts (id, text) VALUES (?, ?)").run(r.id, r.text ?? "");
 
-    omgruppera(db, r.id);
+    omgruppera(db, r.id, kategorier);
   });
   tx(receipt);
 }
 
-export function remove(db: ReceiptIndex, id: string): void {
+export function remove(db: ReceiptIndex, id: string, kategorier: Kategorier): void {
   const rad = db.prepare("SELECT grupp FROM receipts WHERE id = ?").get(id) as { grupp: string | null } | undefined;
   db.prepare("DELETE FROM receipts WHERE id = ?").run(id);
   db.prepare("DELETE FROM receipts_fts WHERE id = ?").run(id);
@@ -218,7 +225,7 @@ export function remove(db: ReceiptIndex, id: string): void {
     const kvar = db.prepare("SELECT id FROM receipts WHERE grupp = ? ORDER BY id LIMIT 1").get(rad.grupp) as
       | { id: string }
       | undefined;
-    if (kvar) omgruppera(db, kvar.id);
+    if (kvar) omgruppera(db, kvar.id, kategorier);
   }
 }
 
@@ -292,7 +299,7 @@ function grannskap(db: ReceiptIndex, id: string): string[] {
 }
 
 /** Räknar om grupperna kring ett kvitto, och skriver om de effektiva fälten. */
-function omgruppera(db: ReceiptIndex, id: string): void {
+function omgruppera(db: ReceiptIndex, id: string, kategorier: Kategorier): void {
   const ids = grannskap(db, id);
   if (ids.length === 0) return;
 
@@ -336,7 +343,7 @@ function omgruppera(db: ReceiptIndex, id: string): void {
   }
 
   // De effektiva fälten skrivs sist, när varje medlem vet vilken grupp den hör till.
-  for (const rad of rader) skrivEffektiva(db, rad.id, tillhor.get(rad.id) ?? null);
+  for (const rad of rader) skrivEffektiva(db, rad.id, tillhor.get(rad.id) ?? null, kategorier);
 }
 
 /**
@@ -347,21 +354,32 @@ function omgruppera(db: ReceiptIndex, id: string): void {
  * konfidensen och bygger om alternativlistan, vilket för en enda läsning bara vore
  * att slänga bort det utvinningen redan sagt.
  */
-function skrivEffektiva(db: ReceiptIndex, id: string, grupp: string | null): void {
+function skrivEffektiva(db: ReceiptIndex, id: string, grupp: string | null, kategorier: Kategorier): void {
   const medlemmar = grupp
     ? (db.prepare("SELECT egna_falt FROM receipts WHERE grupp = ? ORDER BY id").all(grupp) as { egna_falt: string }[])
     : (db.prepare("SELECT egna_falt FROM receipts WHERE id = ?").all(id) as { egna_falt: string }[]);
   if (medlemmar.length === 0) return;
 
   const falt = medlemmar.length > 1 ? rosta(medlemmar.map(egnaFalten)) : egnaFalten(medlemmar[0]!);
+  const butik = (varde(falt, "store") as string) ?? null;
+  /**
+   * Kategorin följer den **effektiva** butiken, alltså den gruppen kommit fram till.
+   * Ett kapat foto utan butiksnamn hör till samma kategori som sina syskon, för det
+   * är samma köp.
+   */
+  const egen = (db.prepare("SELECT egen_kategori FROM receipts WHERE id = ?").get(id) as
+    | { egen_kategori: string | null }
+    | undefined)?.egen_kategori;
+
   db.prepare(
-    `UPDATE receipts SET store = ?, date = ?, total = ?, currency = ?, manuella = ? WHERE id = ?`,
+    `UPDATE receipts SET store = ?, date = ?, total = ?, currency = ?, manuella = ?, kategori = ? WHERE id = ?`,
   ).run(
-    (varde(falt, "store") as string) ?? null,
+    butik,
     (varde(falt, "date") as string) ?? null,
     (varde(falt, "total") as number) ?? null,
     (varde(falt, "currency") as string) ?? null,
     manuella(falt),
+    egen ?? kategoriFor(kategorier, butik),
     id,
   );
 }
@@ -589,6 +607,103 @@ function kollapsa(rader: ArkivRad[]): ArkivRad[] {
   return [...bast.values()];
 }
 
+// ---------------------------------------------------------------------------
+// Analysen: vad pengarna gick till
+// ---------------------------------------------------------------------------
+
+export type AnalysRad = { kategori: string; summa: number; antal: number };
+
+export type Analys = {
+  fran: string;
+  till: string;
+  summa: number;
+  antal: number;
+  manader: { manad: string; summa: number; antal: number; delar: AnalysRad[] }[];
+  kategorier: (AnalysRad & { forra: number | null })[];
+  storsta: { id: string; store: string | null; date: string | null; total: number | null; kategori: string | null }[];
+};
+
+/**
+ * **Ett köp räknas en gång.** Tre foton av samma kvitto är inte tre utgifter, och en
+ * summa som räknar fotografier i stället för köp är fel på ett sätt som inte syns —
+ * den ser bara ut som att man handlat mer. Gruppens minsta id företräder köpet;
+ * medlemmarna delar ändå fält, så vilken som väljs spelar ingen roll för summan.
+ */
+const ETT_PER_KOP = `(r.grupp IS NULL OR r.id = (SELECT MIN(m.id) FROM receipts m WHERE m.grupp = r.grupp))`;
+
+/** Dagen före ett datum, och ett datum n dagar tidigare. Rena strängar in och ut. */
+const dagar = (datum: string, steg: number): string =>
+  new Date(Date.UTC(+datum.slice(0, 4), +datum.slice(5, 7) - 1, +datum.slice(8, 10) + steg))
+    .toISOString()
+    .slice(0, 10);
+
+export function analys(db: ReceiptIndex, fran: string, till: string): Analys {
+  const from = "FROM receipts r JOIN receipts_fts f ON f.id = r.id";
+  const where = `${KLAR} AND ${ETT_PER_KOP} AND r.date IS NOT NULL AND r.date BETWEEN ? AND ?`;
+
+  const summa = db
+    .prepare(`SELECT COALESCE(SUM(r.total), 0) AS summa, COUNT(*) AS antal ${from} WHERE ${where}`)
+    .get(fran, till) as { summa: number; antal: number };
+
+  const perManad = db
+    .prepare(
+      `SELECT substr(r.date, 1, 7) AS manad, COALESCE(r.kategori, ?) AS kategori,
+              COALESCE(SUM(r.total), 0) AS summa, COUNT(*) AS antal
+         ${from} WHERE ${where}
+        GROUP BY manad, kategori
+        ORDER BY manad ASC, summa DESC`,
+    )
+    .all(OVRIGT, fran, till) as { manad: string; kategori: string; summa: number; antal: number }[];
+
+  const manader: Analys["manader"] = [];
+  for (const rad of perManad) {
+    let manad = manader.find((m) => m.manad === rad.manad);
+    if (!manad) {
+      manad = { manad: rad.manad, summa: 0, antal: 0, delar: [] };
+      manader.push(manad);
+    }
+    manad.summa += rad.summa;
+    manad.antal += rad.antal;
+    manad.delar.push({ kategori: rad.kategori, summa: rad.summa, antal: rad.antal });
+  }
+
+  const perKategori = (a: string, b: string): AnalysRad[] =>
+    db
+      .prepare(
+        `SELECT COALESCE(r.kategori, ?) AS kategori, COALESCE(SUM(r.total), 0) AS summa, COUNT(*) AS antal
+           ${from} WHERE ${where}
+          GROUP BY kategori ORDER BY summa DESC`,
+      )
+      .all(OVRIGT, a, b) as AnalysRad[];
+
+  /**
+   * Föregående period är lika lång och slutar dagen före den här. Fanns inga köp där
+   * blir jämförelsen `null` — inte noll: att arkivet inte når så långt bak är något
+   * annat än att ingenting handlades, och en nolla hade sett ut som en hundraprocentig
+   * ökning på varje rad.
+   */
+  const langd = Math.max(1, Math.round((Date.parse(till) - Date.parse(fran)) / 86_400_000) + 1);
+  const forraTill = dagar(fran, -1);
+  const forraFran = dagar(forraTill, -(langd - 1));
+  const forra = new Map(perKategori(forraFran, forraTill).map((r) => [r.kategori, r.summa]));
+  const fannsForra = forra.size > 0;
+
+  const kategorier = perKategori(fran, till).map((rad) => ({
+    ...rad,
+    forra: fannsForra ? (forra.get(rad.kategori) ?? 0) : null,
+  }));
+
+  const storsta = db
+    .prepare(
+      `SELECT r.id AS id, r.store AS store, r.date AS date, r.total AS total, r.kategori AS kategori
+         ${from} WHERE ${where}
+        ORDER BY r.total DESC LIMIT 5`,
+    )
+    .all(fran, till) as Analys["storsta"];
+
+  return { fran, till, summa: summa.summa, antal: summa.antal, manader, kategorier, storsta };
+}
+
 /** Butikerna som faktiskt finns i arkivet — filtrets alternativ, inte en påhittad lista. */
 export function butiker(db: ReceiptIndex): string[] {
   return (
@@ -608,9 +723,28 @@ export function butiker(db: ReceiptIndex): string[] {
  * start saknar motsvarighet i `receipts/`. Utan det här skulle ett raderat kvitto leva
  * kvar i listorna som en rad som ger 404 när man klickar på den.
  */
-export function rensaAldreAn(db: ReceiptIndex, tidpunkt: string): number {
+export function rensaAldreAn(db: ReceiptIndex, tidpunkt: string, kategorier: Kategorier): number {
   const rader = db.prepare("SELECT id FROM receipts WHERE indexed_at < ?").all(tidpunkt) as { id: string }[];
-  for (const rad of rader) remove(db, rad.id);
+  for (const rad of rader) remove(db, rad.id, kategorier);
+  return rader.length;
+}
+
+/**
+ * Räknar om kategorin för varje kvitto. Körs när en regel ändrats: butiken betyder
+ * något annat nu, och det gäller bakåt — hela poängen med att kategorin är härledd
+ * i stället för inskriven på varje kvitto.
+ */
+export function raknaOmKategorier(db: ReceiptIndex, kategorier: Kategorier): number {
+  const rader = db.prepare("SELECT id, store, egen_kategori AS egen FROM receipts").all() as {
+    id: string;
+    store: string | null;
+    egen: string | null;
+  }[];
+  const skriv = db.prepare("UPDATE receipts SET kategori = ? WHERE id = ?");
+  const tx = db.transaction(() => {
+    for (const rad of rader) skriv.run(rad.egen ?? kategoriFor(kategorier, rad.store), rad.id);
+  });
+  tx();
   return rader.length;
 }
 
@@ -750,6 +884,14 @@ export function ogranskatUrval(db: ReceiptIndex, limit = 200): KvittoRad[] {
         LIMIT ?`,
     )
     .all(limit) as KvittoRad[];
+}
+
+/** Kvittots kategori som indexet räknat fram den: egen om någon satt en, annars butikens. */
+export function kategoriForKvitto(db: ReceiptIndex, id: string): string | null {
+  const rad = db.prepare("SELECT kategori FROM receipts WHERE id = ?").get(id) as
+    | { kategori: string | null }
+    | undefined;
+  return rad?.kategori ?? null;
 }
 
 /** Ett kvittos läge, eller `null` när det är klart. Härlett — står aldrig i sidecaren. */

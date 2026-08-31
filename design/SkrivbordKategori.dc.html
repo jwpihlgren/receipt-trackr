@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    a { color: #e2b04a; text-decoration: none; } a:hover { color: #f0c469; }
+    .n { font-variant-numeric: tabular-nums; }
+    .etikett { font-size: 14px; color: #9d968d; }
+    .falt { height: 40px; border-radius: 6px; border: 1px solid #6e6c7b; background: #1f1e23; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-size: 14px; color: #ece9e4; }
+    .val { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 14px; }
+    .prick { width: 10px; height: 10px; border-radius: 2px; flex: 0 0 auto; }
+  </style>
+</helmet>
+<div style="width: 384px; height: 620px; background: #1f1e23; color: #ece9e4; border-left: 1px solid #2b2a31; display: flex; flex-direction: column; padding: 20px; gap: 24px; overflow: hidden;">
+
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <span class="etikett">Butik</span>
+    <div class="falt">Colorama</div>
+  </div>
+
+  <!--
+    Kategorin är inte läst ur kvittot — den följer av butiken. Därför står regeln
+    utskriven under fältet: ändrar man här ändrar man vad Colorama betyder, och
+    alla kvitton därifrån följer med. Det är det beställaren bad om: butiken
+    föreslår, han rättar, regeln lär sig av rättelsen.
+  -->
+  <div style="display: flex; flex-direction: column; gap: 4px;">
+    <span class="etikett">Kategori</span>
+    <div class="falt">
+      <span style="display: flex; align-items: center; gap: 10px;">
+        <span class="prick" style="background: #3987e5;"></span>Bygg och färg
+      </span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9d968d" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+    <span style="font-size: 14px; color: #9d968d; line-height: 1.5;">
+      Gäller alla kvitton från Colorama. <a href="#">Bara det här kvittot</a>
+    </span>
+  </div>
+
+  <!-- Listan är de kategorier som finns, plus vägen att lägga till en. Ingen
+       färgväljare: färgen följer kategorin och tilldelas i fast ordning, så att
+       ett filter aldrig målar om de kategorier som blir kvar. -->
+  <div style="border: 1px solid #2b2a31; border-radius: 8px; background: #17161a; padding: 4px 0; box-shadow: 0 8px 24px rgb(0 0 0 / 0.5);">
+    <div class="val" style="background: #211f19;">
+      <span class="prick" style="background: #3987e5;"></span>Bygg och färg
+      <svg style="margin-left: auto;" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#e2b04a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+    </div>
+    <div class="val"><span class="prick" style="background: #d95926;"></span>Bil</div>
+    <div class="val"><span class="prick" style="background: #199e70;"></span>Hem och trädgård</div>
+    <div class="val"><span class="prick" style="background: #c98500;"></span>Mat och dryck</div>
+    <div class="val"><span class="prick" style="background: #d55181;"></span>Kläder</div>
+    <div class="val"><span class="prick" style="background: #8f8a97;"></span>Övrigt</div>
+    <div style="height: 1px; background: #2b2a31; margin: 4px 0;"></div>
+    <div class="val" style="color: #e2b04a;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+      Ny kategori
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

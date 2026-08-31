@@ -16,9 +16,19 @@ import {
   type Verdict,
 } from "./sidecar.js";
 import { saveSegment, skrivTumnagel, ImageError } from "./images.js";
-import { dragbara, openIndex, remove, rensaAldreAn, upsert, type ReceiptIndex } from "./index-db.js";
+import {
+  dragbara,
+  openIndex,
+  raknaOmKategorier,
+  remove,
+  rensaAldreAn,
+  upsert,
+  type ReceiptIndex,
+} from "./index-db.js";
+import { kategoriFor, lasKategorier, skrivKategorier, type Kategorier } from "./kategorier.js";
 import { utvinnUtanAttSkrivaOver, type Falten } from "../falt/index.js";
 import { utvinnIdentitet } from "../falt/identitet.js";
+import { standard as standardlage } from "./kategorier.js";
 
 export class ConflictError extends Error {}
 export { ImageError };
@@ -40,9 +50,57 @@ export class Archive {
     readonly indexRebuilt: boolean,
   ) {}
 
+  /**
+   * Kategorierna och butiksreglerna, lästa en gång vid start.
+   *
+   * De ligger i minnet därför att indexet frågar efter dem vid varje skrivning, och
+   * filen är sanningen: ändras den skrivs den om härifrån, aldrig tvärtom.
+   */
+  private kategorierna: Kategorier = standardlage();
+
   static open(dataDir: string): Archive {
     const { db, rebuilt } = openIndex(indexPath(dataDir));
-    return new Archive(dataDir, db, rebuilt);
+    const archive = new Archive(dataDir, db, rebuilt);
+    archive.kategorierna = lasKategorier(dataDir);
+    return archive;
+  }
+
+  get kategorier(): Kategorier {
+    return this.kategorierna;
+  }
+
+  /**
+   * En människa säger vad en butik är. Regeln gäller bakåt: alla kvitton från den
+   * butiken byter kategori, för kategorin är härledd och inte inskriven på vart och
+   * ett av dem.
+   */
+  async sattRegel(butik: string, kategori: string): Promise<Kategorier> {
+    const namn = butik.trim();
+    if (!namn) throw new ConflictError("En regel behöver en butik.");
+    const kategorier = {
+      ...this.kategorierna,
+      kategorier: this.kategorierna.kategorier.includes(kategori)
+        ? this.kategorierna.kategorier
+        : [...this.kategorierna.kategorier, kategori],
+      regler: { ...this.kategorierna.regler, [namn]: kategori },
+    };
+    skrivKategorier(this.dataDir, kategorier);
+    this.kategorierna = kategorier;
+    raknaOmKategorier(this.db, kategorier);
+    return kategorier;
+  }
+
+  /**
+   * Kategorin för ett enskilt kvitto, när butiken inte räcker: en butik som säljer
+   * allt, eller ett kvitto utan butiksnamn. Sidecaren först, som allt annat.
+   */
+  async sattKategori(id: string, kategori: string | null): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    if (kategori === null) delete receipt.kategori;
+    else receipt.kategori = { value: kategori, at: new Date().toISOString() };
+    await this.persist(receipt);
+    return receipt;
   }
 
   close(): void {
@@ -301,7 +359,7 @@ export class Archive {
   /** Sidecar först, atomiskt. Indexet efteråt, och bara om sidecaren gick igenom. */
   private async persist(receipt: Receipt): Promise<void> {
     await writeSidecar(this.dataDir, receipt);
-    upsert(this.db, receipt);
+    upsert(this.db, receipt, this.kategorierna);
   }
 
   /**
@@ -320,7 +378,7 @@ export class Archive {
   async taBort(id: string): Promise<{ borttaget: boolean }> {
     const receipt = await this.get(id);
     if (!receipt) return { borttaget: false };
-    remove(this.db, id);
+    remove(this.db, id, this.kategorierna);
     await rm(receiptDir(this.dataDir, id), { recursive: true, force: true });
     return { borttaget: true };
   }
@@ -347,7 +405,7 @@ export class Archive {
       if (!entry.endsWith("receipt.json")) continue;
       try {
         const receipt = JSON.parse(await readFile(join(root, entry), "utf8")) as Receipt;
-        upsert(this.db, receipt);
+        upsert(this.db, receipt, this.kategorierna);
         indexed++;
       } catch {
         skipped.push(entry);
@@ -355,7 +413,7 @@ export class Archive {
     }
     // Rader vars kvitto inte längre finns kvar på disken städas bort. Utan det skulle
     // ett raderat kvitto överleva i listorna som en rad som ger 404 när man klickar.
-    const rensade = rensaAldreAn(this.db, start);
+    const rensade = rensaAldreAn(this.db, start, this.kategorierna);
     return { indexed, skipped, rensade };
   }
 

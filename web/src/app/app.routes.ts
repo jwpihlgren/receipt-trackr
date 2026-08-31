@@ -61,6 +61,11 @@ export const routes: Routes = [
     loadComponent: () => import('./desktop/aktivitet.component').then((m) => m.AktivitetComponent),
   },
   {
+    path: 'dator/analys',
+    title: 'Analys',
+    loadComponent: () => import('./desktop/analys.component').then((m) => m.AnalysComponent),
+  },
+  {
     path: 'dator/drift',
     title: 'Drift',
     loadComponent: () => import('./desktop/drift.component').then((m) => m.DriftComponent),

@@ -94,6 +94,15 @@ export type Receipt = {
    * blir kvar av den.
    */
   kasserade?: { at: string; index: number; sha256: string; orsak: "ersatt" | "borttagen" }[];
+  /**
+   * Kategorin för just det här kvittot, satt av en människa.
+   *
+   * Normalfallet är att kategorin följer av butiken — ändrar man den ändrar man vad
+   * butiken betyder, och alla kvitton därifrån följer med. Det här fältet är
+   * undantaget: kvittot från en butik som säljer allt, eller ett kvitto utan butik.
+   * Finns det väger det tyngre än regeln.
+   */
+  kategori?: { value: string; at: string };
   ocr: unknown | null;
   tags: { user: string[]; auto: string[] };
   /** Hela råtexten, radbruten. Fylls av OCR-steget i M5. */

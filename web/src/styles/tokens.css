@@ -50,6 +50,24 @@
      kant syns även när fotot är överexponerat i hörnen. */
   --image-bed: #0e0d10;
 
+  /* Kategorifärger — analysens enda färgbärande beslut.
+   *
+   * Sex slag i **fast ordning**: färgen följer kategorin och aldrig storleken, så att
+   * ett filter som tar bort en kategori inte målar om de andra. Uppmätta mot panelen
+   * (#1f1e23) med dataviz-validatorn: alla inom ljushetsbandet L 0,48–0,67, över
+   * kromgolvet 0,1, minst 3:1 mot ytan, och sämsta grannpar 8,4 ΔE för protanopi
+   * mot målet 8. Färgen står aldrig ensam: legenden och listan bär namnet.
+   *
+   * Övrigt är grått med flit. Det är inte en kategori utan frånvaron av en, och ska
+   * inte se ut som ett av slagen. */
+  --kategori-1: #3987e5;
+  --kategori-2: #d95926;
+  --kategori-3: #199e70;
+  --kategori-4: #c98500;
+  --kategori-5: #d55181;
+  --kategori-6: #9085e9;
+  --kategori-ovrig: #8f8a97;
+
   /* ---- Typografi ------------------------------------------------------ */
 
   /* Systemfont. Inget webbfontanrop: burken är offline-först och en fontfil är

@@ -1,0 +1,244 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    a { color: #e2b04a; text-decoration: none; } a:hover { color: #f0c469; }
+    .n { font-variant-numeric: tabular-nums; }
+    .etikett { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #9d968d; }
+    .panel { border: 1px solid #2b2a31; border-radius: 8px; background: #1f1e23; }
+    .falt { height: 32px; border-radius: 6px; border: 1px solid #6e6c7b; background: #1f1e23; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 14px; color: #ece9e4; }
+    /* Marken är tunn, ändarna rundade bara där stapeln slutar, och två segment
+       skiljs av ett par pixlar yta i stället för av en linje. */
+    .stapel { display: flex; flex-direction: column-reverse; gap: 2px; width: 64px; }
+    .del { border-radius: 0; }
+    .prick { width: 10px; height: 10px; border-radius: 2px; flex: 0 0 auto; }
+    .rad { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid #2b2a31; font-size: 14px; }
+  </style>
+</helmet>
+<div style="width: 1440px; height: 1100px; background: #17161a; color: #ece9e4; display: flex; flex-direction: column; overflow: hidden;">
+
+  <div style="min-height: 56px; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: #1f1e23; border-bottom: 1px solid #2b2a31; flex-shrink: 0;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ece9e4" stroke-width="2" stroke-linecap="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg>
+    <span style="font-size: 18px; font-weight: 600;">Analys</span>
+  </div>
+
+  <div style="display: flex; align-items: flex-end; gap: 12px; padding: 12px 16px; background: #1f1e23; border-bottom: 1px solid #2b2a31; flex-shrink: 0;">
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 12px; color: #9d968d;">Period</span>
+      <div class="falt" style="width: 210px; justify-content: space-between;"><span>Senaste tolv månaderna</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#9d968d" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 12px; color: #9d968d;">Från</span>
+      <div class="falt n" style="width: 150px;">2025-09-01</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 12px; color: #9d968d;">Till</span>
+      <div class="falt n" style="width: 150px;">2026-08-31</div>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1; padding: 16px; display: flex; flex-direction: column; gap: 16px; overflow: hidden;">
+
+    <!-- Summan är svaret på "vad har vi handlat för", och den enda siffran som får
+         vara stor. Jämförelsen står bredvid som text, inte som en färg. -->
+    <div style="display: flex; gap: 16px;">
+      <div class="panel" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 2px; min-width: 280px;">
+        <span class="etikett">Summa i perioden</span>
+        <span class="n" style="font-size: 34px; font-weight: 600; line-height: 1.2;">25 594,93 kr</span>
+        <span class="n" style="font-size: 14px; color: #9d968d;">15 köp · april–juli 2026</span>
+      </div>
+      <div class="panel" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 2px; justify-content: center;">
+        <span class="etikett">Föregående period</span>
+        <span style="font-size: 14px; color: #9d968d; max-width: 260px; line-height: 1.5;">
+          Ingen jämförelse än — arkivet börjar i april 2026.
+        </span>
+      </div>
+    </div>
+
+    <!-- Utvecklingen över tid. Månaden är ryggen, kategorierna ligger staplade i
+         den, och varje stapel bär sin egen summa: fyra staplar är få nog att
+         märkas ut direkt i stället för att kräva en axel man läser av. -->
+    <div class="panel" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: baseline; gap: 12px;">
+        <span class="etikett">Per månad</span>
+        <div style="margin-left: auto; display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: #9d968d;">
+          <span style="display: flex; align-items: center; gap: 6px;"><span class="prick" style="background: #3987e5;"></span>Bygg och färg</span>
+          <span style="display: flex; align-items: center; gap: 6px;"><span class="prick" style="background: #d95926;"></span>Bil</span>
+          <span style="display: flex; align-items: center; gap: 6px;"><span class="prick" style="background: #199e70;"></span>Hem och trädgård</span>
+          <span style="display: flex; align-items: center; gap: 6px;"><span class="prick" style="background: #c98500;"></span>Mat och dryck</span>
+          <span style="display: flex; align-items: center; gap: 6px;"><span class="prick" style="background: #d55181;"></span>Kläder</span>
+          <span style="display: flex; align-items: center; gap: 6px;"><span class="prick" style="background: #8f8a97;"></span>Övrigt</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 20px;">
+        <div style="display: flex; flex-direction: column; justify-content: space-between; height: 264px; text-align: right; font-size: 12px; color: #9d968d;" class="n">
+          <span>15 000</span><span>10 000</span><span>5 000</span><span>0</span>
+        </div>
+        <div style="position: relative; flex-grow: 1; height: 264px;">
+          <div style="position: absolute; inset: 0;">
+            <div style="position: absolute; top: 0; left: 0; right: 0; border-top: 1px solid #2b2a31;"></div>
+            <div style="position: absolute; top: 88px; left: 0; right: 0; border-top: 1px solid #2b2a31;"></div>
+            <div style="position: absolute; top: 176px; left: 0; right: 0; border-top: 1px solid #2b2a31;"></div>
+            <div style="position: absolute; bottom: 0; left: 0; right: 0; border-top: 1px solid #46444e;"></div>
+          </div>
+          <div style="position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 56px; padding-left: 24px;">
+
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+              <span class="n" style="font-size: 12px; color: #ece9e4;">7 343</span>
+              <div class="stapel">
+                <div class="del" style="height: 103px; background: #3987e5;"></div>
+                <div class="del" style="height: 26px; background: #199e70; border-radius: 4px 4px 0 0;"></div>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+              <span class="n" style="font-size: 12px; color: #ece9e4;">14 767</span>
+              <div class="stapel">
+                <div class="del" style="height: 166px; background: #d95926;"></div>
+                <div class="del" style="height: 69px; background: #3987e5;"></div>
+                <div class="del" style="height: 25px; background: #8f8a97; border-radius: 4px 4px 0 0;"></div>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+              <span class="n" style="font-size: 12px; color: #ece9e4;">2 093</span>
+              <div class="stapel">
+                <div class="del" style="height: 24px; background: #c98500;"></div>
+                <div class="del" style="height: 13px; background: #3987e5; border-radius: 4px 4px 0 0;"></div>
+              </div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+              <span class="n" style="font-size: 12px; color: #ece9e4;">1 392</span>
+              <div class="stapel">
+                <div class="del" style="height: 11px; background: #d55181;"></div>
+                <div class="del" style="height: 10px; background: #d95926;"></div>
+                <div class="del" style="height: 4px; background: #199e70; border-radius: 4px 4px 0 0;"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 56px; padding-left: 76px; font-size: 12px; color: #9d968d;">
+        <span style="width: 64px; text-align: center;">april</span>
+        <span style="width: 64px; text-align: center;">maj</span>
+        <span style="width: 64px; text-align: center;">juni</span>
+        <span style="width: 64px; text-align: center;">juli</span>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 16px; flex-grow: 1; min-height: 0;">
+
+      <!-- Vart pengarna går. Andelen ritas som en stapel bakom raden, så att
+           ordningen syns utan att någon procentsiffra behöver läsas. -->
+      <div class="panel" style="flex: 1 1 0; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px;">
+        <span class="etikett" style="margin-bottom: 6px;">Per kategori</span>
+
+        <div class="rad" style="border-top: 0;">
+          <span class="prick" style="background: #3987e5;"></span>
+          <span style="flex-grow: 1;">Bygg och färg</span>
+          <span class="n" style="color: #9d968d; width: 76px; text-align: right;">8 köp</span>
+          <span class="n" style="width: 110px; text-align: right; font-weight: 600;">10 485,62</span>
+          <span class="n" style="color: #9d968d; width: 46px; text-align: right;">41 %</span>
+        </div>
+        <div style="height: 4px; border-radius: 2px; background: #3987e5; width: 41%;"></div>
+
+        <div class="rad">
+          <span class="prick" style="background: #d95926;"></span>
+          <span style="flex-grow: 1;">Bil</span>
+          <span class="n" style="color: #9d968d; width: 76px; text-align: right;">2 köp</span>
+          <span class="n" style="width: 110px; text-align: right; font-weight: 600;">9 973,30</span>
+          <span class="n" style="color: #9d968d; width: 46px; text-align: right;">39 %</span>
+        </div>
+        <div style="height: 4px; border-radius: 2px; background: #d95926; width: 39%;"></div>
+
+        <div class="rad">
+          <span class="prick" style="background: #199e70;"></span>
+          <span style="flex-grow: 1;">Hem och trädgård</span>
+          <span class="n" style="color: #9d968d; width: 76px; text-align: right;">2 köp</span>
+          <span class="n" style="width: 110px; text-align: right; font-weight: 600;">1 697,76</span>
+          <span class="n" style="color: #9d968d; width: 46px; text-align: right;">7 %</span>
+        </div>
+        <div style="height: 4px; border-radius: 2px; background: #199e70; width: 7%;"></div>
+
+        <div class="rad">
+          <span class="prick" style="background: #8f8a97;"></span>
+          <span style="flex-grow: 1;">Övrigt</span>
+          <span class="n" style="color: #9d968d; width: 76px; text-align: right;">1 köp</span>
+          <span class="n" style="width: 110px; text-align: right; font-weight: 600;">1 426,45</span>
+          <span class="n" style="color: #9d968d; width: 46px; text-align: right;">6 %</span>
+        </div>
+        <div style="height: 4px; border-radius: 2px; background: #8f8a97; width: 6%;"></div>
+
+        <div class="rad">
+          <span class="prick" style="background: #c98500;"></span>
+          <span style="flex-grow: 1;">Mat och dryck</span>
+          <span class="n" style="color: #9d968d; width: 76px; text-align: right;">1 köp</span>
+          <span class="n" style="width: 110px; text-align: right; font-weight: 600;">1 369,60</span>
+          <span class="n" style="color: #9d968d; width: 46px; text-align: right;">5 %</span>
+        </div>
+        <div style="height: 4px; border-radius: 2px; background: #c98500; width: 5%;"></div>
+
+        <div class="rad">
+          <span class="prick" style="background: #d55181;"></span>
+          <span style="flex-grow: 1;">Kläder</span>
+          <span class="n" style="color: #9d968d; width: 76px; text-align: right;">1 köp</span>
+          <span class="n" style="width: 110px; text-align: right; font-weight: 600;">642,20</span>
+          <span class="n" style="color: #9d968d; width: 46px; text-align: right;">3 %</span>
+        </div>
+        <div style="height: 4px; border-radius: 2px; background: #d55181; width: 3%;"></div>
+      </div>
+
+      <!-- Det som sticker ut: de största köpen, med vägen tillbaka till kvittot. -->
+      <div class="panel" style="width: 440px; flex: 0 0 auto; padding: 16px 20px; display: flex; flex-direction: column;">
+        <span class="etikett" style="margin-bottom: 6px;">Största köpen</span>
+
+        <a href="#" class="rad" style="border-top: 0; color: inherit;">
+          <span class="prick" style="background: #d95926;"></span>
+          <span style="flex-grow: 1;">Däckskiftarna</span>
+          <span class="n" style="color: #9d968d;">2026-05-11</span>
+          <span class="n" style="width: 96px; text-align: right; font-weight: 600;">9 425,00</span>
+        </a>
+        <a href="#" class="rad" style="color: inherit;">
+          <span class="prick" style="background: #3987e5;"></span>
+          <span style="flex-grow: 1;">Colorama</span>
+          <span class="n" style="color: #9d968d;">2026-04-20</span>
+          <span class="n" style="width: 96px; text-align: right; font-weight: 600;">3 474,00</span>
+        </a>
+        <a href="#" class="rad" style="color: inherit;">
+          <span class="prick" style="background: #3987e5;"></span>
+          <span style="flex-grow: 1;">Flügger</span>
+          <span class="n" style="color: #9d968d;">2026-05-02</span>
+          <span class="n" style="width: 96px; text-align: right; font-weight: 600;">3 259,03</span>
+        </a>
+        <a href="#" class="rad" style="color: inherit;">
+          <span class="prick" style="background: #3987e5;"></span>
+          <span style="flex-grow: 1;">Byggmax</span>
+          <span class="n" style="color: #9d968d;">2026-04-20</span>
+          <span class="n" style="width: 96px; text-align: right; font-weight: 600;">2 033,84</span>
+        </a>
+        <a href="#" class="rad" style="color: inherit;">
+          <span class="prick" style="background: #199e70;"></span>
+          <span style="flex-grow: 1;">Blomsterlandet</span>
+          <span class="n" style="color: #9d968d;">2026-04-26</span>
+          <span class="n" style="width: 96px; text-align: right; font-weight: 600;">1 496,00</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

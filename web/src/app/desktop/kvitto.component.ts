@@ -50,6 +50,12 @@ type Receipt = {
   kasserade?: { at: string; index: number; sha256: string; orsak: 'ersatt' | 'borttagen' }[];
   /** Kvitton som visar samma köp, eller `null` när det här är ensamt om sitt. */
   grupp: { id: string; medlemmar: Gruppmedlem[] } | null;
+  /** Kategorin som gäller: kvittots egen om någon satt en, annars butikens regel. */
+  kategori: string | null;
+  /** Kategorierna som finns, i den ordning som ger dem färg. */
+  kategorier: string[];
+  /** Satt bara när en människa gett *det här* kvittot en egen kategori. */
+  kategori_egen?: { value: string; at: string };
   /** Varför kvittot står i aktiviteten. `null` betyder klart. Härlett av servern. */
   lage: Lage | null;
   saknadeFalt: string[];
@@ -195,6 +201,37 @@ export class KvittoComponent {
       height: `${(b.height / b.width) * 100}%`,
       transform: `translate(-50%, -50%) rotate(${b.rotation}deg)`,
     };
+  }
+
+  /**
+   * En människa säger vad butiken är.
+   *
+   * Normalvägen ändrar **regeln**: butiken betyder något annat nu, och alla kvitton
+   * därifrån följer med — det var beställarens val, och det som gör trettio kvitton
+   * kategoriserade utan att någon betar av en lista. Saknar kvittot butik finns bara
+   * kvittots egen kategori kvar att sätta.
+   */
+  async valjKategori(event: Event): Promise<void> {
+    const kategori = (event.target as HTMLSelectElement).value;
+    const butik = this.varde('store')?.value;
+    if (typeof butik === 'string' && butik.trim()) {
+      await this.skriv('/api/kategorier/regel', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ butik, kategori }),
+      });
+      return;
+    }
+    await this.sattEgenKategori(kategori);
+  }
+
+  /** Undantaget: butiken säljer allt, och det här kvittot är något annat. */
+  async sattEgenKategori(kategori: string | null): Promise<void> {
+    await this.skriv(`/api/receipts/${this.id()}/kategori`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kategori }),
+    });
   }
 
   tumnagel(index: number): string {

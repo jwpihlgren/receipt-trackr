@@ -223,6 +223,36 @@
           </div>
         }
 
+        <!--
+          Kategorin är inte läst ur kvittot — den följer av butiken. Därför står regeln
+          utskriven under fältet: ändrar man här ändrar man vad butiken betyder, och
+          alla kvitton därifrån följer med.
+        -->
+        <div>
+          <label class="label" for="falt-kategori">KATEGORI</label>
+          <select
+            id="falt-kategori"
+            class="select w-full"
+            [disabled]="sparar()"
+            [value]="r.kategori ?? ''"
+            (change)="valjKategori($event)"
+          >
+            @for (k of r.kategorier; track k) {
+              <option [value]="k" [selected]="k === r.kategori">{{ k }}</option>
+            }
+          </select>
+          @if (varde('store'); as butik) {
+            <p class="mt-1 text-sm text-neutral">
+              @if (r.kategori_egen) {
+                Gäller bara det här kvittot.
+                <button type="button" class="link" (click)="sattEgenKategori(null)">Följ butiken igen</button>
+              } @else {
+                Gäller alla kvitton från {{ butik.value }}.
+              }
+            </p>
+          }
+        </div>
+
         <div class="flex items-center gap-3">
           <button type="button" class="btn btn-primary" [disabled]="!harAndringar() || sparar()" (click)="spara()">
             Spara

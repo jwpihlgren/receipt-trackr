@@ -217,3 +217,33 @@
 .sortknapp:hover {
   color: var(--ink);
 }
+
+/* ---- Analysens stapel --------------------------------------------------- */
+
+/*
+ * Marken är tunn och ändarna rundade bara där stapeln faktiskt slutar. Två segment
+ * skiljs av två pixlar yta i stället för av en linje: en linje hade varit ett streck
+ * till att läsa, mellanrummet är bara frånvaro.
+ */
+.stapel {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  width: 64px;
+}
+
+.stapel > div {
+  border-radius: 0;
+}
+
+.stapel-topp {
+  border-radius: var(--horn-xs) var(--horn-xs) 0 0;
+}
+
+/* Kategorins prick. Färgen bär identitet men står aldrig ensam — namnet står bredvid. */
+.kategoriprick {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}

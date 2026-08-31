@@ -177,7 +177,7 @@ describe("fritextsöket", () => {
         text: "BAUHAUS\näterköp av kakel\nATT BETALA 4218,50",
       };
       const { upsert } = await import("../src/store/index-db.js");
-      upsert(archive.db, komplett);
+      upsert(archive.db, komplett, archive.kategorier);
 
       const sok = (q: string) => arkiv(archive.db, { q }).receipts.map((r) => r.id);
       expect(sok('"återköp"')).toEqual([id]);

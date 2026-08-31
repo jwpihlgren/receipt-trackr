@@ -1,0 +1,154 @@
+<div class="min-h-dvh bg-base-200">
+  <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-2 sm:px-4">
+    <app-meny lage="dator" />
+    <h1 class="text-lg font-semibold">Analys</h1>
+  </header>
+
+  <form class="flex flex-wrap items-end gap-3 border-b border-base-300 bg-base-100 px-4 py-3" (submit)="$event.preventDefault()">
+    <label class="floating-label">
+      <span>Från</span>
+      <input type="date" class="input input-sm" [value]="fran()" (change)="onFran($event)" />
+    </label>
+    <label class="floating-label">
+      <span>Till</span>
+      <input type="date" class="input input-sm" [value]="till()" (change)="onTill($event)" />
+    </label>
+    <button type="button" class="btn btn-sm btn-ghost" (click)="load()">Uppdatera</button>
+  </form>
+
+  @if (error(); as message) {
+    <div role="alert" class="alert alert-soft alert-error mx-4 mt-4 w-auto">
+      <span>{{ message }}</span>
+      <button type="button" class="btn btn-sm" (click)="load()">Försök igen</button>
+    </div>
+  }
+
+  <main class="flex flex-col gap-4 p-4" [attr.aria-busy]="laddar()">
+    @if (data(); as d) {
+      @if (tomt()) {
+        <p class="text-neutral">Inget klart kvitto i perioden.</p>
+      } @else {
+        <div class="flex flex-wrap gap-4">
+          <div class="rounded-box border border-base-300 bg-base-100 px-5 py-4">
+            <p class="label">Summa i perioden</p>
+            <p class="num text-4xl font-semibold">{{ belopp(d.summa) }} kr</p>
+            <p class="num text-sm text-neutral">
+              {{ d.antal }} {{ d.antal === 1 ? 'köp' : 'köp' }} · {{ d.fran }} – {{ d.till }}
+            </p>
+          </div>
+        </div>
+
+        <!--
+          Månaden är ryggen, kategorierna ligger staplade i den. Varje stapel bär sin
+          egen summa: en handfull staplar är få nog att märkas ut direkt, i stället för
+          att kräva en axel man läser av.
+        -->
+        <section class="rounded-box border border-base-300 bg-base-100 px-5 py-4">
+          <div class="mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-2">
+            <h2 class="label">Per månad</h2>
+            <ul class="ml-auto flex flex-wrap gap-x-4 gap-y-1 text-sm text-neutral">
+              @for (k of d.kategorier; track k.kategori) {
+                <li class="flex items-center gap-2">
+                  <span class="kategoriprick" [style.background]="farg(k.kategori)"></span>{{ k.kategori }}
+                </li>
+              }
+            </ul>
+          </div>
+
+          <div class="flex gap-5 overflow-x-auto">
+            <div class="num flex flex-col justify-between text-right text-sm text-neutral" [style.height.px]="264">
+              @for (linje of linjer(); track $index) { <span>{{ hela(linje) }}</span> }
+            </div>
+
+            <!--
+              Månadens namn ligger i stapelns egen kolumn, inte i en rad under
+              diagrammet. En egen rad hade behövt räkna sig fram till samma bredder
+              och samma mellanrum, och den räkningen gled: april stod rätt, juli
+              hamnade en halv stapel för långt åt höger.
+            -->
+            <div class="relative flex-1">
+              <div class="absolute top-0 right-0 left-0" [style.height.px]="264">
+                @for (linje of linjer(); track $index) {
+                  <div
+                    class="absolute right-0 left-0 border-t"
+                    [class.border-base-300]="$index < linjer().length - 1"
+                    [class.border-neutral]="$index === linjer().length - 1"
+                    [style.top.px]="($index * 264) / (linjer().length - 1)"
+                  ></div>
+                }
+              </div>
+
+              <div class="relative flex items-end gap-8 pl-6">
+                @for (m of d.manader; track m.manad) {
+                  <div class="flex w-16 flex-col items-center">
+                    <div class="flex flex-col justify-end gap-1.5" [style.height.px]="264">
+                      <span class="num text-center text-sm">{{ hela(m.summa) }}</span>
+                      <div class="stapel">
+                        @for (del of m.delar; track del.kategori) {
+                          <div
+                            [style.height.px]="hojd(del.summa)"
+                            [style.background]="farg(del.kategori)"
+                            [class.stapel-topp]="$index === m.delar.length - 1"
+                            [attr.title]="del.kategori + ' ' + belopp(del.summa) + ' kr'"
+                          ></div>
+                        }
+                      </div>
+                    </div>
+                    <span class="mt-1.5 text-sm text-neutral">{{ manadsnamn(m.manad) }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="flex flex-wrap items-start gap-4">
+          <!-- Vart pengarna går. Andelen ritas under raden, så att ordningen syns
+               utan att någon procentsiffra behöver läsas. -->
+          <section class="min-w-96 flex-1 rounded-box border border-base-300 bg-base-100 px-5 py-4">
+            <h2 class="label mb-2">Per kategori</h2>
+            <ul>
+              @for (k of d.kategorier; track k.kategori) {
+                <li class="border-t border-base-300 first:border-t-0">
+                  <div class="flex items-center gap-3 py-2">
+                    <span class="kategoriprick" [style.background]="farg(k.kategori)"></span>
+                    <span class="flex-1">
+                      {{ k.kategori }}
+                      @if (forandring(k); as text) {
+                        <span class="block text-sm text-neutral">{{ text }}</span>
+                      }
+                    </span>
+                    <span class="num w-20 text-right text-sm text-neutral">{{ k.antal }} köp</span>
+                    <span class="num w-32 text-right font-semibold">{{ belopp(k.summa) }}</span>
+                    <span class="num w-12 text-right text-sm text-neutral">{{ andel(k.summa) }} %</span>
+                  </div>
+                  <div class="mb-2 h-1 rounded-full" [style.background]="farg(k.kategori)" [style.width.%]="andel(k.summa)"></div>
+                </li>
+              }
+            </ul>
+          </section>
+
+          <section class="w-full max-w-md rounded-box border border-base-300 bg-base-100 px-5 py-4">
+            <h2 class="label mb-2">Största köpen</h2>
+            <ul>
+              @for (kop of d.storsta; track kop.id) {
+                <li class="border-t border-base-300 first:border-t-0">
+                  <a class="flex items-center gap-3 py-2 hover:text-primary" [routerLink]="['/dator/kvitto', kop.id]">
+                    <span class="kategoriprick" [style.background]="farg(kop.kategori)"></span>
+                    <span class="flex-1">{{ kop.store ?? 'Utan butik' }}</span>
+                    <span class="num text-sm text-neutral">{{ kop.date }}</span>
+                    <span class="num w-28 text-right font-semibold">{{ belopp(kop.total) }}</span>
+                  </a>
+                </li>
+              }
+            </ul>
+          </section>
+        </div>
+      }
+    } @else if (laddar()) {
+      <div class="flex items-center gap-3 p-4 text-neutral">
+        <span class="loading loading-spinner loading-sm"></span> Hämtar …
+      </div>
+    }
+  </main>
+</div>
