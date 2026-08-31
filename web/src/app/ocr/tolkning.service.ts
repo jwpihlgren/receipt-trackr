@@ -4,7 +4,7 @@ import { OcrService } from './ocr.service';
 type Jobb = {
   id: string;
   capturedAt: string;
-  segments: { index: number; file: string; sha256: string }[];
+  segments: { index: number; file: string; sha256: string; rotation?: 0 | 90 | 180 | 270 }[];
   reservationTill: number;
   uppratt: boolean;
 };
@@ -213,8 +213,13 @@ export class TolkningService {
         }));
         const bild = await fetch(`/api/receipts/${jobb.id}/files/${segment.file}`);
         if (!bild.ok) throw new Error(`bild ${segment.file}: ${bild.status}`);
-        // Egna fångster står redan upp — uppräteningen sparas in, mätt i M5a.
-        const utfall = await this.ocr.tolka(await bild.arrayBuffer(), 'tiny', jobb.uppratt ? 0 : 'auto');
+        /**
+         * Har en människa vridit bilden gäller det. Hon har sett papperet; gissningen
+         * har bara sett pixlar, kostar 500–700 ms och hade fel på en bild av trettiofem
+         * i M0. Egna fångster står redan upp — då sparas uppräteningen in helt (M5a).
+         */
+        const rotation = segment.rotation ?? (jobb.uppratt ? 0 : 'auto');
+        const utfall = await this.ocr.tolka(await bild.arrayBuffer(), 'tiny', rotation);
         delar.push(utfall.text);
         rader.push(...utfall.rader);
         msTotalt += utfall.ms.totalt;

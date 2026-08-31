@@ -459,12 +459,17 @@ export type ArkivRad = {
   medlemmar: number;
 };
 
+export type Sortering = "date" | "store" | "total" | "capturedAt" | "segments";
+
 export type ArkivFraga = {
   q?: string;
   butik?: string;
   fran?: string;
   till?: string;
   limit?: number;
+  /** Kolumnen tabellen sorteras på. Standard är kvittots eget datum, senast först. */
+  sortera?: Sortering;
+  stigande?: boolean;
   /**
    * Ta med ofärdiga kvitton också. Skrivbordets arkiv vill inte det — där är
    * Aktivitet den andra halvan. Telefonens hemskärm vill det: ett kvitto man just
@@ -519,6 +524,27 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
       .prepare(`SELECT COUNT(${perKop ? "DISTINCT COALESCE(r.grupp, r.id)" : "*"}) AS n ${from} WHERE ${where}`)
       .get(...params) as { n: number }
   ).n;
+  /**
+   * Sorteringen är en vitlista, inte en sträng som går vidare till SQL. Kolumnnamnet
+   * kommer från en klick i en tabellrubrik, och en tabellrubrik ska inte kunna
+   * beskriva en fråga.
+   *
+   * Fångsttiden är alltid andra nyckel: två kvitton från samma dag ska ligga i
+   * samma ordning varje gång listan hämtas, annars byter rader plats av sig själva
+   * mellan två hämtningar.
+   */
+  const kolumn: Record<Sortering, string> = {
+    date: "r.date",
+    store: "r.store COLLATE NOCASE",
+    total: "r.total",
+    capturedAt: "r.captured_at",
+    segments: "r.segments",
+  };
+  const riktning = fraga.stigande ? "ASC" : "DESC";
+  // Faller tillbaka på datum om kolumnen är okänd. Vitlistan finns också i rutten,
+  // men den som anropar funktionen direkt ska inte kunna få `undefined` in i SQL:en.
+  const ordning = `${kolumn[fraga.sortera as Sortering] ?? kolumn.date} ${riktning}, r.captured_at DESC`;
+
   const rader = db
     .prepare(
       `SELECT r.id AS id, r.date AS date, r.store AS store, r.total AS total,
@@ -532,7 +558,7 @@ export function arkiv(db: ReceiptIndex, fraga: ArkivFraga): { total: number; rec
               length(f.text) AS tecken,
               ${fraga.q ? "snippet(receipts_fts, 0, '[', ']', '…', 12)" : "NULL"} AS snippet
          ${from} WHERE ${where}
-        ORDER BY r.date DESC, r.captured_at DESC
+        ORDER BY ${ordning}
         LIMIT ?`,
     )
     .all(...params, Math.min(Math.max(fraga.limit ?? 200, 1), 1000)) as ArkivRad[];

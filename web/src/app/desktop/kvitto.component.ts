@@ -1,10 +1,24 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { NgStyle } from '@angular/common';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MenyComponent } from '../shared/meny.component';
+import { BildvisareComponent, type VisadBild } from '../shared/bildvisare.component';
 import { TolkningService } from '../ocr/tolkning.service';
 import { datum, tid } from '../shared/datum';
 
-type Segment = { file: string; sha256: string; bytes: number; width: number; height: number };
+type Segment = {
+  file: string;
+  sha256: string;
+  bytes: number;
+  width: number;
+  height: number;
+  /** Vad en människa sagt om bildens riktning. Saknas den står bilden som den kom. */
+  rotation?: 0 | 90 | 180 | 270;
+};
+
+/** Ett annat fotografi av samma köp. Servern räknar fram gruppen ur kvittots nummer. */
+type Gruppmedlem = { id: string; capturedAt: string; segments: number };
 
 export type Falt = {
   value: string | number;
@@ -33,6 +47,9 @@ type Receipt = {
   text: string;
   tags: { user: string[]; auto: string[] };
   lostSegments?: { at: string; utlovade: number; faktiska: number };
+  kasserade?: { at: string; index: number; sha256: string; orsak: 'ersatt' | 'borttagen' }[];
+  /** Kvitton som visar samma köp, eller `null` när det här är ensamt om sitt. */
+  grupp: { id: string; medlemmar: Gruppmedlem[] } | null;
   /** Varför kvittot står i aktiviteten. `null` betyder klart. Härlett av servern. */
   lage: Lage | null;
   saknadeFalt: string[];
@@ -52,7 +69,7 @@ type Receipt = {
  */
 @Component({
   selector: 'app-kvitto',
-  imports: [RouterLink, MenyComponent],
+  imports: [RouterLink, NgStyle, MenyComponent, BildvisareComponent],
   templateUrl: './kvitto.component.html',
 })
 export class KvittoComponent {
@@ -65,7 +82,23 @@ export class KvittoComponent {
   readonly error = signal<string | null>(null);
   readonly visaText = signal(false);
 
-  readonly id = computed(() => this.route.snapshot.paramMap.get('id') ?? '');
+  /**
+   * Adressens egna värden, som signaler.
+   *
+   * `route.snapshot` läses en gång, och Angular återanvänder komponenten när man går
+   * från ett kvitto till ett annat — galleriets länk till syskonfotot bytte adress
+   * men hade fortsatt visa det första kvittot.
+   */
+  private readonly params = toSignal(this.route.paramMap);
+  private readonly fragor = toSignal(this.route.queryParamMap);
+
+  readonly id = computed(() => this.params()?.get('id') ?? this.route.snapshot.paramMap.get('id') ?? '');
+
+  /**
+   * Varifrån man kom. Aktiviteten är en annan resa än arkivet: den som rättat ett
+   * kvitto där ska tillbaka till listan över det som inte är klart, inte till arkivet.
+   */
+  readonly fran = computed(() => this.fragor()?.get('fran') ?? this.route.snapshot.queryParamMap.get('fran'));
 
   /**
    * Vilken yta kvittot öppnades från. Samma skärm, men bakåtlänken och menyn ska
@@ -75,7 +108,11 @@ export class KvittoComponent {
   readonly yta = computed<'mobil' | 'dator'>(() =>
     this.route.snapshot.url.some((s) => s.path === 'telefon') ? 'mobil' : 'dator',
   );
-  readonly tillbakaLank = computed(() => (this.yta() === 'mobil' ? '/telefon/kvitton' : '/dator/kvitton'));
+  readonly tillbakaLank = computed(() => {
+    const yta = this.yta() === 'mobil' ? '/telefon' : '/dator';
+    return this.fran() === 'aktivitet' ? `${yta}/aktivitet` : `${yta}/kvitton`;
+  });
+  readonly tillbakaNamn = computed(() => (this.fran() === 'aktivitet' ? 'Aktivitet' : 'Kvitton'));
 
   /** Fångsten är oavslutad om klienten aldrig hann säga hur många bilder kvittot har. */
   readonly oavslutat = computed(() => this.receipt()?.completedAt === null);
@@ -102,6 +139,143 @@ export class KvittoComponent {
   readonly faltFel = signal<Record<string, string>>({});
   readonly sparar = signal(false);
   readonly sparat = signal(false);
+
+  /** Vilken av kvittots bilder som visas stor. Index i `segments`, inte segmentnummer. */
+  readonly vald = signal(0);
+  readonly visaren = signal(false);
+  /** Bilden som väntar på ett ja innan den kasseras. `null` när ingen fråga står. */
+  readonly fragarKassera = signal<number | null>(null);
+
+  /**
+   * Bilderna som de ska visas: adressen bär bildens sha256.
+   *
+   * Filerna cachas hårt därför att de är oföränderliga — men en människa får ersätta
+   * en dålig bild, och då är filnamnet detsamma medan innehållet är ett annat. Att
+   * lägga summan i adressen håller båda sanningarna: gamla adressen pekade på gamla
+   * bytesen, och den nya bilden hämtas därför att den har en annan adress.
+   */
+  readonly bilder = computed<VisadBild[]>(() =>
+    (this.receipt()?.segments ?? []).map((s, i) => ({
+      file: s.file,
+      index: i + 1,
+      url: `${this.bild(s.file)}?v=${s.sha256.slice(0, 12)}`,
+      width: s.width,
+      height: s.height,
+      rotation: s.rotation ?? 0,
+    })),
+  );
+
+  readonly aktuell = computed<VisadBild | null>(() => this.bilder()[this.vald()] ?? null);
+
+  /** Nästa lediga segmentnummer. Nummer återanvänds inte — en kasserad bilds plats står tom. */
+  private nastaNummer(): number {
+    const r = this.receipt();
+    const hogsta = (r?.segments ?? []).reduce((h, s) => Math.max(h, Number(s.file.slice(8, 10))), 0);
+    return hogsta + 1;
+  }
+
+  /**
+   * Ramens proportion. En bild som ligger ned är lika bred som den är hög, tvärtom —
+   * och ramen måste bära de måtten, annars lägger sig den vridna bilden utanför.
+   */
+  ramAspekt(b: VisadBild): string {
+    return b.rotation % 180 === 90 ? `${b.height} / ${b.width}` : `${b.width} / ${b.height}`;
+  }
+
+  /** Bilden fyller ramen och vrids om sin egen mitt. */
+  bildStil(b: VisadBild): Record<string, string> {
+    if (b.rotation % 180 === 0) {
+      return { width: '100%', height: '100%', transform: `rotate(${b.rotation}deg)` };
+    }
+    return {
+      position: 'absolute',
+      left: '50%',
+      top: '50%',
+      width: `${(b.width / b.height) * 100}%`,
+      height: `${(b.height / b.width) * 100}%`,
+      transform: `translate(-50%, -50%) rotate(${b.rotation}deg)`,
+    };
+  }
+
+  tumnagel(index: number): string {
+    return `/api/receipts/${this.id()}/thumbs/${index}`;
+  }
+
+  oppnaVisaren(index: number): void {
+    this.vald.set(index);
+    this.visaren.set(true);
+  }
+
+  /** Vridningen sparas på kvittot — den är en människas ord om bilden, inte en vy. */
+  async vridBild(handelse: { index: number; rotation: 0 | 90 | 180 | 270 }): Promise<void> {
+    await this.skriv(`/api/receipts/${this.id()}/segments/${handelse.index}/rotation`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ rotation: handelse.rotation }),
+    });
+  }
+
+  /** Ersätter en dålig bild med ett nytt fotografi av samma papper. */
+  async ersattBild(index: number, event: Event): Promise<void> {
+    const fil = (event.target as HTMLInputElement).files?.[0];
+    (event.target as HTMLInputElement).value = '';
+    if (!fil) return;
+    const kropp = new FormData();
+    kropp.append('file', fil);
+    await this.skriv(`/api/receipts/${this.id()}/segments/${index}`, { method: 'PUT', body: kropp });
+  }
+
+  /** Lägger till en bild på ett kvitto som redan ligger i arkivet. */
+  async laggTillBild(event: Event): Promise<void> {
+    const fil = (event.target as HTMLInputElement).files?.[0];
+    (event.target as HTMLInputElement).value = '';
+    if (!fil) return;
+    const nummer = this.nastaNummer();
+    const kropp = new FormData();
+    kropp.append('file', fil);
+    const skickat = await this.skriv(`/api/receipts/${this.id()}/segments/${nummer}`, {
+      method: 'POST',
+      body: kropp,
+      // Antalet utlovade bilder höjs efteråt: kvittot är helt först när bilden ligger
+      // i arkivet, inte när uppladdningen börjat.
+    });
+    if (!skickat) return;
+    await this.skriv(`/api/receipts/${this.id()}/complete`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ segments: this.receipt()?.segments.length ?? nummer }),
+    });
+  }
+
+  async kasseraBild(index: number): Promise<void> {
+    this.fragarKassera.set(null);
+    await this.skriv(`/api/receipts/${this.id()}/segments/${index}`, { method: 'DELETE' });
+    this.vald.set(0);
+  }
+
+  /**
+   * En skrivning mot kvittot, med samma tre svar överallt: 401 leder till inloggningen,
+   * ett fel säger till, och det som lyckas hämtar om kvittot. Utan det sista visade
+   * skärmen den gamla bilden efter en vridning som faktiskt gått igenom.
+   */
+  private async skriv(url: string, init: RequestInit): Promise<boolean> {
+    this.sparar.set(true);
+    try {
+      const svar = await fetch(url, init);
+      if (svar.status === 401) {
+        await this.router.navigateByUrl('/logga-in');
+        return false;
+      }
+      if (!svar.ok) throw new Error(String(svar.status));
+      await this.load();
+      return true;
+    } catch {
+      this.error.set('Ändringen gick inte att spara.');
+      return false;
+    } finally {
+      this.sparar.set(false);
+    }
+  }
 
   varde(namn: string): Falt | undefined {
     return this.receipt()?.fields?.[namn];
@@ -352,7 +526,14 @@ export class KvittoComponent {
   }
 
   constructor() {
-    void this.load();
+    // Hämtar om när adressen byter kvitto — annars visade skärmen det förra kvittot
+    // efter ett klick i galleriet, med rätt adress i fältet.
+    effect(() => {
+      const id = this.id();
+      if (!id) return;
+      this.vald.set(0);
+      void this.load();
+    });
   }
 
   async load(): Promise<void> {

@@ -1,0 +1,78 @@
+<!--
+  En riktig <dialog> med showModal(): Esc, fokusfälla och inert bakgrund kommer
+  därifrån och behöver inte skrivas. Layoutreglerna hänger på [open] — en <dialog>
+  som får `display` utan villkor ligger kvar och lyser över skärmen när den är stängd.
+-->
+<dialog #rutan class="bildvisare" (close)="stang.emit()">
+  <div class="bildvisare-ruta">
+    @if (bild(); as b) {
+      <div class="bildvisare-topp">
+        @if (bilder().length > 1) {
+          <div class="join shadow-lg">
+            @for (annan of bilder(); track annan.file) {
+              <button
+                type="button"
+                class="btn join-item btn-sm"
+                [class.btn-active]="annan.index === b.index"
+                (click)="visa($index)"
+              >
+                {{ annan.index }}
+              </button>
+            }
+          </div>
+        }
+
+        <div class="ml-auto flex items-center gap-1 rounded-box border border-base-300 bg-base-100 p-1 shadow-lg">
+          <button type="button" class="btn btn-square btn-ghost btn-sm" aria-label="Zooma ut" (click)="zooma(-1)">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /><path d="M8 11h6" /></svg>
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm num w-16" (click)="anpassa()">{{ procent() }} %</button>
+          <button type="button" class="btn btn-square btn-ghost btn-sm" aria-label="Zooma in" (click)="zooma(1)">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /><path d="M8 11h6" /><path d="M11 8v6" /></svg>
+          </button>
+
+          <div class="divider divider-horizontal mx-0"></div>
+
+          <button type="button" class="btn btn-square btn-ghost btn-sm" aria-label="Vrid vänster" (click)="vridBilden(-1)">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h9a6 6 0 0 1 6 6v1" /><path d="m3 8 4-4" /><path d="m3 8 4 4" /></svg>
+          </button>
+          <button type="button" class="btn btn-square btn-ghost btn-sm" aria-label="Vrid höger" (click)="vridBilden(1)">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8h-9a6 6 0 0 0-6 6v1" /><path d="m21 8-4-4" /><path d="m21 8-4 4" /></svg>
+          </button>
+
+          <div class="divider divider-horizontal mx-0"></div>
+
+          <a class="btn btn-ghost btn-sm" [href]="b.url" target="_blank" rel="noopener">Öppna originalet</a>
+          <button type="button" class="btn btn-square btn-ghost btn-sm" aria-label="Stäng" (click)="stangVisaren()">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <!--
+        Ytan rullar, bilden ligger stilla i den. Vridningen sker om bildens mitt medan
+        ramen bär de mått vridningen ger — annars hade en bild på 90° tagit sin egen
+        ståendes plats och lagt sig utanför rutan.
+      -->
+      <div #ytan class="bildvisare-yta">
+        <div
+          class="bildvisare-ram"
+          [style.width.px]="ram().bredd"
+          [style.height.px]="ram().hojd"
+        >
+          <img
+            [src]="b.url"
+            [alt]="'Bild ' + b.index"
+            [style.width.px]="bildstorlek().bredd"
+            [style.height.px]="bildstorlek().hojd"
+            [style.transform]="'translate(-50%, -50%) rotate(' + b.rotation + 'deg)'"
+          />
+        </div>
+      </div>
+    }
+  </div>
+
+  <form method="dialog" class="modal-backdrop">
+    <button type="submit" (click)="stang.emit()">Stäng</button>
+  </form>
+</dialog>

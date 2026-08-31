@@ -215,6 +215,15 @@
       "w": 384,
       "h": 900,
       "title": "Inte samma köp"
+    },
+    {
+      "file": "SkrivbordBildvisare.dc.html",
+      "page": "page-3",
+      "x": 0,
+      "y": 3480,
+      "w": 1440,
+      "h": 900,
+      "title": "Bildvisaren"
     }
   ],
   "annotations": [
@@ -305,6 +314,14 @@
       "y": 2180,
       "w": 1440,
       "text": "Grupperna. Tolv av de 35 fotona var dubbletter i fem grupper — tre bilder av samma Colorama-kvitto, och kvittot plus kortslippen från Flügger.\n\nArkivet räknar köp: en rad per köp, och raden säger varför den bär flera bilder — \"tre foton av samma kvitto\", \"kvitto och kortslipp\". Utan den raden ser en kollapsad lista ut som förlorade bilder. Telefonens hemskärm kollapsar inte: där svarar listan på \"kom bilden fram?\", och varje fångst ska synas.\n\nKvittovyn visar de fält gruppen kommit fram till, och säger var värdet lästes när det inte står i bilden man tittar på. Sidecaren på disk bär oförändrat den här bildens egen läsning.\n\nVägen ut måste finnas: en felaktig sammanslagning döljer ett köp och syns aldrig. \"Inte samma köp\" ligger inline som raderingen, med konsekvensen utskriven — inte som en ruta över skärmen. Den är ännu inte byggd: separationen måste sparas i sidecaren, annars slår nästa ombyggnad ihop dem igen.\n\nMåtten här är kodens, inte dukens: 12 px tabelltext, 56 px rader med miniatyr, paneler i #1f1e23 med 8 px hörn, fältkanter på #6e6c7b."
+    },
+    {
+      "id": "bildvisaren",
+      "page": "page-3",
+      "x": 0,
+      "y": 3300,
+      "w": 1440,
+      "text": "Bildvisaren. Kvittovyn visar bilden 448 px bred, och en rad som tolkningen läste fel går inte att granska i den storleken.\n\nKlick på bilden öppnar den över hela ytan: zoom i steg med 1:1 som eget läge, dra för att panorera, och Öppna originalet lämnar ut de exakta bytesen från kameran i en egen flik.\n\nVridningen sparas på segmentet i sidecaren — det är en människas ord om bilden, och det gäller därför överallt: tumnageln byggs om, och tolkningsjobbet bär vridningen så att en omläsning läser papperet åt rätt håll i stället för att gissa. Originalfilens bytes rörs aldrig."
     }
   ],
   "launch": {

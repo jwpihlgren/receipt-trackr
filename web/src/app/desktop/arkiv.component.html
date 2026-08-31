@@ -2,19 +2,11 @@
   <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-2 sm:px-4">
     <app-meny lage="dator" />
     <h1 class="text-lg font-semibold">Kvitton</h1>
-    <span class="num text-sm text-neutral">{{ total() }}{{ filtrerat() ? ' träffar' : ' kvitton' }}</span>
   </header>
 
   @if (raderat()) {
     <div role="status" class="alert alert-soft alert-success mx-4 mt-4 w-auto">
       <span>Kvittot är borttaget.</span>
-    </div>
-  }
-
-  @if (ofardiga() > 0) {
-    <div class="flex items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
-      <span>{{ ofardiga() }} {{ ofardiga() === 1 ? 'kvitto är' : 'kvitton är' }} inte klara</span>
-      <a class="btn btn-sm btn-primary ml-auto" routerLink="/dator/aktivitet">Aktivitet</a>
     </div>
   }
 
@@ -78,17 +70,51 @@
         {{ filtrerat() ? 'Inget kvitto matchar filtret.' : 'Inga klara kvitton än.' }}
       </p>
     } @else {
+      <p class="num mb-2 text-sm text-neutral">
+        {{ total() }}{{ filtrerat() ? (total() === 1 ? ' träff' : ' träffar') : (total() === 1 ? ' kvitto' : ' kvitton') }}
+      </p>
+      <!--
+        Kolumnbredderna är satta på det som har en känd bredd — datum, belopp, antal,
+        tidpunkt — så att butiken får resten. Utan dem delade tabellen bredden lika
+        mellan sju kolumner, och ett datum på tio tecken bredde ut sig över tvåhundra
+        pixlar medan butiksnamnen bröts.
+      -->
       <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
         <table class="table table-sm">
           <thead>
             <tr>
               <th class="w-14"><span class="sr-only">Bild</span></th>
-              <th>Datum</th>
-              <th>Butik</th>
-              <th class="text-right">Belopp</th>
-              <th class="text-right">Bilder</th>
-              <th>Fångat</th>
-              <th class="text-right"><span class="sr-only">Öppna</span></th>
+              <th class="w-28">
+                <button type="button" class="sortknapp" (click)="sorteraPa('date')">
+                  Datum
+                  @if (sortera() === 'date') { <span aria-hidden="true">{{ stigande() ? '↑' : '↓' }}</span> }
+                </button>
+              </th>
+              <th>
+                <button type="button" class="sortknapp" (click)="sorteraPa('store')">
+                  Butik
+                  @if (sortera() === 'store') { <span aria-hidden="true">{{ stigande() ? '↑' : '↓' }}</span> }
+                </button>
+              </th>
+              <th class="w-32 text-right">
+                <button type="button" class="sortknapp justify-end" (click)="sorteraPa('total')">
+                  Belopp
+                  @if (sortera() === 'total') { <span aria-hidden="true">{{ stigande() ? '↑' : '↓' }}</span> }
+                </button>
+              </th>
+              <th class="w-20 text-right">
+                <button type="button" class="sortknapp justify-end" (click)="sorteraPa('segments')">
+                  Bilder
+                  @if (sortera() === 'segments') { <span aria-hidden="true">{{ stigande() ? '↑' : '↓' }}</span> }
+                </button>
+              </th>
+              <th class="w-28">
+                <button type="button" class="sortknapp" (click)="sorteraPa('capturedAt')">
+                  Fångat
+                  @if (sortera() === 'capturedAt') { <span aria-hidden="true">{{ stigande() ? '↑' : '↓' }}</span> }
+                </button>
+              </th>
+              <th class="w-20 text-right"><span class="sr-only">Öppna</span></th>
             </tr>
           </thead>
           <tbody>
@@ -105,6 +131,9 @@
                 <td class="num whitespace-nowrap">{{ rad.date }}</td>
                 <td>
                   {{ rad.store }}
+                  @if (rad.medlemmar > 1) {
+                    <span class="mt-0.5 block text-neutral">{{ rad.medlemmar }} kvitton av samma köp</span>
+                  }
                   @if (rad.snippet) {
                     <span class="ocr-text mt-0.5 block text-neutral">{{ rad.snippet }}</span>
                   }

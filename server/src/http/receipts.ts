@@ -20,6 +20,7 @@ import {
   ogranskatUrval,
   pendingOcrCount,
   urvalLage,
+  type Sortering,
 } from "../store/index-db.js";
 import { thumbName } from "../store/paths.js";
 
@@ -102,14 +103,27 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
    * butiker som faktiskt finns i stället för en lista någon skrivit i förväg.
    */
   app.get<{
-    Querystring: { q?: string; butik?: string; fran?: string; till?: string; limit?: string; ofardiga?: string };
+    Querystring: {
+      q?: string;
+      butik?: string;
+      fran?: string;
+      till?: string;
+      limit?: string;
+      ofardiga?: string;
+      sortera?: string;
+      ordning?: string;
+    };
   }>(
     "/api/receipts",
     async (request) => {
       const { q, butik, fran, till } = request.query;
       const fritext = q?.trim() ? ftsQuery(q.trim()) : "";
+      const sorterbara: Sortering[] = ["date", "store", "total", "capturedAt", "segments"];
+      const sortera = sorterbara.find((k) => k === request.query.sortera);
       const svar = arkiv(archive.db, {
         ...(request.query.ofardiga === "true" ? { ofardiga: true } : {}),
+        ...(sortera ? { sortera } : {}),
+        ...(request.query.ordning === "asc" ? { stigande: true } : {}),
         ...(fritext ? { q: fritext } : {}),
         ...(butik?.trim() ? { butik: butik.trim() } : {}),
         ...(fran?.trim() ? { fran: fran.trim() } : {}),
@@ -147,6 +161,63 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
     };
   });
 
+  /**
+   * Ersätter en bild med ett nytt fotografi.
+   *
+   * `PUT`, inte `POST`: uppladdningen med samma nummer är avsiktligt en tystnad när
+   * innehållet är detsamma och ett 409 när det skiljer, och den regeln skyddar mot
+   * en klient som råkar skriva över sig själv. Att ersätta är något annat — en
+   * människa har tittat på bilden och sagt att den inte duger — och det ska synas på
+   * anropet.
+   */
+  app.put<{ Params: { id: string; index: string } }>(
+    "/api/receipts/:id/segments/:index",
+    async (request, reply) => {
+      const file = await request.file();
+      if (!file) return reply.code(400).send({ error: "missing_file", message: "Bilden ska skickas som multipart." });
+      const index = Number(request.params.index);
+      if (!Number.isInteger(index) || index < 1 || index > 99) return reply.code(400).send({ error: "invalid_index" });
+      const { segment } = await archive.ersattSegment(
+        request.params.id,
+        index,
+        await file.toBuffer(),
+        parseCapture(file.fields["capture"]),
+      );
+      return reply.send(segment);
+    },
+  );
+
+  /** Kasserar en bild. Sista bilden går inte att ta bort — se `taBortSegment`. */
+  app.delete<{ Params: { id: string; index: string } }>(
+    "/api/receipts/:id/segments/:index",
+    async (request, reply) => {
+      const index = Number(request.params.index);
+      if (!Number.isInteger(index) || index < 1 || index > 99) return reply.code(400).send({ error: "invalid_index" });
+      return reply.send(await archive.taBortSegment(request.params.id, index));
+    },
+  );
+
+  /**
+   * En människa vrider en bild rätt.
+   *
+   * Bara fyra värden finns: en bild står rätt, ligger ned åt ena eller andra hållet,
+   * eller står upp och ned. Att tillåta godtyckliga grader vore att erbjuda en
+   * finjustering ingen bett om, och att spara ett tal som ingen kan kontrollera mot
+   * papperet.
+   */
+  app.post<{ Params: { id: string; index: string }; Body: { rotation?: unknown } }>(
+    "/api/receipts/:id/segments/:index/rotation",
+    async (request, reply) => {
+      const index = Number(request.params.index);
+      if (!Number.isInteger(index) || index < 1 || index > 99) return reply.code(400).send({ error: "invalid_index" });
+      const rotation = request.body?.rotation;
+      if (rotation !== 0 && rotation !== 90 && rotation !== 180 && rotation !== 270) {
+        return reply.code(400).send({ error: "invalid_rotation", message: "Vridningen ska vara 0, 90, 180 eller 270." });
+      }
+      return reply.send(await archive.roteraSegment(request.params.id, index, rotation));
+    },
+  );
+
   // Bilderna lämnas ut direkt ur arkivet — de är oföränderliga, så de får cachas hårt.
   app.get<{ Params: { id: string; name: string } }>("/api/receipts/:id/files/:name", async (request, reply) => {
     const { id, name } = request.params;
@@ -166,10 +237,21 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
       const index = Number(request.params.index);
       if (!Number.isInteger(index) || index < 1 || index > 99) return reply.code(400).send({ error: "invalid_index" });
       const path = archive.fileIn(request.params.id, join("derived", thumbName(index)));
-      if (!(await stat(path).catch(() => null))?.isFile()) return reply.code(404).send({ error: "not_found" });
+      const info = await stat(path).catch(() => null);
+      if (!info?.isFile()) return reply.code(404).send({ error: "not_found" });
+      /**
+       * Tumnageln är inte oföränderlig, och får därför inte cachas som om den vore
+       * det. Vrider någon en bild byggs den om under samma namn, och en hård cache
+       * hade visat den gamla riktningen i listorna tills webbläsaren tömdes. Etaggen
+       * är filens tidpunkt och storlek: en omätbart billig fråga, och ett 304 när
+       * ingenting hänt.
+       */
+      const etag = `"${Math.trunc(info.mtimeMs)}-${info.size}"`;
+      if (request.headers["if-none-match"] === etag) return reply.code(304).header("etag", etag).send();
       return reply
         .type("image/webp")
-        .header("cache-control", "public, max-age=31536000, immutable")
+        .header("cache-control", "no-cache")
+        .header("etag", etag)
         .send(createReadStream(path));
     },
   );

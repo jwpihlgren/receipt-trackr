@@ -13,9 +13,24 @@ type Rad = {
   capturedAt: string;
   segments: number;
   snippet: string | null;
+  /** Gruppen kvittot står i, eller `null`. Flera bilder på en rad är ett köp, inte flera. */
+  grupp: string | null;
+  medlemmar: number;
 };
 
 type Svar = { total: number; receipts: Rad[]; butiker: string[] };
+
+/** Kolumnerna som går att sortera på. Samma fem namn som servern känner igen. */
+export type Kolumn = 'date' | 'store' | 'total' | 'segments' | 'capturedAt';
+
+/** Text sorteras stigande först, tal och datum fallande: största och senaste överst. */
+const FORSTA_RIKTNINGEN: Record<Kolumn, boolean> = {
+  date: false,
+  store: true,
+  total: false,
+  segments: false,
+  capturedAt: false,
+};
 
 /**
  * Arkivet: klara kvitton i en tabell, sorterade på kvittots eget datum.
@@ -54,14 +69,21 @@ export class ArkivComponent {
    */
   private lasning = 0;
 
+  /**
+   * Sorteringen. Kolumnen är ett av fem kända namn, aldrig en sträng som går vidare
+   * till en fråga, och den skickas till servern i stället för att vändas i webbläsaren
+   * — annars hade en sortering på belopp bara ordnat de tvåhundra rader som råkade
+   * hämtas, och kallat det arkivets största köp.
+   */
+  readonly sortera = signal<Kolumn>('date');
+  readonly stigande = signal(false);
+
   readonly fraga = signal('');
   readonly butik = signal('');
   readonly fran = signal('');
   readonly till = signal('');
 
   /** Hur många kvitton som inte är klara. Siffran leder vidare, tabellen bor där. */
-  readonly ofardiga = signal(0);
-
   readonly filtrerat = computed(() => !!(this.fraga() || this.butik() || this.fran() || this.till()));
 
   constructor() {
@@ -97,6 +119,8 @@ export class ArkivComponent {
     if (this.butik()) p.set('butik', this.butik());
     if (this.fran()) p.set('fran', this.fran());
     if (this.till()) p.set('till', this.till());
+    p.set('sortera', this.sortera());
+    p.set('ordning', this.stigande() ? 'asc' : 'desc');
     try {
       const svar = await fetch(`/api/receipts?${p.toString()}`);
       if (min !== this.lasning) return;
@@ -107,7 +131,6 @@ export class ArkivComponent {
       this.rader.set(body.receipts);
       this.total.set(body.total);
       this.butiker.set(body.butiker);
-      await this.raknaOfardiga(min);
     } catch {
       if (min !== this.lasning) return;
       this.error.set('Kvittona gick inte att hämta. Försök igen.');
@@ -118,10 +141,15 @@ export class ArkivComponent {
     }
   }
 
-  private async raknaOfardiga(min: number): Promise<void> {
-    const svar = await fetch('/api/aktivitet');
-    if (!svar.ok || min !== this.lasning) return;
-    this.ofardiga.set(((await svar.json()) as { receipts: unknown[] }).receipts.length);
+
+  /** Klick i en rubrik: samma kolumn vänder ordningen, en ny börjar i sin egen. */
+  sorteraPa(kolumn: Kolumn): void {
+    if (this.sortera() === kolumn) this.stigande.update((s) => !s);
+    else {
+      this.sortera.set(kolumn);
+      this.stigande.set(FORSTA_RIKTNINGEN[kolumn]);
+    }
+    void this.load();
   }
 
   onFraga(event: Event): void {

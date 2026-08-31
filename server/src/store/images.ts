@@ -8,7 +8,7 @@ import { open, mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import sharp from "sharp";
 import { derivedDir, receiptDir, segmentName, thumbName } from "./paths.js";
-import type { Segment } from "./sidecar.js";
+import type { Rotation, Segment } from "./sidecar.js";
 
 export const THUMB_WIDTH = 480;
 
@@ -62,11 +62,7 @@ export async function saveSegment(
   const file = segmentName(index);
   await writeAtomic(join(dir, file), bytes);
 
-  const thumb = await sharp(bytes, { autoOrient: true })
-    .resize({ width: THUMB_WIDTH, fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 80 })
-    .toBuffer();
-  await writeAtomic(join(derivedDir(dataDir, id), thumbName(index)), thumb);
+  await skrivTumnagel(dataDir, id, index, bytes, 0);
 
   return {
     file,
@@ -87,4 +83,27 @@ export async function ensureThumb(dataDir: string, id: string, index: number, so
     .webp({ quality: 80 })
     .toBuffer();
   await writeFile(target, thumb);
+}
+
+/**
+ * Tumnageln, byggd ur originalets bytes.
+ *
+ * Den är härledd och får kastas när som helst — därför byggs den om i stället för att
+ * vridas: en bild som vridits fyra gånger ska vara exakt den den var, inte fyra
+ * omkodningar senare.
+ */
+export async function skrivTumnagel(
+  dataDir: string,
+  id: string,
+  index: number,
+  bytes: Buffer,
+  rotation: Rotation,
+): Promise<void> {
+  const thumb = await sharp(bytes, { autoOrient: true })
+    .rotate(rotation)
+    .resize({ width: THUMB_WIDTH, fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 80 })
+    .toBuffer();
+  await mkdir(derivedDir(dataDir, id), { recursive: true });
+  await writeAtomic(join(derivedDir(dataDir, id), thumbName(index)), thumb);
 }

@@ -1,6 +1,7 @@
 import { Component, ElementRef, computed, effect, inject, input, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { QueueService } from '../mobile/queue.service';
+import { AktivitetService } from './aktivitet.service';
 import { AuthService } from './auth.service';
 
 /**
@@ -23,6 +24,7 @@ import { AuthService } from './auth.service';
 })
 export class MenyComponent {
   private readonly queue = inject(QueueService);
+  private readonly aktivitet = inject(AktivitetService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
@@ -36,6 +38,13 @@ export class MenyComponent {
   readonly pavag = computed(() => this.state().waiting - this.state().stuck.length);
   readonly fast = computed(() => this.state().stuck.length);
 
+  /**
+   * Hur många kvitton som inte är klara. Siffran satt tidigare som en egen rad överst
+   * i arkivet, alltså på den skärm där ingenting behövde göras. Här står den i stället
+   * bredvid vägen till det som ska göras, och syns från varje skärm.
+   */
+  readonly ofardiga = this.aktivitet.antal;
+
   constructor() {
     // Signalen styr, <dialog> visar. `showModal()` är det som ger Esc, fokusfälla
     // och inert bakgrund; attributet `open` ger utseendet men inget av det.
@@ -48,7 +57,11 @@ export class MenyComponent {
   }
 
   toggle(): void {
-    this.open.update((o) => !o);
+    const öppnas = !this.open();
+    this.open.set(öppnas);
+    // Siffran hämtas när lådan öppnas, inte på en klocka: den syns bara här, och en
+    // återkommande fråga i bakgrunden vore arbete ingen tittar på.
+    if (öppnas) void this.aktivitet.hamta();
   }
 
   close(): void {

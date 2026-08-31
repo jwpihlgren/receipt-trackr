@@ -5,9 +5,17 @@
  */
 import { readdir, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
-import { indexPath, receiptDir, RECEIPTS_DIR } from "./paths.js";
-import { newReceipt, readSidecar, writeSidecar, type Receipt, type Segment, type Verdict } from "./sidecar.js";
-import { saveSegment, ImageError } from "./images.js";
+import { derivedDir, indexPath, receiptDir, segmentName, thumbName, RECEIPTS_DIR } from "./paths.js";
+import {
+  newReceipt,
+  readSidecar,
+  writeSidecar,
+  type Receipt,
+  type Rotation,
+  type Segment,
+  type Verdict,
+} from "./sidecar.js";
+import { saveSegment, skrivTumnagel, ImageError } from "./images.js";
 import { dragbara, openIndex, remove, rensaAldreAn, upsert, type ReceiptIndex } from "./index-db.js";
 import { utvinnUtanAttSkrivaOver, type Falten } from "../falt/index.js";
 import { utvinnIdentitet } from "../falt/identitet.js";
@@ -91,6 +99,9 @@ export class Archive {
     }
 
     receipt.segments = [...receipt.segments, segment].sort((a, b) => a.file.localeCompare(b.file));
+    // En bild till på ett kvitto som redan lästs gör läsningen ofullständig: texten
+    // saknar just det som kom sist, och det är ofta totalbeloppet.
+    if (receipt.text.trim()) this.kastaLasningen(receipt);
     await this.persist(receipt);
     return { receipt, segment, created: true };
   }
@@ -166,6 +177,124 @@ export class Archive {
     };
     receipt.expectedSegments = faktiska;
     await this.persist(receipt);
+    return receipt;
+  }
+
+  /**
+   * Ersätter en bild med ett nytt fotografi av samma sak.
+   *
+   * Den gamla bildens bytes skrivs över och är borta. Det är ett brott mot regeln om
+   * oåterkalleliga bilder som bara en människa får begå: regeln finns för att ingen
+   * bild ska försvinna **tyst** — i en krasch, i ett tappat svar, i en kapplöpning —
+   * inte för att hindra den som tittat på ett suddigt foto och tagit om det. Vad som
+   * fanns skrivs ned i `kasserade`, med den kasserade bildens sha256.
+   *
+   * Läsningen nollställs. Texten beskrev de bilder som fanns när den lästes, och en
+   * text som beskriver ett fotografi som inte finns kvar är sämre än ingen text alls.
+   * Rättelser står kvar: en människas ord om butiken gäller köpet, inte bilden.
+   */
+  async ersattSegment(
+    id: string,
+    index: number,
+    bytes: Buffer,
+    capture?: Record<string, unknown>,
+  ): Promise<{ receipt: Receipt; segment: Segment }> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    const file = segmentName(index);
+    const gammalt = receipt.segments.find((s) => s.file === file);
+    if (!gammalt) throw new ConflictError(`Kvittot ${id} har ingen bild ${index} att ersätta.`);
+
+    const segment = await saveSegment(this.dataDir, id, index, bytes, capture);
+    if (segment.sha256 === gammalt.sha256) return { receipt, segment: gammalt };
+
+    receipt.segments = receipt.segments.map((s) => (s.file === file ? segment : s));
+    receipt.kasserade = [
+      ...(receipt.kasserade ?? []),
+      { at: new Date().toISOString(), index, sha256: gammalt.sha256, orsak: "ersatt" },
+    ];
+    this.kastaLasningen(receipt);
+    await this.persist(receipt);
+    return { receipt, segment };
+  }
+
+  /**
+   * Kasserar en bild utan att sätta någon i stället.
+   *
+   * `expectedSegments` sänks med bilden, annars stod kvittot kvar i aktiviteten och
+   * väntade i evighet på något som en människa just sagt inte kommer. Sista bilden
+   * går inte att ta bort: ett kvitto utan bilder är inget kvitto, och vägen ut ur det
+   * heter *Ta bort kvittot*.
+   */
+  async taBortSegment(id: string, index: number): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    const file = segmentName(index);
+    const segment = receipt.segments.find((s) => s.file === file);
+    if (!segment) throw new ConflictError(`Kvittot ${id} har ingen bild ${index}.`);
+    if (receipt.segments.length === 1) {
+      throw new ConflictError(
+        `Bild ${index} är kvittots enda. Ett kvitto utan bilder är inget kvitto — ta bort hela kvittot i stället.`,
+      );
+    }
+
+    receipt.segments = receipt.segments.filter((s) => s.file !== file);
+    if (receipt.expectedSegments !== null) {
+      receipt.expectedSegments = Math.max(receipt.segments.length, receipt.expectedSegments - 1);
+    }
+    receipt.kasserade = [
+      ...(receipt.kasserade ?? []),
+      { at: new Date().toISOString(), index, sha256: segment.sha256, orsak: "borttagen" },
+    ];
+    this.kastaLasningen(receipt);
+    await this.persist(receipt);
+
+    // Filerna sist, som vid radering av ett helt kvitto: kraschar det däremellan
+    // ligger en bild kvar som ingen sidecar nämner, vilket är det harmlösa felet.
+    await rm(this.fileIn(id, file), { force: true });
+    await rm(join(derivedDir(this.dataDir, id), thumbName(index)), { force: true });
+    return receipt;
+  }
+
+  /**
+   * Kastar texten när bilderna under den ändrats, så att kvittot går tillbaka i kön.
+   * Fälten står kvar tills en ny läsning skriver över dem — och en människas
+   * rättelser överlever även den, se `utvinnUtanAttSkrivaOver`.
+   */
+  private kastaLasningen(receipt: Receipt): void {
+    receipt.text = "";
+    receipt.ocr = null;
+    delete receipt.identity;
+  }
+
+  /**
+   * En människa säger åt vilket håll bilden ska stå.
+   *
+   * Originalfilen rörs inte: dess bytes är sanningen och deras sha256 är kvittensen
+   * på att rätt bild kom fram. Vridningen skrivs i sidecaren som ett påstående om
+   * bilden, och tumnageln byggs om ur originalet — härlett material som får kastas.
+   *
+   * Skrivordningen är densamma som allt annat här: sidecaren först, det härledda
+   * sedan. Kraschar det däremellan står en gammal tumnagel kvar mot en riktig
+   * sidecar, vilket nästa vridning eller en `reindex` rättar.
+   */
+  async roteraSegment(id: string, index: number, rotation: Rotation): Promise<Receipt> {
+    const receipt = await this.get(id);
+    if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
+    const file = segmentName(index);
+    const segment = receipt.segments.find((s) => s.file === file);
+    if (!segment) throw new ConflictError(`Kvittot ${id} har ingen bild ${index}.`);
+    if ((segment.rotation ?? 0) === rotation) return receipt;
+
+    // Noll skrivs inte ut: ett fält som saknas och ett som säger noll betyder samma
+    // sak för bilden, och den som läser sidecaren ska slippa undra om skillnaden bär
+    // något.
+    if (rotation === 0) delete segment.rotation;
+    else segment.rotation = rotation;
+
+    await this.persist(receipt);
+    const bytes = await readFile(this.fileIn(id, file));
+    await skrivTumnagel(this.dataDir, id, index, bytes, rotation);
     return receipt;
   }
 
@@ -388,11 +517,9 @@ export class Archive {
   async lasOm(id: string): Promise<Receipt> {
     const receipt = await this.get(id);
     if (!receipt) throw new ConflictError(`Kvittot ${id} finns inte i arkivet.`);
-    receipt.text = "";
-    receipt.ocr = null;
     // Identiteten är läst ur texten och får inte överleva den. Ett ankare utan text
     // bakom sig hade fortsatt binda ihop kvitton på ett bevis ingen längre kan se.
-    delete receipt.identity;
+    this.kastaLasningen(receipt);
     await this.persist(receipt);
     return receipt;
   }

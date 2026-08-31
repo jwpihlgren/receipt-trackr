@@ -107,6 +107,55 @@ export class AktivitetComponent {
    * *Tolka här*. Ett tryck är en handling — den som pekat på ett kvitto har redan sagt
    * vad hen vill, och att kön existerar är inte hens problem.
    */
+  /**
+   * Markerade kvitton. En omläsning i taget är rätt när man sett bilden och vet vad
+   * som är fel med den; en hel hög är rätt när utvinningen blivit bättre. Det senare
+   * är vad kryssrutorna finns till, och det är det enda stället i appen där en lista
+   * betas av — den listan har han valt själv.
+   */
+  readonly valda = signal(new Set<string>());
+
+  readonly allaValda = computed(() => this.rader().length > 0 && this.valda().size === this.rader().length);
+  readonly nagraValda = computed(() => this.valda().size > 0 && !this.allaValda());
+
+  vaxla(id: string): void {
+    this.valda.update((valda) => {
+      const ny = new Set(valda);
+      if (!ny.delete(id)) ny.add(id);
+      return ny;
+    });
+  }
+
+  avmarkera(): void {
+    this.valda.set(new Set());
+  }
+
+  valjAlla(event: Event): void {
+    const pa = (event.target as HTMLInputElement).checked;
+    this.valda.set(pa ? new Set(this.rader().map((r) => r.id)) : new Set());
+  }
+
+  /**
+   * Läser om de markerade, ett i taget.
+   *
+   * Ett i taget och inte parallellt: tolkningen äter en kärna per bild, och den här
+   * datorn ska gå att använda under tiden. Ordningen är listans, så den som tittar
+   * ser kön krympa uppifrån.
+   */
+  async lasOmValda(): Promise<void> {
+    const ids = this.rader()
+      .map((r) => r.id)
+      .filter((id) => this.valda().has(id));
+    for (const id of ids) {
+      await this.lasOm(id);
+      this.valda.update((valda) => {
+        const ny = new Set(valda);
+        ny.delete(id);
+        return ny;
+      });
+    }
+  }
+
   async lasOm(id: string): Promise<void> {
     this.arbetar.set(true);
     this.arbetarMed.set(id);

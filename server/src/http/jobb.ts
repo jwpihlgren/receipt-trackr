@@ -15,7 +15,17 @@ import type { Reservationer } from "../jobb.js";
 export type Jobb = {
   id: string;
   capturedAt: string;
-  segments: { index: number; file: string; sha256: string }[];
+  segments: {
+    index: number;
+    file: string;
+    sha256: string;
+    /**
+     * Vad en människa sagt om bildens riktning. Finns den väger den tyngre än allt
+     * annat: klienten vrider bilden så och hoppar över sin egen gissning, som kostar
+     * 500–700 ms och i M0 hade fel på en bild av trettiofem.
+     */
+    rotation?: 0 | 90 | 180 | 270;
+  }[];
   reservationTill: number;
   /**
    * Sant när varje bild kom från appens egen fångst. Då är orienteringen redan inbakad
@@ -64,7 +74,12 @@ export function registerJobb(app: FastifyInstance, archive: Archive, reservation
       jobb.push({
         id,
         capturedAt: receipt.capturedAt,
-        segments: receipt.segments.map((s, i) => ({ index: i + 1, file: s.file, sha256: s.sha256 })),
+        segments: receipt.segments.map((s, i) => ({
+          index: i + 1,
+          file: s.file,
+          sha256: s.sha256,
+          ...(s.rotation ? { rotation: s.rotation } : {}),
+        })),
         reservationTill: till,
         uppratt:
           receipt.segments.length > 0 &&

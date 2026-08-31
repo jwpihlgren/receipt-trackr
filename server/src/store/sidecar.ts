@@ -11,6 +11,8 @@ import type { Identitet } from "../falt/identitet.js";
 
 export const SCHEMA = "receipt-trackr/receipt@1";
 
+export type Rotation = 0 | 90 | 180 | 270;
+
 export type Segment = {
   file: string;
   sha256: string;
@@ -19,6 +21,17 @@ export type Segment = {
   height: number;
   /** Mätvärden från kameran vid fångst; frivilliga, och klienten äger dem. */
   capture?: Record<string, unknown>;
+  /**
+   * Hur bilden ska vridas för att stå rätt, satt av en människa som tittat på den.
+   *
+   * Filen själv rörs aldrig — dess bytes är arkivets sanning och deras sha256 är
+   * kvittensen på att rätt bild kom fram. Vridningen är ett påstående *om* bilden,
+   * och den gäller överallt: skärmen visar den vriden, tumnageln byggs om, och
+   * tolkningsjobbet bär den så att en omläsning läser papperet åt rätt håll i stället
+   * för att gissa. Saknas fältet är det noll, vilket inte är samma sak som att någon
+   * sagt att bilden står rätt.
+   */
+  rotation?: Rotation;
 };
 
 /** `correct` = fälten stämde. `wrong` = minst ett var fel och rättades. `unreadable` = går inte att avgöra ur bilden. */
@@ -71,6 +84,16 @@ export type Receipt = {
    * oåterkalleliga; att de var det ska inte gå att glömma bort.
    */
   lostSegments?: { at: string; utlovade: number; faktiska: number };
+  /**
+   * Bilder en människa kasserat: en suddig, en avklippt, en som kom med tummen på.
+   *
+   * Regeln om oåterkalleliga bilder skyddar mot **tyst** förlust — en krasch, ett
+   * tappat svar, en kapplöpning — inte mot någon som tittat på fotot och sagt att det
+   * inte duger. Men förlusten skrivs ned: vad som fanns, när det försvann, och om
+   * något kom i stället. `sha256` är den kasserade bildens, och den är det enda som
+   * blir kvar av den.
+   */
+  kasserade?: { at: string; index: number; sha256: string; orsak: "ersatt" | "borttagen" }[];
   ocr: unknown | null;
   tags: { user: string[]; auto: string[] };
   /** Hela råtexten, radbruten. Fylls av OCR-steget i M5. */

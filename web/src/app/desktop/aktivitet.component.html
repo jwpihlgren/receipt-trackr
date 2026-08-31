@@ -40,22 +40,51 @@
     } @else if (rader().length === 0) {
       <p class="text-neutral">Inget kvitto väntar på något.</p>
     } @else {
+      @if (valda().size > 0) {
+        <div class="mb-2 flex items-center gap-3 rounded-box border border-base-300 bg-base-100 px-4 py-2">
+          <span class="num">{{ valda().size }} {{ valda().size === 1 ? 'kvitto valt' : 'kvitton valda' }}</span>
+          <button type="button" class="btn btn-sm btn-primary ml-auto" [disabled]="arbetar()" (click)="lasOmValda()">
+            Tolka om
+          </button>
+          <button type="button" class="btn btn-sm btn-ghost" (click)="avmarkera()">Avmarkera</button>
+        </div>
+      }
+
       <div class="overflow-x-auto rounded-box border border-base-300 bg-base-100">
         <table class="table table-sm">
           <thead>
             <tr>
+              <th class="w-10">
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm"
+                  aria-label="Markera alla"
+                  [checked]="allaValda()"
+                  [indeterminate]="nagraValda()"
+                  (change)="valjAlla($event)"
+                />
+              </th>
               <th class="w-14"><span class="sr-only">Bild</span></th>
               <th>Butik</th>
-              <th class="text-right">Belopp</th>
-              <th>Datum</th>
-              <th>Status</th>
-              <th>Fångat</th>
-              <th class="text-right"><span class="sr-only">Åtgärd</span></th>
+              <th class="w-32 text-right">Belopp</th>
+              <th class="w-28">Datum</th>
+              <th class="w-56">Status</th>
+              <th class="w-28">Fångat</th>
+              <th class="w-20 text-right"><span class="sr-only">Öppna</span></th>
             </tr>
           </thead>
           <tbody>
             @for (rad of rader(); track rad.id) {
-              <tr class="hover:bg-base-200">
+              <tr class="hover:bg-base-200" [class.bg-base-200]="valda().has(rad.id)">
+                <td>
+                  <input
+                    type="checkbox"
+                    class="checkbox checkbox-sm"
+                    [attr.aria-label]="'Välj ' + butik(rad)"
+                    [checked]="valda().has(rad.id)"
+                    (change)="vaxla(rad.id)"
+                  />
+                </td>
                 <td>
                   <img
                     class="tumnagel liten"
@@ -71,15 +100,21 @@
                   <span class="badge badge-sm whitespace-nowrap" [class]="badge(rad)">{{ status(rad) }}</span>
                 </td>
                 <td class="num text-neutral">{{ fangat(rad.capturedAt) }}</td>
+                <!--
+                  En rad har en väg vidare: öppna kvittot. "Tolka bilden igen" stod
+                  förut lika stort bredvid, som om det vore ett likvärdigt val — men
+                  det är sällan det man vill, och aldrig det man vill utan att först
+                  ha sett bilden. Ska flera läsas om görs det med kryssrutorna.
+                -->
                 <td class="text-right whitespace-nowrap">
                   @if (arbetarMed() === rad.id) {
                     <span class="loading loading-spinner loading-xs text-primary" aria-label="Tolkar"></span>
-                  } @else if (rad.lage !== 'ofullstandig') {
-                    <button type="button" class="btn btn-sm btn-ghost text-primary" [disabled]="arbetar()" (click)="lasOm(rad.id)">
-                      {{ rad.lage === 'vantar' ? 'Tolka bilden' : 'Tolka bilden igen' }}
-                    </button>
                   }
-                  <a class="btn btn-sm btn-ghost text-primary" [routerLink]="[yta() === 'mobil' ? '/telefon/kvitto' : '/dator/kvitto', rad.id]">Öppna</a>
+                  <a
+                    class="btn btn-sm btn-ghost text-primary"
+                    [routerLink]="[yta() === 'mobil' ? '/telefon/kvitto' : '/dator/kvitto', rad.id]"
+                    [queryParams]="{ fran: 'aktivitet' }"
+                  >Öppna</a>
                 </td>
               </tr>
             }

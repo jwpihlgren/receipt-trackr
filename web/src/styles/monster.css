@@ -120,3 +120,100 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+
+/* ---- Bildvisaren: bilden över hela ytan ------------------------------- */
+
+/*
+ * Kvittovyn visar bilden 448 px bred. Det räcker för att se *vilket* kvitto det är,
+ * men inte för att läsa raden tolkningen läste fel — och det är den läsningen hela
+ * rättningen hänger på. Visaren ger bilden hela ytan, i valfri skala.
+ *
+ * Layouten hänger på `[open]`, aldrig på elementet: en egen `display`-regel utan
+ * villkor slår ut webbläsarens `dialog:not([open]) { display: none }`, och rutan
+ * ligger kvar och lyser över skärmen när den är stängd. Det felet är gjort en gång.
+ */
+.bildvisare {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  padding: 0;
+  border: 0;
+  background: var(--image-bed);
+  color: var(--ink);
+}
+
+.bildvisare[open] {
+  display: block;
+}
+
+.bildvisare::backdrop {
+  background: var(--sunken);
+}
+
+.bildvisare-ruta {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Verktygen ligger över bilden i stället för bredvid den: ytan är till för papperet,
+   och kontrollerna ska inte äta av den när man zoomat in på en sifferrad. */
+.bildvisare-topp {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--d-gap-tight);
+  padding: var(--d-pad-x);
+}
+
+.bildvisare-yta {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--topp-h) + var(--d-pad-x)) var(--d-pad-x) var(--d-pad-x);
+}
+
+/* Ramen bär de mått vridningen ger; bilden vrids om sin egen mitt inuti den. */
+.bildvisare-ram {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.bildvisare-ram > img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  max-width: none;
+  transform-origin: center;
+}
+
+/* ---- Sorterbar tabellrubrik ------------------------------------------- */
+
+/*
+ * Rubriken är en knapp, inte en cell med en klickhanterare: den ska gå att nå med
+ * tabb, svara på Enter och läsas upp som något man kan trycka på. Utseendet är
+ * rubrikens eget — knappen ärver färg och storlek och lägger bara till pilen.
+ */
+.sortknapp {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sortknapp:hover {
+  color: var(--ink);
+}
