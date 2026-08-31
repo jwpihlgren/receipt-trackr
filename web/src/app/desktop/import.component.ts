@@ -1,13 +1,17 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { MenyComponent } from '../shared/meny.component';
+import { TolkningService } from '../ocr/tolkning.service';
 import { ulid } from '../shared/ulid';
 
 type Rad = {
   namn: string;
-  status: 'väntar' | 'skickar' | 'klar' | 'fel';
+  status: 'väntar' | 'skickar' | 'arkiverad' | 'tolkar' | 'klar' | 'fel';
   id?: string;
   fel?: string;
+  /** Vad tolkningen fick ut. Tomt tills bilden lästs. */
+  butik?: string | null;
+  belopp?: number | null;
 };
 
 /**
@@ -26,6 +30,12 @@ type Rad = {
  * Filerna skickas en i taget. Servern kvitterar varje bild med sitt sha256 innan
  * nästa börjar, och en avbruten import lämnar det som hunnit fram i arkivet — inget
  * halvt kvitto, inga tappade bilder.
+ *
+ * **Bilderna läses direkt efteråt, utan att någon ber om det.** Regeln att datorn
+ * bara arbetar när någon säger till gäller fortfarande — men den som valt trettio
+ * filer och tryckt Importera *har* sagt till. Att kräva ett andra tryck vore att låta
+ * en regel om obedd bakgrundskörning gälla ett arbete man just beställt. Först
+ * arkiveras allt, sedan läses det: bilden är oåterkallelig, texten är det inte.
  */
 @Component({
   selector: 'app-import',
@@ -34,10 +44,15 @@ type Rad = {
 })
 export class ImportComponent {
   private readonly router = inject(Router);
+  readonly tolkning = inject(TolkningService);
 
   readonly rader = signal<Rad[]>([]);
   readonly kor = signal(false);
+  private stoppad = false;
 
+  readonly arkiverade = computed(
+    () => this.rader().filter((r) => r.status !== 'väntar' && r.status !== 'skickar' && r.status !== 'fel').length,
+  );
   readonly klara = computed(() => this.rader().filter((r) => r.status === 'klar').length);
   readonly fel = computed(() => this.rader().filter((r) => r.status === 'fel').length);
   readonly kvar = computed(() => this.rader().filter((r) => r.status === 'väntar' || r.status === 'skickar').length);
@@ -79,10 +94,16 @@ export class ImportComponent {
    */
   async importera(): Promise<void> {
     if (this.kor() || this.filer.length === 0) return;
+    this.stoppad = false;
     this.kor.set(true);
     try {
       for (const [i, fil] of this.filer.entries()) {
-        if (this.rader()[i]?.status === 'klar') continue;
+        // *Sluta* står framme under hela arbetet och måste betyda något i båda halvorna.
+        // Stannar man under uppladdningen ligger det som hunnit fram kvar i arkivet, och
+        // resten står som "Väntar" tills man trycker Importera igen.
+        if (this.stoppad) break;
+        // Det som redan ligger i arkivet skickas inte om vid ett omtag.
+        if (this.rader()[i]?.id) continue;
         this.satt(i, { status: 'skickar' });
         try {
           const id = ulid();
@@ -101,13 +122,104 @@ export class ImportComponent {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ segments: 1 }),
           });
-          this.satt(i, { status: 'klar', id });
+          this.satt(i, { status: 'arkiverad', id });
         } catch (orsak) {
           this.satt(i, { status: 'fel', fel: (orsak as Error).message });
         }
       }
+
+      await this.las();
     } finally {
       this.kor.set(false);
+    }
+  }
+
+  /**
+   * Läsningen körs av **tjänsten**, inte av den här sidan.
+   *
+   * Det är skillnaden mellan ett arbete som pågår och ett som avbryts när man byter
+   * skärm: tjänsten lever i roten, aktiviteten visar samma framdrift, och den som
+   * lämnar importen mitt i får sina kvitton lästa ändå. Sidan lyssnar bara — och när
+   * ett kvitto blivit klart hämtar den vad som lästes, så att raden visar butiken och
+   * beloppet i stället för ett grönt hak.
+   */
+  private async las(): Promise<void> {
+    if (this.stoppad) return;
+    await this.tolkning.kor();
+  }
+
+  /** Stannar läsningen efter det kvitto som pågår. Uppladdade bilder står kvar. */
+  stanna(): void {
+    this.stoppad = true;
+    this.tolkning.stanna();
+  }
+
+  /**
+   * Andel uppladdat, för cirkeln.
+   *
+   * Filer som inte gick fram räknas bort ur nämnaren. De står redan i sammanfattningen
+   * med sitt eget tal, och en ring som aldrig kan fyllas för att en av trettio filer
+   * strulade ser ut som ett arbete som hängt sig.
+   */
+  readonly andelUppladdat = computed(() => {
+    const forsokta = this.rader().length - this.fel();
+    return forsokta <= 0 ? 0 : Math.round((this.arkiverade() / forsokta) * 100);
+  });
+
+  /** Kvittot tjänsten läste förra gången effekten sprang. */
+  private foregaende: string | null = null;
+
+  constructor() {
+    /**
+     * Sidan följer tjänsten genom att titta på vilket kvitto som är aktuellt. När det
+     * byts är det föregående färdigt, och bara det hämtas hem — inte hela listan varje
+     * gång, vilket för trettio filer vore trettio omgångar av trettio anrop.
+     *
+     * Effekten skriver till `rader`, som den själv skulle läsa om avläsningen låg i
+     * spårat läge: en effekt som väcker sig själv. Därför `untracked` — det den ska
+     * vakna av är tjänstens tillstånd, ingenting annat.
+     */
+    effect(() => {
+      const aktuellt = this.tolkning.aktuellt();
+      this.tolkning.klaraTotalt();
+      untracked(() => void this.foljMed(aktuellt));
+    });
+  }
+
+  private async foljMed(aktuellt: string | null): Promise<void> {
+    const klart = this.foregaende;
+    this.foregaende = aktuellt;
+
+    if (aktuellt) {
+      const i = this.rader().findIndex((r) => r.id === aktuellt);
+      if (i >= 0) this.satt(i, { status: 'tolkar' });
+    }
+    if (klart && klart !== aktuellt) await this.hamtaResultat(klart);
+  }
+
+  /**
+   * Hämtar hem vad tolkningen fick ut ur ett kvitto, så att raden kan visa butiken och
+   * beloppet i stället för ett grönt hak. Utan text blev bilden inte läst; raden står
+   * kvar som den var, och aktiviteten är stället där det reds ut.
+   */
+  private async hamtaResultat(id: string): Promise<void> {
+    const i = this.rader().findIndex((r) => r.id === id);
+    if (i < 0) return;
+    try {
+      const svar = await fetch(`/api/receipts/${id}`);
+      if (!svar.ok) return;
+      const kvitto = (await svar.json()) as {
+        text?: string;
+        fields?: { store?: { value: string }; total?: { value: number } };
+      };
+      if (!kvitto.text?.trim()) return void this.satt(i, { status: 'arkiverad' });
+      this.satt(i, {
+        status: 'klar',
+        butik: kvitto.fields?.store?.value ?? null,
+        belopp: kvitto.fields?.total?.value ?? null,
+      });
+    } catch {
+      // Nätet svarade inte just nu. Raden står kvar som den var.
     }
   }
 

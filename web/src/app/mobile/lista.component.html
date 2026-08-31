@@ -27,10 +27,15 @@
     </div>
   }
 
-  @if (tolkning.snapshot().kor) {
+  <!--
+    Samma mening som datorn visar, ur samma computed: ytorna ska inte ha var sitt ord
+    för samma arbete. Telefonen lägger bara till att det sker av sig självt — den kör
+    löpande, datorn bara när någon sagt till.
+  -->
+  @if (tolkning.laser(); as text) {
     <div class="tolkar" role="status">
       <span class="prick" aria-hidden="true"></span>
-      <span>Tolkar i bakgrunden · {{ tolkning.snapshot().steg ?? 'arbetar' }}</span>
+      <span>{{ text }} · i bakgrunden</span>
       <button type="button" class="stoppa" (click)="tolkning.stanna()">Sluta</button>
     </div>
   }

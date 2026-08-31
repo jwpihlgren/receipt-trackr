@@ -6,8 +6,13 @@
   <main class="mx-auto w-full max-w-3xl p-4">
     <div class="mb-4 flex flex-wrap items-center gap-3">
       <h1 class="text-xl font-semibold">Importera kvitton</h1>
-      @if (klara() > 0) {
-        <a class="btn btn-sm btn-primary ml-auto" routerLink="/dator/aktivitet">Tolka dem</a>
+      @if (kor()) {
+        <a class="ml-auto text-sm text-neutral" routerLink="/dator/aktivitet">
+          Fortsätter i aktiviteten om du går härifrån
+        </a>
+        <button type="button" class="btn btn-sm" (click)="stanna()">Sluta</button>
+      } @else if (arkiverade() > 0) {
+        <a class="btn btn-sm btn-primary ml-auto" routerLink="/dator/kvitton">Till kvittona</a>
       }
     </div>
 
@@ -32,15 +37,38 @@
     </label>
 
     @if (rader().length > 0) {
+      <!--
+        Cirkeln räknar uppladdningen, som är den del sidan äger. När den är full tar
+        läsningen vid, och den ägs av tjänsten — därför står det utskrivet att den
+        fortsätter i aktiviteten om man går härifrån.
+      -->
       <div class="mt-4 flex flex-wrap items-center gap-3">
+        @if (kor() || arkiverade() > 0) {
+          <div
+            class="radial-progress text-primary"
+            role="progressbar"
+            aria-label="Uppladdat"
+            [style]="'--value:' + andelUppladdat() + '; --size:3rem; --thickness:4px'"
+            [attr.aria-valuenow]="andelUppladdat()"
+          >
+            <span class="num text-xs text-base-content">{{ andelUppladdat() }}%</span>
+          </div>
+        }
+        @if (tolkning.laser(); as text) {
+          <span class="flex items-center gap-2">
+            <span class="loading loading-spinner loading-sm text-primary"></span>
+            {{ text }}
+          </span>
+        }
         <span class="num">
           {{ rader().length }} {{ rader().length === 1 ? 'fil' : 'filer' }}
-          @if (klara() > 0) { · {{ klara() }} i arkivet }
+          @if (arkiverade() > 0) { · {{ arkiverade() }} i arkivet }
+          @if (klara() > 0) { · {{ klara() }} lästa }
           @if (fel() > 0) { · {{ fel() }} gick inte }
         </span>
         <button type="button" class="btn btn-sm btn-primary ml-auto" [disabled]="kor() || kvar() === 0" (click)="importera()">
           @if (kor()) { <span class="loading loading-spinner loading-xs"></span> }
-          {{ kor() ? 'Skickar …' : 'Importera' }}
+          {{ kor() ? 'Arbetar …' : 'Importera och läs' }}
         </button>
         <button type="button" class="btn btn-sm btn-ghost" [disabled]="kor()" (click)="rensa()">Rensa listan</button>
       </div>
@@ -51,12 +79,30 @@
             @for (rad of rader(); track rad.namn) {
               <tr>
                 <td class="truncate">{{ rad.namn }}</td>
-                <td class="w-44 text-right">
+                <!--
+                  Raden visar vad som faktiskt kom ut: butiken och beloppet tolkningen
+                  läste. Det är svaret på "gick importen bra" — inte ett grönt hak.
+                -->
+                <td class="w-72 text-right">
                   @switch (rad.status) {
                     @case ('väntar') { <span class="text-neutral">Väntar</span> }
                     @case ('skickar') { <span class="loading loading-spinner loading-xs text-primary"></span> }
+                    @case ('arkiverad') { <span class="text-neutral">I arkivet</span> }
+                    @case ('tolkar') {
+                      <span class="flex items-center justify-end gap-2 text-neutral">
+                        <span class="loading loading-spinner loading-xs text-primary"></span> Läser …
+                      </span>
+                    }
                     @case ('klar') {
-                      <a class="link text-primary" [routerLink]="['/dator/kvitto', rad.id]">I arkivet</a>
+                      <a class="link text-primary" [routerLink]="['/dator/kvitto', rad.id]">
+                        @if (rad.butik || rad.belopp !== null) {
+                          <span class="num">{{ rad.butik ?? 'Utan butik' }}
+                            @if (rad.belopp !== null && rad.belopp !== undefined) { · {{ rad.belopp }} kr }
+                          </span>
+                        } @else {
+                          Ingen text lästes
+                        }
+                      </a>
                     }
                     @case ('fel') { <span class="text-error">{{ rad.fel }}</span> }
                   }

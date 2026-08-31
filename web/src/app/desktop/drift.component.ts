@@ -37,9 +37,41 @@ export class DriftComponent {
 
   readonly health = signal<Health | null>(null);
   readonly error = signal<string | null>(null);
+  readonly raknarOm = signal(false);
+  readonly omrakning = signal<string | null>(null);
 
   constructor() {
     this.refresh();
+  }
+
+  /**
+   * Räknar om fälten ur den text som redan lästs, för hela arkivet.
+   *
+   * Ingen bild läses om: det här är utvinningens regler körda en gång till, vilket är
+   * vad man vill när reglerna blivit bättre. Rättelser står kvar — de skrivs aldrig
+   * över av maskinen.
+   */
+  async raknaOmFalt(): Promise<void> {
+    this.raknarOm.set(true);
+    this.omrakning.set(null);
+    this.error.set(null);
+    try {
+      const svar = await fetch('/api/falt/omtolka', { method: 'POST' });
+      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (!svar.ok) throw new Error(String(svar.status));
+      const { omtolkade, utanText } = (await svar.json()) as { omtolkade: number; utanText: number };
+      // Kvitton utan text hoppas över, och det ska sägas: annars ser summan för låg ut
+      // och det går inte att veta om något gick fel eller om bilderna inte lästs än.
+      this.omrakning.set(
+        utanText > 0
+          ? `${omtolkade} kvitton räknades om. ${utanText} har ingen läst text ännu.`
+          : `${omtolkade} kvitton räknades om.`,
+      );
+    } catch {
+      this.error.set('Fälten gick inte att räkna om.');
+    } finally {
+      this.raknarOm.set(false);
+    }
   }
 
   refresh(): void {

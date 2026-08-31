@@ -5,10 +5,6 @@
 
   <div class="flex flex-wrap items-center gap-3 px-4 pt-4">
     <h1 class="text-xl font-semibold">Aktivitet</h1>
-    <div class="ml-auto flex items-center gap-2">
-      <button type="button" class="btn btn-sm" [disabled]="arbetar()" (click)="raknaOmFalt()">Räkna om fälten</button>
-      <button type="button" class="btn btn-sm btn-ghost" (click)="load()">Uppdatera</button>
-    </div>
   </div>
 
   @if (error(); as message) {
@@ -18,16 +14,26 @@
     </div>
   }
 
+  <!--
+    Ett arbete, en knapp. Skärmen hade fyra verb bredvid varandra — tolka alla, tolka
+    om, räkna om fälten, uppdatera — och det gick inte att se vilket som var vilket.
+    Kvar är det enda man kommer hit för: att få bilderna lästa. Uppdateringen sköter
+    sig själv, och omräkningen av fält är underhåll och bor på driftsidan.
+  -->
   @if (tolkning.snapshot().kor) {
     <div class="flex items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
       <span class="loading loading-spinner loading-sm text-primary"></span>
-      <span>{{ tolkasNu() ?? 'Tolkar …' }}</span>
-      <button type="button" class="btn btn-sm ml-auto" (click)="tolkning.stanna()">Sluta efter det här</button>
+      <span>{{ tolkning.laser() }}</span>
+      <button type="button" class="btn btn-sm ml-auto" (click)="tolkning.stanna()">Sluta</button>
     </div>
   } @else if (vantar() > 0) {
     <div class="flex items-center gap-3 border-b border-base-300 bg-base-100 px-4 py-2">
-      <span>{{ vantar() }} {{ vantar() === 1 ? 'kvitto väntar' : 'kvitton väntar' }} på tolkning</span>
-      <button type="button" class="btn btn-sm btn-primary ml-auto" (click)="tolka()">Tolka alla</button>
+      <span>
+        {{ vantar() }} {{ vantar() === 1 ? 'kvitto är inte läst' : 'kvitton är inte lästa' }}
+      </span>
+      <button type="button" class="btn btn-sm btn-primary ml-auto" (click)="tolka()">
+        {{ vantar() === 1 ? 'Läs det' : 'Läs dem' }}
+      </button>
     </div>
   }
 

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
@@ -38,6 +38,7 @@ type Aktivitet = { total: number; vantar: number; receipts: Rad[] };
 export class AktivitetComponent {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly avslut = inject(DestroyRef);
   readonly tolkning = inject(TolkningService);
 
   /** Samma skärm på båda ytorna; menyn och länkarna följer den man kom ifrån. */
@@ -56,6 +57,7 @@ export class AktivitetComponent {
   constructor() {
     void this.load();
     void this.tolkning.rakna();
+    this.lyssnaPaFokus();
   }
 
   async load(): Promise<void> {
@@ -80,25 +82,17 @@ export class AktivitetComponent {
   readonly arbetarMed = signal<string | null>(null);
 
   /**
-   * Räknar om fälten ur texten som redan lästs, för hela arkivet. Billigt: ingen bild
-   * öppnas. Det är vägen när utvinningsreglerna blivit bättre sedan kvittot tolkades.
+   * Listan hämtas om när fönstret får fokus. Knappen *Uppdatera* var ett handgrepp
+   * för något appen kan göra själv — och en knapp till att välja mellan.
    *
-   * Heter *räkna om*, inte *tolka om*: **tolka** är att läsa en bild, och det är en
-   * helt annan sak än att räkna om fält ur text som redan finns. Fyra knappar hette
-   * något med "tolka" och menade tre olika operationer.
+   * Lyssnaren tas bort med komponenten. Ett `addEventListener` utan sitt
+   * `removeEventListener` är samma fel som pulslyssnaren i tolkningstjänsten var:
+   * skärmen är borta, men något den startade lever kvar och hämtar.
    */
-  async raknaOmFalt(): Promise<void> {
-    this.arbetar.set(true);
-    try {
-      const svar = await fetch('/api/falt/omtolka', { method: 'POST' });
-      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
-      if (!svar.ok) throw new Error(String(svar.status));
-      await this.load();
-    } catch {
-      this.error.set('Fälten gick inte att räkna om.');
-    } finally {
-      this.arbetar.set(false);
-    }
+  private lyssnaPaFokus(): void {
+    const pa = (): void => void this.load();
+    window.addEventListener('focus', pa);
+    this.avslut.onDestroy(() => window.removeEventListener('focus', pa));
   }
 
   /**
@@ -199,9 +193,6 @@ export class AktivitetComponent {
       this.arbetar.set(false);
     }
   }
-
-  /** Kvittot som tolkas just nu, om den här datorn är den som tolkar. */
-  readonly tolkasNu = computed(() => (this.tolkning.snapshot().kor ? this.tolkning.snapshot().steg : null));
 
   status(rad: Rad): string {
     switch (rad.lage) {

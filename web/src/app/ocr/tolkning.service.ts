@@ -15,6 +15,8 @@ export type TolkningsLage = {
   aktuellt: string | null;
   steg: string | null;
   klaraIPasset: number;
+  /** Hur många kvitton passet omfattade när det började. Noll när inget pass körs. */
+  iPasset: number;
   /**
    * Räknare som bara går uppåt, över hela sessionen. Vyer lyssnar på den för att veta
    * när de ska hämta om sin lista — utan den tolkar appen vidare medan raderna står
@@ -50,6 +52,7 @@ export class TolkningService {
     aktuellt: null,
     steg: null,
     klaraIPasset: 0,
+    iPasset: 0,
     klaraTotalt: 0,
     fel: null,
   });
@@ -58,6 +61,29 @@ export class TolkningService {
   readonly vantande = computed(() => this.lage().vantande);
   /** Signalen vyerna hänger sina omhämtningar på. */
   readonly klaraTotalt = computed(() => this.lage().klaraTotalt);
+  /**
+   * Kvittot som läses just nu. Egen signal, inte `snapshot().aktuellt`: den som vill
+   * veta när tolkningen gått vidare till nästa kvitto ska inte väckas av varje
+   * bildsteg inuti ett kvitto.
+   */
+  readonly aktuellt = computed(() => this.lage().aktuellt);
+
+  /**
+   * Vad som läses just nu, i klartext — på ett ställe, för både importen och
+   * aktiviteten säger samma sak.
+   *
+   * "Läser bild 1 av 1" beskrev steget inuti ett kvitto och såg därför ut som att bara
+   * ett kvitto skulle läsas. Räkningen gäller passet: kvitto två av sju, med bildsteget
+   * som understycke när kvittot har flera bilder.
+   */
+  readonly laser = computed(() => {
+    const l = this.lage();
+    if (!l.kor) return null;
+    const av = l.iPasset;
+    const nr = Math.min(l.klaraIPasset + 1, Math.max(av, 1));
+    const kvittot = av > 1 ? `Läser kvitto ${nr} av ${av}` : 'Läser kvittot';
+    return l.steg ? `${kvittot} · ${l.steg}` : kvittot;
+  });
 
   private lopande = false;
   private stoppa = false;
@@ -91,7 +117,10 @@ export class TolkningService {
   async kor(): Promise<void> {
     if (this.lage().kor) return;
     this.stoppa = false;
-    this.lage.update((l) => ({ ...l, kor: true, fel: null, klaraIPasset: 0 }));
+    // Passets storlek fryses här: "läser 2 av 7" ska räkna det man startade, inte en
+    // kö som krymper medan man tittar på den.
+    const totalt = await this.rakna();
+    this.lage.update((l) => ({ ...l, kor: true, fel: null, klaraIPasset: 0, iPasset: totalt }));
     try {
       this.lage.update((l) => ({ ...l, steg: 'Laddar modellen …' }));
       await this.ocr.varm('tiny');
@@ -110,7 +139,7 @@ export class TolkningService {
     } catch (fel) {
       this.lage.update((l) => ({ ...l, fel: (fel instanceof Error ? fel.message : String(fel)) }));
     } finally {
-      this.lage.update((l) => ({ ...l, kor: false, aktuellt: null, steg: null }));
+      this.lage.update((l) => ({ ...l, kor: false, aktuellt: null, steg: null, iPasset: 0 }));
       await this.rakna();
     }
   }
@@ -125,7 +154,7 @@ export class TolkningService {
   async koraEtt(id: string): Promise<void> {
     if (this.lage().kor) return;
     this.stoppa = false;
-    this.lage.update((l) => ({ ...l, kor: true, fel: null, klaraIPasset: 0, aktuellt: id }));
+    this.lage.update((l) => ({ ...l, kor: true, fel: null, klaraIPasset: 0, iPasset: 1, aktuellt: id }));
     try {
       const jobb = await this.hamta(id);
       const mitt = jobb.find((j) => j.id === id);
@@ -134,7 +163,7 @@ export class TolkningService {
     } catch (fel) {
       this.lage.update((l) => ({ ...l, fel: (fel instanceof Error ? fel.message : String(fel)) }));
     } finally {
-      this.lage.update((l) => ({ ...l, kor: false, aktuellt: null, steg: null }));
+      this.lage.update((l) => ({ ...l, kor: false, aktuellt: null, steg: null, iPasset: 0 }));
       await this.rakna();
     }
   }

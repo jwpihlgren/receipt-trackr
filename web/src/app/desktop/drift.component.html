@@ -4,10 +4,22 @@
   </header>
 
   <main class="mx-auto w-full max-w-3xl p-4">
-    <div class="mb-4 flex items-center gap-3">
+    <div class="mb-4 flex flex-wrap items-center gap-3">
       <h1 class="text-xl font-semibold">Drift</h1>
-      <button type="button" class="btn btn-sm btn-ghost ml-auto" (click)="refresh()">Uppdatera</button>
+      <!--
+        Omräkningen av fält är underhåll: den läser ingen bild, den kör om utvinningen
+        mot text som redan finns, och den hör hemma här bredvid säkerhetskopian — inte
+        bland de val man gör om ett enskilt kvitto.
+      -->
+      <button type="button" class="btn btn-sm ml-auto" [disabled]="raknarOm()" (click)="raknaOmFalt()">
+        @if (raknarOm()) { <span class="loading loading-spinner loading-xs"></span> }
+        Räkna om fälten
+      </button>
+      <button type="button" class="btn btn-sm btn-ghost" (click)="refresh()">Uppdatera</button>
     </div>
+    @if (omrakning(); as text) {
+      <div role="status" class="alert alert-soft alert-success mb-4"><span>{{ text }}</span></div>
+    }
 
     @if (error(); as message) {
       <div role="alert" class="alert alert-soft alert-error"><span>{{ message }}</span></div>
