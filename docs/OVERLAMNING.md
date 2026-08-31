@@ -1,7 +1,8 @@
 # Överlämning
 
-Skriven 2026-08-30, omskriven samma kväll efter en dags omfattande ändringar. Läs den
-här filen först, sedan planen i `~/.claude/plans/atomic-waddling-nautilus.md`.
+Skriven 2026-08-30, omskriven samma kväll efter en dags omfattande ändringar, och
+utökad 2026-08-31 med *Ett arbete, en knapp*. Läs den här filen först, sedan planen i
+`~/.claude/plans/atomic-waddling-nautilus.md`.
 
 ## Vad det här är
 
@@ -71,7 +72,9 @@ i webbläsarfliken. Ett ställe, ett namn.
 | `/dator/kvitton` | arkivet: **bara klara** kvitton, tabell med filter, sorterad på kvittots eget datum |
 | `/dator/aktivitet` | allt som inte är klart, oavsett läge, med läget som kolumn |
 | `/dator/kvitto/:id` | bild, fält som formulär, radering |
-| `/dator/drift` | utrymme, monteringspunkt, säkerhetskopior |
+| `/dator/import` | en hög bilder ur en mapp in i arkivet — och lästa direkt efteråt |
+| `/dator/analys` | summan per månad och per kategori |
+| `/dator/drift` | utrymme, monteringspunkt, säkerhetskopior, omräkning av fälten |
 
 **Klart** betyder: fångsten avslutad, alla utlovade bilder framme, butik + datum +
 belopp lästa, och antingen en tolkning som gett text av dugligt kvalitetsmått **eller**
@@ -94,6 +97,40 @@ Två listor som frågar om samma sak måste fråga likadant.
 Det fanns en kö byggd på motsatt premiss — `/pass`, senare `/ratta` — som räknade varje
 fungerande tolkning som arbete åt beställaren. Den revs 2026-08-30. Förebilden är
 Sonarrs *Activity*: systemet gör jobbet, listan är undantagen.
+
+### Ett arbete, en knapp (2026-08-31)
+
+Aktiviteten hade fyra verb bredvid varandra i samma rad — *Tolka alla*, *Tolka om*,
+*Räkna om fälten*, *Uppdatera* — och det gick inte att se vilket som var vilket. Kvar
+är det enda man kommer dit för: att få bilderna lästa.
+
+**Uppdateringen sköter sig själv.** Listan hämtas om när fönstret får fokus. En knapp
+för något appen kan göra åt en är en knapp till att välja mellan.
+
+**Omräkningen av fälten bor på `/dator/drift`.** Den är underhåll: ingen bild öppnas,
+utvinningens regler körs om mot text som redan finns, och det man vill efter att
+reglerna blivit bättre. Där står den bredvid säkerhetskopian i stället för bland de val
+man gör om ett enskilt kvitto. Svaret räknar även upp kvitton **utan läst text**, som
+hoppas över — annars ser summan oförklarligt låg ut.
+
+**Importen läser bilderna själv, direkt efter uppladdningen.** Regeln att datorn bara
+arbetar när någon säger till gäller fortfarande — men den som valt trettio filer och
+tryckt *Importera och läs* **har** sagt till. Att kräva ett andra tryck på en annan
+skärm vore att låta en regel om obedd bakgrundskörning gälla ett arbete man just
+beställt. Ordningen är arkivera allt först, läsa sedan: bilden är oåterkallelig,
+texten är det inte.
+
+Sidan **äger inte** läsningen, den följer den. Tolkningstjänsten lever i roten, så den
+som lämnar importen mitt i får sina kvitton lästa ändå, och aktiviteten visar samma
+framdrift. Raden visar till slut butiken och beloppet som lästes — det är svaret på
+"gick importen bra", inte ett grönt hak.
+
+**Räkningen gäller passet, inte bilden.** "Läser bild 1 av 1" beskrev steget inuti ett
+kvitto och såg därför ut som att bara ett kvitto skulle läsas. Nu: *Läser kvitto 2 av
+7*, med bildsteget som understycke när kvittot har flera bilder. Passets storlek fryses
+när passet startar (`iPasset`) — en räknare mot en kö som krymper medan man tittar på
+den räknar ingenting. Meningen bor på ett ställe, `laser` i `tolkning.service.ts`, och
+telefonen, aktiviteten och importen säger därför samma sak.
 
 ## Gränssnittet
 
@@ -198,6 +235,13 @@ när den är stängd. Layouten hör på `[open]`, resten på elementet.
 
 **Ett klassnamn med två betydelser i samma fil.** `.farlig` var både en textfärg på
 lägesraden och en knappfyllnad; statusraden blev ett rött block utan läsbar text.
+
+Ett sjunde tillkom 2026-08-31: **en effekt som väcker sig själv.** `effect()` i
+importen läste `rader()` i spårat läge och skrev till samma signal — varje skrivning
+körde effekten igen. Det den ska vakna av är tjänstens tillstånd; resten ligger i
+`untracked`. Samma runda hämtade dessutom om hela listan vid varje färdigt kvitto,
+vilket för trettio filer blev trettio omgångar av trettio anrop. Nu hämtas bara det
+kvitto som faktiskt blev klart.
 Ingetdera av de här två syns i en diff — båda hittades av att skärmen renderades.
 
 ### Kvar av listan
@@ -242,9 +286,10 @@ en typskala, ett miniatyrformat, en ledande kontroll per telefonskärm, ett sät
 visa ett meddelande per yta. Dessutom: kvittovyn bryter vid **lg (1024)** och inte xl,
 för den staplade sig till en kolumn på varje laptop under 1280 px; laddläget heter
 "Hämtar …" överallt, inte "Läser status …" på driftsidan; och verben är ett per
-operation — **Tolka** läser en bild, **Räkna om** räknar fält ur text som redan finns,
-**Uppdatera** hämtar en frisk sida, **Försök igen** hämtar om efter ett fel. Fyra
-knappar hette något med "tolka" och menade tre olika saker.
+operation — **Läs** läser en bild, **Räkna om** räknar fält ur text som redan finns,
+**Försök igen** hämtar om efter ett fel. Fyra knappar hette något med "tolka" och
+menade tre olika saker. Dagen efter togs de tre som inte var arbetet bort helt; se
+*Ett arbete, en knapp*.
 
 **Skräpet är borta.** 33 döda tokens (granskningen sa 27; mekanisk räkning gav 33),
 `@angular/forms` ur `package.json` och låsfilen, `confirmedAt` som lästes men aldrig
