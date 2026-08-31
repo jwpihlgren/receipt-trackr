@@ -1,8 +1,11 @@
 <div class="min-h-dvh bg-base-200">
-  <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-2 sm:px-4">
+  <header class="navbar min-h-14 border-b border-base-300 bg-base-100 px-2 sm:px-4">
     <app-meny lage="dator" />
-    <h1 class="text-lg font-semibold">Analys</h1>
   </header>
+
+  <div class="flex items-baseline gap-3 px-4 pt-4">
+    <h1 class="text-xl font-semibold">Analys</h1>
+  </div>
 
   <form class="flex flex-wrap items-end gap-3 border-b border-base-300 bg-base-100 px-4 py-3" (submit)="$event.preventDefault()">
     <label class="floating-label">

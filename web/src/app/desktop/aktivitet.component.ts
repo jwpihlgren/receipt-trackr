@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
+import { RaderaRutaComponent } from '../shared/radera-ruta.component';
 import { tidpunkt } from '../shared/datum';
 
 type Lage = 'bilder' | 'ofullstandig' | 'vantar' | 'utan_text' | 'svag_text' | 'saknar_falt';
@@ -31,7 +32,7 @@ type Aktivitet = { total: number; vantar: number; receipts: Rad[] };
  */
 @Component({
   selector: 'app-aktivitet',
-  imports: [RouterLink, MenyComponent],
+  imports: [RouterLink, MenyComponent, RaderaRutaComponent],
   templateUrl: './aktivitet.component.html',
 })
 export class AktivitetComponent {
@@ -128,6 +129,31 @@ export class AktivitetComponent {
 
   avmarkera(): void {
     this.valda.set(new Set());
+  }
+
+  /** Raderingen bor bakom samma grind som i arkivet, och samma ruta ritar den. */
+  readonly fragar = signal(false);
+  readonly raderar = signal(false);
+
+  async radera(ordet: string): Promise<void> {
+    this.raderar.set(true);
+    try {
+      const svar = await fetch('/api/receipts/radera', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ids: [...this.valda()], bekraftelse: ordet }),
+      });
+      if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
+      if (!svar.ok) throw new Error(String(svar.status));
+      this.fragar.set(false);
+      this.avmarkera();
+      await this.load();
+      await this.tolkning.rakna();
+    } catch {
+      this.error.set('Kvittona gick inte att ta bort.');
+    } finally {
+      this.raderar.set(false);
+    }
   }
 
   valjAlla(event: Event): void {

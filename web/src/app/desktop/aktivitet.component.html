@@ -1,12 +1,15 @@
 <div class="min-h-dvh bg-base-200">
-  <header class="navbar min-h-14 gap-3 border-b border-base-300 bg-base-100 px-2 sm:px-4">
+  <header class="navbar min-h-14 border-b border-base-300 bg-base-100 px-2 sm:px-4">
     <app-meny [lage]="yta()" />
-    <h1 class="text-lg font-semibold">Aktivitet</h1>
+  </header>
+
+  <div class="flex flex-wrap items-center gap-3 px-4 pt-4">
+    <h1 class="text-xl font-semibold">Aktivitet</h1>
     <div class="ml-auto flex items-center gap-2">
       <button type="button" class="btn btn-sm" [disabled]="arbetar()" (click)="raknaOmFalt()">Räkna om fälten</button>
       <button type="button" class="btn btn-sm btn-ghost" (click)="load()">Uppdatera</button>
     </div>
-  </header>
+  </div>
 
   @if (error(); as message) {
     <div role="alert" class="alert alert-soft alert-error mx-4 mt-4 w-auto">
@@ -73,6 +76,7 @@
                     <button type="button" class="btn btn-sm btn-primary ml-auto" [disabled]="arbetar()" (click)="lasOmValda()">
                       Tolka om
                     </button>
+                    <button type="button" class="btn btn-sm btn-error" (click)="fragar.set(true)">Ta bort</button>
                     <button type="button" class="btn btn-sm btn-ghost" (click)="avmarkera()">Avmarkera</button>
                   </div>
                 </th>
@@ -137,4 +141,13 @@
       </div>
     }
   </main>
+
+  @if (fragar()) {
+    <app-radera-ruta
+      [antal]="valda().size"
+      [arbetar]="raderar()"
+      (bekraftat)="radera($event)"
+      (avbrutet)="fragar.set(false)"
+    />
+  }
 </div>

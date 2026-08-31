@@ -184,26 +184,15 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
       });
     }
 
-    /**
-     * **Ett id är ett köp, inte ett fotografi.** Arkivets rader är köp — tre bilder av
-     * samma kvitto är en rad — och den som tar bort raden menar köpet. Utan den här
-     * utvidgningen försvann en medlem, nästa tog dess plats som radens ansikte, och
-     * raden stod kvar fast raderingen svarat att den lyckats.
-     */
-    const alla = new Set<string>();
-    for (const id of ids as string[]) {
-      alla.add(id);
-      for (const medlem of gruppFor(archive.db, id)?.medlemmar ?? []) alla.add(medlem.id);
-    }
-
     // En i taget, i ordning: raderingen är index först och filer sedan, och den
-    // ordningen får inte vävas ihop mellan kvitton. Det som inte fanns räknas för
-    // sig — ett omtaget anrop efter en tappad uppkoppling ska inte se ut som ett fel.
+    // ordningen får inte vävas ihop mellan kvitton. `taBort` tar hela köpet, så ett
+    // id räcker även när kvittot fotograferats flera gånger. Det som inte fanns
+    // räknas för sig — ett omtaget anrop efter en tappad uppkoppling är inte ett fel.
     let borttagna = 0;
     let saknades = 0;
-    for (const id of alla) {
-      const { borttaget } = await archive.taBort(id);
-      if (borttaget) borttagna++;
+    for (const id of ids as string[]) {
+      const { borttaget, antal } = await archive.taBort(id);
+      if (borttaget) borttagna += antal;
       else saknades++;
     }
     return reply.send({ borttagna, saknades });
@@ -277,8 +266,29 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
     if (!receipt) return reply.code(404).send({ error: "not_found" });
     const ofardigt = lageFor(archive.db, request.params.id);
     const gruppen = gruppFor(archive.db, request.params.id);
+
+    /**
+     * **Ett kvitto är ett köp, inte en fångst.** Har samma papper fotograferats tre
+     * gånger hör alla bilderna till kvittot, och skärmen ska visa dem tillsammans —
+     * annars öppnar man ett kvitto som säger "3 bilder" och ser en.
+     *
+     * Varje bild bär vilket kvitto den ligger i, för det är dit en vridning eller en
+     * kassering ska skickas. Fångsterna är fortfarande egna sidecarer på disk; det är
+     * skrivordningen som kräver det, och den syns inte här.
+     */
+    const bilder = [
+      ...receipt.segments.map((segment, i) => ({ kvitto: receipt.id, index: i + 1, ...segment })),
+    ];
+    for (const medlem of gruppen?.medlemmar ?? []) {
+      if (medlem.id === receipt.id) continue;
+      const annat = await archive.get(medlem.id);
+      if (!annat) continue;
+      bilder.push(...annat.segments.map((segment, i) => ({ kvitto: annat.id, index: i + 1, ...segment })));
+    }
+
     return {
       ...receipt,
+      bilder,
       ...(gruppen ? { fields: gruppen.falt, egnaFalt: receipt.fields } : {}),
       grupp: gruppen?.grupp ? { id: gruppen.grupp, medlemmar: gruppen.medlemmar } : null,
       // Kategorin är härledd ur butiken och står därför inte i sidecaren, utom när en
@@ -550,10 +560,14 @@ export function registerReceipts(app: FastifyInstance, archive: Archive): void {
    * Raderar kvittot och allt som hör till det. Oåterkalleligt — bilderna finns ingen
    * annanstans. Bekräftelsen hör hemma i gränssnittet, inte i en extra parameter här.
    */
+  /**
+   * Tar bort kvittot — hela köpet. Har samma papper fotograferats flera gånger går
+   * alla fångsterna, för de är ett kvitto och inte flera.
+   */
   app.delete<{ Params: { id: string } }>("/api/receipts/:id", async (request, reply) => {
-    const { borttaget } = await archive.taBort(request.params.id);
+    const { borttaget, antal } = await archive.taBort(request.params.id);
     if (!borttaget) return reply.code(404).send({ error: "not_found" });
-    return reply.code(204).send();
+    return reply.code(200).send({ borttagna: antal });
   });
 
   /** Avslutar en fångst telefonen aldrig hann avsluta, med de bilder som kom fram. */

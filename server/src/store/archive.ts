@@ -19,6 +19,7 @@ import { saveSegment, skrivTumnagel, ImageError } from "./images.js";
 import {
   dragbara,
   gruppFor,
+  gruppmedlemmar,
   openIndex,
   raknaOmKategorier,
   remove,
@@ -410,12 +411,29 @@ export class Archive {
    * andra hållet blir följden i stället en rad som pekar på filer som inte finns.
    * Av de två felen är det första det harmlösa.
    */
-  async taBort(id: string): Promise<{ borttaget: boolean }> {
-    const receipt = await this.get(id);
-    if (!receipt) return { borttaget: false };
-    remove(this.db, id, this.kategorierna);
-    await rm(receiptDir(this.dataDir, id), { recursive: true, force: true });
-    return { borttaget: true };
+  async taBort(id: string, bara = false): Promise<{ borttaget: boolean; antal: number }> {
+    /**
+     * **Ett kvitto är ett köp, inte ett fotografi.** Har samma papper fotograferats
+     * tre gånger är de tre fångsterna ett kvitto, och den som tar bort det menar
+     * alltihop. Utan det här försvann den fångst raden råkade visa, nästa tog dess
+     * plats, och raden stod kvar fast svaret sa att raderingen lyckats — tre gånger
+     * för ett kvitto.
+     *
+     * `bara` finns för det motsatta fallet: en enskild fångst som ska bort utan att
+     * ta köpet med sig. Den vägen används inte av gränssnittet i dag.
+     */
+    const ids = bara ? [id] : gruppmedlemmar(this.db, id);
+    if (ids.length === 0) return { borttaget: false, antal: 0 };
+
+    let antal = 0;
+    for (const medlem of ids) {
+      const receipt = await this.get(medlem);
+      if (!receipt) continue;
+      remove(this.db, medlem, this.kategorierna);
+      await rm(receiptDir(this.dataDir, medlem), { recursive: true, force: true });
+      antal++;
+    }
+    return { borttaget: antal > 0, antal };
   }
 
   /**

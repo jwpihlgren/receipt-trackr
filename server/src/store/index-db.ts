@@ -423,6 +423,16 @@ function skrivEffektiva(db: ReceiptIndex, id: string, grupp: string | null, kate
 
 export type Gruppmedlem = { id: string; capturedAt: string; segments: number };
 
+/** Alla kvitton som utgör samma köp, det egna inräknat. Tom lista när kvittot är ensamt. */
+export function gruppmedlemmar(db: ReceiptIndex, id: string): string[] {
+  const rad = db.prepare("SELECT grupp FROM receipts WHERE id = ?").get(id) as { grupp: string | null } | undefined;
+  if (!rad) return [];
+  if (!rad.grupp) return [id];
+  return (db.prepare("SELECT id FROM receipts WHERE grupp = ? ORDER BY id").all(rad.grupp) as { id: string }[]).map(
+    (r) => r.id,
+  );
+}
+
 /**
  * Gruppen ett kvitto står i, och de fält gruppen kommit fram till.
  *

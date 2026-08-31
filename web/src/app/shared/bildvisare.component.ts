@@ -3,6 +3,8 @@ import { Component, ElementRef, computed, effect, input, output, signal, viewChi
 export type VisadBild = {
   /** Filnamnet i arkivet, `segment-01.jpg`. */
   file: string;
+  /** Fångsten bilden ligger i. Ett kvitto kan bestå av flera. */
+  kvitto: string;
   index: number;
   url: string;
   width: number;

@@ -20,6 +20,12 @@ type Segment = {
 /** Ett annat fotografi av samma köp. Servern räknar fram gruppen ur kvittots nummer. */
 type Gruppmedlem = { id: string; capturedAt: string; segments: number };
 
+/**
+ * En bild som hör till kvittot, oavsett vilken fångst den kom in med. `kvitto` är den
+ * fångst bilden ligger i — dit en vridning eller en kassering ska skickas.
+ */
+type Bild = Segment & { kvitto: string; index: number };
+
 export type Falt = {
   value: string | number;
   confidence: number;
@@ -48,6 +54,8 @@ type Receipt = {
   tags: { user: string[]; auto: string[] };
   lostSegments?: { at: string; utlovade: number; faktiska: number };
   kasserade?: { at: string; index: number; sha256: string; orsak: 'ersatt' | 'borttagen' }[];
+  /** Kvittots alla bilder — även de som kom in med en annan fångst av samma köp. */
+  bilder: Bild[];
   /** Kvitton som visar samma köp, eller `null` när det här är ensamt om sitt. */
   grupp: { id: string; medlemmar: Gruppmedlem[] } | null;
   /** Kategorin som gäller: kvittots egen om någon satt en, annars butikens regel. */
@@ -162,16 +170,22 @@ export class KvittoComponent {
    * lägga summan i adressen håller båda sanningarna: gamla adressen pekade på gamla
    * bytesen, och den nya bilden hämtas därför att den har en annan adress.
    */
-  readonly bilder = computed<VisadBild[]>(() =>
-    (this.receipt()?.segments ?? []).map((s, i) => ({
+  readonly bilder = computed<VisadBild[]>(() => {
+    const r = this.receipt();
+    if (!r) return [];
+    // Kvittots alla bilder, i den ordning de fångades. Servern har redan vägt samman
+    // fångsterna; här är de en enda remsa, för det är vad ett kvitto är.
+    const alla = r.bilder ?? r.segments.map((s, i) => ({ ...s, kvitto: r.id, index: i + 1 }));
+    return alla.map((s) => ({
       file: s.file,
-      index: i + 1,
-      url: `${this.bild(s.file)}?v=${s.sha256.slice(0, 12)}`,
+      kvitto: s.kvitto,
+      index: s.index,
+      url: `/api/receipts/${s.kvitto}/files/${s.file}?v=${s.sha256.slice(0, 12)}`,
       width: s.width,
       height: s.height,
       rotation: s.rotation ?? 0,
-    })),
-  );
+    }));
+  });
 
   readonly aktuell = computed<VisadBild | null>(() => this.bilder()[this.vald()] ?? null);
 
@@ -255,8 +269,8 @@ export class KvittoComponent {
     });
   }
 
-  tumnagel(index: number): string {
-    return `/api/receipts/${this.id()}/thumbs/${index}`;
+  tumnagel(bild: VisadBild): string {
+    return `/api/receipts/${bild.kvitto}/thumbs/${bild.index}`;
   }
 
   oppnaVisaren(index: number): void {
@@ -266,7 +280,8 @@ export class KvittoComponent {
 
   /** Vridningen sparas på kvittot — den är en människas ord om bilden, inte en vy. */
   async vridBild(handelse: { index: number; rotation: 0 | 90 | 180 | 270 }): Promise<void> {
-    await this.skriv(`/api/receipts/${this.id()}/segments/${handelse.index}/rotation`, {
+    const bild = this.bilder().find((b) => b.index === handelse.index && b.kvitto === this.aktuell()?.kvitto);
+    await this.skriv(`/api/receipts/${bild?.kvitto ?? this.id()}/segments/${handelse.index}/rotation`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ rotation: handelse.rotation }),
@@ -280,7 +295,10 @@ export class KvittoComponent {
     if (!fil) return;
     const kropp = new FormData();
     kropp.append('file', fil);
-    await this.skriv(`/api/receipts/${this.id()}/segments/${index}`, { method: 'PUT', body: kropp });
+    await this.skriv(`/api/receipts/${this.aktuell()?.kvitto ?? this.id()}/segments/${index}`, {
+      method: 'PUT',
+      body: kropp,
+    });
   }
 
   /** Lägger till en bild på ett kvitto som redan ligger i arkivet. */
@@ -306,8 +324,9 @@ export class KvittoComponent {
   }
 
   async kasseraBild(index: number): Promise<void> {
+    const kvitto = this.aktuell()?.kvitto ?? this.id();
     this.fragarKassera.set(null);
-    await this.skriv(`/api/receipts/${this.id()}/segments/${index}`, { method: 'DELETE' });
+    await this.skriv(`/api/receipts/${kvitto}/segments/${index}`, { method: 'DELETE' });
     this.vald.set(0);
   }
 

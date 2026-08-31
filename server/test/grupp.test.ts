@@ -157,16 +157,38 @@ describe("kvitton som visar samma köp", () => {
     const kapat = await lagg("colorama-90-b");
     const tredje = await lagg("colorama-90-c");
 
-    await archive.taBort(forsta);
+    // `bara`: en enskild fångst, utan att ta kvittot med sig. Den vanliga vägen tar
+    // hela köpet — tre foton av samma papper är ett kvitto — och det prövas nedan.
+    await archive.taBort(forsta, true);
     expect(gruppFor(archive.db, kapat)!.medlemmar.map((m) => m.id).sort()).toEqual([kapat, tredje].sort());
     expect((gruppFor(archive.db, kapat)!.falt.store as { value: string }).value).toBe("Colorama");
 
-    await archive.taBort(tredje);
+    await archive.taBort(tredje, true);
     const ensamt = gruppFor(archive.db, kapat)!;
     expect(ensamt.grupp).toBeNull();
     expect(ensamt.medlemmar).toEqual([]);
     expect(ensamt.falt.store).toBeUndefined();
     expect(ofardiga(archive.db).map((r) => r.id)).toEqual([kapat]);
+  });
+
+  /**
+   * Raderingen tar kvittot, inte fotografiet.
+   *
+   * Det var det som gjorde att beställarens fem sista rader inte försvann: han tog
+   * bort den fångst raden visade, nästa tog dess plats, och raden stod kvar fast
+   * svaret sa att raderingen lyckats — tre gånger för ett kvitto.
+   */
+  it("tar hela kvittot, hur många gånger papperet än fotograferats", async () => {
+    const forsta = await lagg("colorama-90-a");
+    await lagg("colorama-90-b");
+    await lagg("colorama-90-c");
+    expect(arkiv(archive.db, {}).total).toBe(1);
+
+    const { antal } = await archive.taBort(forsta);
+
+    expect(antal).toBe(3);
+    expect(arkiv(archive.db, {}).total).toBe(0);
+    expect(ofardiga(archive.db)).toEqual([]);
   });
 
   /**

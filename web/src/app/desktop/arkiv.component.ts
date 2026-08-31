@@ -1,7 +1,8 @@
-import { Component, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TolkningService } from '../ocr/tolkning.service';
 import { MenyComponent } from '../shared/meny.component';
+import { RaderaRutaComponent } from '../shared/radera-ruta.component';
 import { datum } from '../shared/datum';
 
 type Rad = {
@@ -42,7 +43,7 @@ const FORSTA_RIKTNINGEN: Record<Kolumn, boolean> = {
  */
 @Component({
   selector: 'app-arkiv',
-  imports: [RouterLink, MenyComponent],
+  imports: [RouterLink, MenyComponent, RaderaRutaComponent],
   templateUrl: './arkiv.component.html',
 })
 export class ArkivComponent {
@@ -97,9 +98,8 @@ export class ArkivComponent {
    * samma ord: ett formulär är ingen spärr, det är en artighet.
    */
   readonly valda = signal(new Set<string>());
-  readonly bekraftelse = signal('');
+  readonly fragar = signal(false);
   readonly raderar = signal(false);
-  private readonly rutan = viewChild<ElementRef<HTMLDialogElement>>('raderaRuta');
 
   readonly fraga = signal('');
   readonly butik = signal('');
@@ -208,20 +208,16 @@ export class ArkivComponent {
   }
 
   fragaRadera(): void {
-    this.bekraftelse.set('');
-    this.rutan()?.nativeElement.showModal();
+    this.fragar.set(true);
   }
 
-  avbrytRadera(): void {
-    this.rutan()?.nativeElement.close();
-  }
-
-  onBekraftelse(event: Event): void {
-    this.bekraftelse.set((event.target as HTMLInputElement).value);
-  }
-
-  /** Ordet måste stämma här också — men det är serverns prövning som är spärren. */
-  readonly farRadera = computed(() => this.bekraftelse().trim().toLowerCase() === 'radera');
+  /** Vad som följer med, när ett köp är fotograferat mer än en gång. */
+  readonly tillaggstext = computed(() => {
+    const kvitton = this.valdaKvitton();
+    return kvitton > this.valda().size
+      ? `Köpen är fotograferade flera gånger — ${kvitton} fångster tas bort.`
+      : null;
+  });
 
   /**
    * Hur många kvitton de valda köpen består av. En rad är ett köp, och ett köp kan
@@ -231,19 +227,18 @@ export class ArkivComponent {
     (this.rader() ?? []).filter((r) => this.valda().has(r.id)).reduce((n, r) => n + Math.max(1, r.medlemmar), 0),
   );
 
-  async radera(): Promise<void> {
-    if (!this.farRadera()) return;
+  async radera(ordet: string): Promise<void> {
     this.raderar.set(true);
     try {
       const svar = await fetch('/api/receipts/radera', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ids: [...this.valda()], bekraftelse: this.bekraftelse() }),
+        body: JSON.stringify({ ids: [...this.valda()], bekraftelse: ordet }),
       });
       if (svar.status === 401) return void this.router.navigateByUrl('/logga-in');
       if (!svar.ok) throw new Error(String(svar.status));
       const { borttagna } = (await svar.json()) as { borttagna: number };
-      this.rutan()?.nativeElement.close();
+      this.fragar.set(false);
       this.avmarkera();
       this.raderat.set(borttagna);
       setTimeout(() => this.raderat.set(0), 4000);
